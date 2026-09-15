@@ -1,0 +1,326 @@
+<?php
+
+namespace App\Controllers\Api;
+
+use App\Core\Acl;
+use App\Core\Auth;
+use App\Core\AuditLogger;
+use App\Core\Controller;
+use App\Core\Csrf;
+use App\Core\Request;
+use App\Models\MasterData;
+use App\Models\QueueStatusHistory;
+use App\Models\Role;
+use App\Models\SalesQueue;
+use App\Models\User;
+
+class QueueApiController extends Controller
+{
+    private const STATUSES = ['new', 'waiting_followup', 'in_progress', 'waiting_engineer', 'done', 'cancelled'];
+    private const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
+
+    /** Polled by the queue list/dashboard to keep the indicator tiles live. */
+    public function summary(Request $request): void
+    {
+        $scopeSalesId = (Acl::hasRole('sales') && !Acl::can('queue.manage')) ? Auth::id() : null;
+
+        $this->json([
+            'counts' => SalesQueue::dashboardCounts($scopeSalesId),
+            'server_time' => date('c'),
+        ]);
+    }
+
+    /** Polled by the queue detail page to notice out-of-band changes. */
+    public function ping(Request $request, array $params): void
+    {
+        $queue = $this->authorizedQueue((int) $params['id']);
+        if ($queue === null) {
+            return;
+        }
+
+        $this->json([
+            'status' => $queue['status'],
+            'priority' => $queue['priority'],
+            'sales_id' => $queue['sales_id'] ? (int) $queue['sales_id'] : null,
+            'sales_name' => $queue['sales_name'],
+            'updated_at' => $queue['updated_at'],
+        ]);
+    }
+
+    public function updateStatus(Request $request, array $params): void
+    {
+        $queue = $this->authorizedQueueForWrite((int) $params['id']);
+        if ($queue === null) {
+            return;
+        }
+
+        if (!Csrf::verifyRequest()) {
+            $this->json(['error' => 'csrf'], 419);
+
+            return;
+        }
+
+        $newStatus = (string) $request->input('status');
+        if (!in_array($newStatus, self::STATUSES, true)) {
+            $this->json(['error' => 'Status tidak valid.'], 422);
+
+            return;
+        }
+
+        $oldStatus = $queue['status'];
+        if ($newStatus === $oldStatus) {
+            $this->json(['success' => true, 'unchanged' => true]);
+
+            return;
+        }
+
+        $now = date('Y-m-d H:i:s');
+        SalesQueue::update((int) $queue['id'], [
+            'status' => $newStatus,
+            'last_updated_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $notes = trim((string) $request->input('notes', '')) ?: null;
+        QueueStatusHistory::record((int) $queue['id'], $oldStatus, $newStatus, Auth::id(), $notes);
+
+        $statusMap = MasterData::allAsMap('queue_statuses');
+
+        $this->json([
+            'success' => true,
+            'status' => $newStatus,
+            'label' => $statusMap[$newStatus]['name'] ?? $newStatus,
+            'color' => $statusMap[$newStatus]['color'] ?? 'muted',
+            'updated_at' => $now,
+        ]);
+    }
+
+    public function updatePriority(Request $request, array $params): void
+    {
+        $queue = $this->authorizedQueueForWrite((int) $params['id']);
+        if ($queue === null) {
+            return;
+        }
+
+        if (!Csrf::verifyRequest()) {
+            $this->json(['error' => 'csrf'], 419);
+
+            return;
+        }
+
+        $newPriority = (string) $request->input('priority');
+        if (!in_array($newPriority, self::PRIORITIES, true)) {
+            $this->json(['error' => 'Prioritas tidak valid.'], 422);
+
+            return;
+        }
+
+        $oldPriority = $queue['priority'];
+        $now = date('Y-m-d H:i:s');
+
+        SalesQueue::update((int) $queue['id'], [
+            'priority' => $newPriority,
+            'last_updated_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        AuditLogger::log((int) Auth::id(), 'queue_priority_changed', 'queue', (int) $queue['id'], ['priority' => $oldPriority], ['priority' => $newPriority]);
+
+        $priorityMap = MasterData::allAsMap('priorities');
+
+        $this->json([
+            'success' => true,
+            'priority' => $newPriority,
+            'label' => $priorityMap[$newPriority]['name'] ?? $newPriority,
+            'color' => $priorityMap[$newPriority]['color'] ?? 'muted',
+            'updated_at' => $now,
+        ]);
+    }
+
+    public function assign(Request $request, array $params): void
+    {
+        if (!Acl::can('queue.manage')) {
+            $this->json(['error' => 'forbidden'], 403);
+
+            return;
+        }
+
+        $queue = SalesQueue::withRelations((int) $params['id']);
+        if ($queue === null) {
+            $this->json(['error' => 'not_found'], 404);
+
+            return;
+        }
+
+        if (!Csrf::verifyRequest()) {
+            $this->json(['error' => 'csrf'], 419);
+
+            return;
+        }
+
+        $salesId = (int) $request->input('sales_id');
+        $salesRole = Role::findBySlug('sales');
+        $user = $salesId ? User::find($salesId) : null;
+
+        if (!$salesId || $user === null || (int) $user['is_active'] !== 1 || (int) $user['role_id'] !== (int) ($salesRole['id'] ?? 0)) {
+            $this->json(['error' => 'Sales tidak valid atau tidak aktif.'], 422);
+
+            return;
+        }
+
+        $oldSalesId = (int) $queue['sales_id'];
+        $oldSalesName = $queue['sales_name'];
+        $now = date('Y-m-d H:i:s');
+
+        SalesQueue::update((int) $queue['id'], [
+            'sales_id' => $salesId,
+            'last_updated_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        AuditLogger::log((int) Auth::id(), 'queue_assigned', 'queue', (int) $queue['id'], [
+            'sales_id' => $oldSalesId,
+            'sales_name' => $oldSalesName,
+        ], [
+            'sales_id' => $salesId,
+            'sales_name' => $user['name'],
+        ]);
+
+        $this->json([
+            'success' => true,
+            'sales_id' => $salesId,
+            'sales_name' => $user['name'],
+            'updated_at' => $now,
+        ]);
+    }
+
+    public function updateDeadline(Request $request, array $params): void
+    {
+        $queue = $this->authorizedQueueForWrite((int) $params['id']);
+        if ($queue === null) {
+            return;
+        }
+
+        if (!Csrf::verifyRequest()) {
+            $this->json(['error' => 'csrf'], 419);
+
+            return;
+        }
+
+        $date = $this->validateDate((string) $request->input('deadline', ''));
+        if ($date === false) {
+            $this->json(['error' => 'Format tanggal tidak valid.'], 422);
+
+            return;
+        }
+
+        $now = date('Y-m-d H:i:s');
+        SalesQueue::update((int) $queue['id'], [
+            'deadline' => $date ?: null,
+            'last_updated_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        AuditLogger::log((int) Auth::id(), 'queue_deadline_changed', 'queue', (int) $queue['id'], ['deadline' => $queue['deadline']], ['deadline' => $date ?: null]);
+
+        $this->json([
+            'success' => true,
+            'deadline' => $date ?: null,
+            'is_overdue' => $date !== '' && $date < date('Y-m-d'),
+            'updated_at' => $now,
+        ]);
+    }
+
+    public function updateFollowUpDate(Request $request, array $params): void
+    {
+        $queue = $this->authorizedQueueForWrite((int) $params['id']);
+        if ($queue === null) {
+            return;
+        }
+
+        if (!Csrf::verifyRequest()) {
+            $this->json(['error' => 'csrf'], 419);
+
+            return;
+        }
+
+        $date = $this->validateDate((string) $request->input('follow_up_date', ''));
+        if ($date === false) {
+            $this->json(['error' => 'Format tanggal tidak valid.'], 422);
+
+            return;
+        }
+
+        $now = date('Y-m-d H:i:s');
+        SalesQueue::update((int) $queue['id'], [
+            'followup_date' => $date ?: null,
+            'last_updated_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        AuditLogger::log((int) Auth::id(), 'queue_followup_date_changed', 'queue', (int) $queue['id'], ['followup_date' => $queue['followup_date']], ['followup_date' => $date ?: null]);
+
+        $this->json([
+            'success' => true,
+            'follow_up_date' => $date ?: null,
+            'updated_at' => $now,
+        ]);
+    }
+
+    private function authorizedQueue(int $id): ?array
+    {
+        $queue = SalesQueue::withRelations($id);
+
+        if ($queue === null) {
+            $this->json(['error' => 'not_found'], 404);
+
+            return null;
+        }
+
+        if (Acl::hasRole('sales') && !Acl::can('queue.manage') && (int) $queue['sales_id'] !== Auth::id()) {
+            $this->json(['error' => 'forbidden'], 403);
+
+            return null;
+        }
+
+        return $queue;
+    }
+
+    /**
+     * Stricter than authorizedQueue(): only queue.manage holders (Admin
+     * Sales, Super Admin) or the Sales rep this item is actually assigned
+     * to may change it — a Manager/Engineer with mere queue.view must not
+     * be able to write through this endpoint.
+     */
+    private function authorizedQueueForWrite(int $id): ?array
+    {
+        $queue = SalesQueue::withRelations($id);
+
+        if ($queue === null) {
+            $this->json(['error' => 'not_found'], 404);
+
+            return null;
+        }
+
+        $isOwner = Acl::hasRole('sales') && (int) $queue['sales_id'] === Auth::id();
+
+        if (!Acl::can('queue.manage') && !$isOwner) {
+            $this->json(['error' => 'forbidden'], 403);
+
+            return null;
+        }
+
+        return $queue;
+    }
+
+    /** @return string|false '' means "clear the date" */
+    private function validateDate(string $date): string|false
+    {
+        $date = trim($date);
+        if ($date === '') {
+            return '';
+        }
+
+        return preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) ? $date : false;
+    }
+}

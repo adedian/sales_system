@@ -1,0 +1,21 @@
+{
+    "name": "internal/sistem-internal-sales",
+    "description": "Sistem Internal Sales - Enterprise Internal Sales Management Platform",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.0",
+        "dompdf/dompdf": "^3.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        },
+        "files": [
+            "app/Helpers/helpers.php"
+        ]
+    },
+    "config": {
+        "optimize-autoloader": true
+    }
+}

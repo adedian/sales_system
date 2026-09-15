@@ -1,0 +1,631 @@
+<?php
+
+namespace App\Controllers;
+
+use App\Core\Acl;
+use App\Core\Auth;
+use App\Core\AuditLogger;
+use App\Core\Controller;
+use App\Core\Csrf;
+use App\Core\Request;
+use App\Core\Session;
+use App\Core\Validator;
+use App\Models\AuditLog;
+use App\Models\EngineerAssignment;
+use App\Models\FollowUp;
+use App\Models\Lead;
+use App\Models\LeadStatusHistory;
+use App\Models\MasterData;
+use App\Models\Notification;
+use App\Models\ProcurementRequest;
+use App\Models\Proposal;
+use App\Models\Role;
+use App\Models\SalesQueue;
+use App\Models\User;
+
+class LeadController extends Controller
+{
+    public function index(Request $request): void
+    {
+        $filters = [
+            'q' => trim((string) $request->input('q', '')),
+            'status' => $request->input('status', ''),
+            'priority' => $request->input('priority', ''),
+            'source_id' => $request->input('source_id', ''),
+            'category_id' => $request->input('category_id', ''),
+            'sales_id' => $request->input('sales_id', ''),
+            'follow_up' => $request->input('follow_up', ''),
+            'sort' => $request->input('sort', 'created_at'),
+            'dir' => $request->input('dir', 'desc'),
+            'page' => (int) $request->input('page', 1),
+            'trashed' => $request->input('trashed') ? true : false,
+        ];
+
+        if ($this->scopeSalesId() !== null) {
+            $filters['scope_sales_id'] = $this->scopeSalesId();
+            $filters['trashed'] = false; // sales users never see the trash bin
+        }
+
+        $result = Lead::search($filters);
+
+        $this->view('leads/index', [
+            'pageTitle' => 'Leads',
+            'leads' => $result['rows'],
+            'total' => $result['total'],
+            'page' => $result['page'],
+            'totalPages' => $result['totalPages'],
+            'filters' => $filters,
+            'statusCounts' => Lead::countByStatus($this->scopeSalesId()),
+            'statusMap' => MasterData::allAsMap('lead_statuses'),
+            'priorityMap' => MasterData::allAsMap('priorities'),
+            'sources' => MasterData::allAsMap('lead_sources', true),
+            'categories' => MasterData::allAsMap('lead_categories', true),
+            'salesUsers' => User::activeByRole($this->salesRoleId() ?? 0),
+            'canManage' => Acl::can('lead.edit'),
+            'canAssign' => Acl::can('lead.assign'),
+            'canDelete' => Acl::can('lead.delete'),
+        ]);
+    }
+
+    public function create(): void
+    {
+        $this->renderForm(null);
+    }
+
+    public function store(Request $request): void
+    {
+        if (!Csrf::verifyRequest()) {
+            Session::flash('error', 'Sesi telah kedaluwarsa, silakan coba lagi.');
+            $this->redirect('/leads/create');
+
+            return;
+        }
+
+        $validator = new Validator($request->all(), [
+            'customer_name' => 'required|max:150',
+            'email' => 'email|max:150',
+            'phone' => 'max:30',
+            'priority' => 'required|in:low,medium,high,urgent',
+        ]);
+
+        if ($validator->fails()) {
+            Session::flash('error', collect_first_error($validator->errors()));
+            Session::flashOld($request->only(['customer_name', 'company_name', 'phone', 'email', 'address', 'source_id', 'category_id', 'need_type_id', 'needs_description', 'estimated_value', 'notes', 'priority', 'sales_id', 'follow_up_date']));
+            $this->redirect('/leads/create');
+
+            return;
+        }
+
+        $actor = Auth::user();
+        $salesId = $this->scopeSalesId() ?? $this->nullableInt($request->input('sales_id'));
+
+        $lead = Lead::createWithCode([
+            'customer_name' => trim((string) $request->input('customer_name')),
+            'company_name' => trim((string) $request->input('company_name', '')) ?: null,
+            'phone' => trim((string) $request->input('phone', '')) ?: null,
+            'email' => trim((string) $request->input('email', '')) ?: null,
+            'address' => trim((string) $request->input('address', '')) ?: null,
+            'source_id' => $this->nullableInt($request->input('source_id')),
+            'category_id' => $this->nullableInt($request->input('category_id')),
+            'need_type_id' => $this->nullableInt($request->input('need_type_id')),
+            'needs_description' => trim((string) $request->input('needs_description', '')) ?: null,
+            'estimated_value' => $request->input('estimated_value') !== '' ? (float) $request->input('estimated_value') : null,
+            'notes' => trim((string) $request->input('notes', '')) ?: null,
+            'status' => 'new',
+            'priority' => $request->input('priority'),
+            'sales_id' => $salesId,
+            'follow_up_date' => $request->input('follow_up_date') ?: null,
+            'created_by' => $actor['id'],
+            'updated_by' => $actor['id'],
+            'created_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        LeadStatusHistory::record($lead['id'], null, 'new', (int) $actor['id'], 'Lead dibuat.');
+
+        AuditLogger::log((int) $actor['id'], 'lead_created', 'lead', $lead['id'], null, [
+            'lead_code' => $lead['lead_code'],
+            'customer_name' => $request->input('customer_name'),
+        ]);
+
+        Session::flash('success', "Lead {$lead['lead_code']} berhasil dibuat.");
+        $this->redirect('/leads/' . $lead['id']);
+    }
+
+    public function show(Request $request, array $params): void
+    {
+        $lead = $this->findAuthorized((int) $params['id']);
+
+        $timeline = $this->buildTimeline((int) $lead['id']);
+        $engineerRole = Role::findBySlug('engineer-sales');
+        $procurementRole = Role::findBySlug('procurement');
+
+        $this->view('leads/show', [
+            'pageTitle' => $lead['lead_code'],
+            'lead' => $lead,
+            'timeline' => $timeline,
+            'statusMap' => MasterData::allAsMap('lead_statuses'),
+            'priorityMap' => MasterData::allAsMap('priorities'),
+            'salesUsers' => User::activeByRole($this->salesRoleId() ?? 0),
+            'canManage' => Acl::can('lead.edit') && !$this->isReadOnlyForSales($lead),
+            'canAssign' => Acl::can('lead.assign'),
+            'canDelete' => Acl::can('lead.delete'),
+            'activeQueue' => SalesQueue::activeForLead((int) $lead['id']),
+            'canEnqueue' => Acl::can('lead.edit') && !$this->isReadOnlyForSales($lead),
+            'activeEngineerAssignment' => EngineerAssignment::activeForLead((int) $lead['id']),
+            'latestEngineerAssignment' => EngineerAssignment::latestForLead((int) $lead['id']),
+            'engineerStatusMap' => MasterData::allAsMap('engineer_statuses'),
+            'engineerUsers' => $engineerRole ? User::activeByRole((int) $engineerRole['id']) : [],
+            'canRequestEngineer' => Acl::can('lead.edit') && Acl::can('engineer.view') && !$this->isReadOnlyForSales($lead),
+            'activeProcurementRequest' => ProcurementRequest::activeForLead((int) $lead['id']),
+            'latestProcurementRequest' => ProcurementRequest::latestForLead((int) $lead['id']),
+            'procurementStatusMap' => MasterData::allAsMap('procurement_statuses'),
+            'procurementUsers' => $procurementRole ? User::activeByRole((int) $procurementRole['id']) : [],
+            'canRequestProcurement' => Acl::can('lead.edit') && Acl::can('procurement.view') && !$this->isReadOnlyForSales($lead),
+            'proposals' => Proposal::forLead((int) $lead['id']),
+            'proposalStatusMap' => MasterData::allAsMap('proposal_statuses'),
+            'canCreateProposal' => Acl::can('lead.edit') && Acl::can('proposal.create') && !$this->isReadOnlyForSales($lead),
+            'followUps' => FollowUp::forLead((int) $lead['id']),
+            'canLogFollowUp' => Acl::can('followup.create') && !$this->isReadOnlyForSales($lead) && !$lead['deleted_at'],
+            'followUpMethodLabels' => (new FollowUpController())->methodLabels(),
+            'followUpResponseLabels' => (new FollowUpController())->responseLabels(),
+            'canManageDeal' => Acl::can('lead.edit') && !$this->isReadOnlyForSales($lead) && !$lead['deleted_at'],
+            'wonLostProposals' => array_values(array_filter(Proposal::forLead((int) $lead['id']), fn ($p) => in_array($p['status'], ['sent', 'viewed', 'negotiation', 'accepted'], true))),
+        ]);
+    }
+
+    public function edit(Request $request, array $params): void
+    {
+        $lead = $this->findAuthorized((int) $params['id']);
+        $this->renderForm($lead);
+    }
+
+    public function update(Request $request, array $params): void
+    {
+        $lead = $this->findAuthorized((int) $params['id']);
+
+        if (!Csrf::verifyRequest()) {
+            Session::flash('error', 'Sesi telah kedaluwarsa, silakan coba lagi.');
+            $this->redirect('/leads/' . $lead['id'] . '/edit');
+
+            return;
+        }
+
+        $validator = new Validator($request->all(), [
+            'customer_name' => 'required|max:150',
+            'email' => 'email|max:150',
+            'phone' => 'max:30',
+            'priority' => 'required|in:low,medium,high,urgent',
+        ]);
+
+        if ($validator->fails()) {
+            Session::flash('error', collect_first_error($validator->errors()));
+            $this->redirect('/leads/' . $lead['id'] . '/edit');
+
+            return;
+        }
+
+        $actor = Auth::user();
+
+        $newData = [
+            'customer_name' => trim((string) $request->input('customer_name')),
+            'company_name' => trim((string) $request->input('company_name', '')) ?: null,
+            'phone' => trim((string) $request->input('phone', '')) ?: null,
+            'email' => trim((string) $request->input('email', '')) ?: null,
+            'address' => trim((string) $request->input('address', '')) ?: null,
+            'source_id' => $this->nullableInt($request->input('source_id')),
+            'category_id' => $this->nullableInt($request->input('category_id')),
+            'need_type_id' => $this->nullableInt($request->input('need_type_id')),
+            'needs_description' => trim((string) $request->input('needs_description', '')) ?: null,
+            'estimated_value' => $request->input('estimated_value') !== '' ? (float) $request->input('estimated_value') : null,
+            'notes' => trim((string) $request->input('notes', '')) ?: null,
+            'priority' => $request->input('priority'),
+            'follow_up_date' => $request->input('follow_up_date') ?: null,
+            'updated_by' => $actor['id'],
+            'updated_at' => date('Y-m-d H:i:s'),
+        ];
+
+        Lead::update((int) $lead['id'], $newData);
+
+        AuditLogger::log((int) $actor['id'], 'lead_updated', 'lead', (int) $lead['id'], [
+            'customer_name' => $lead['customer_name'],
+            'priority' => $lead['priority'],
+        ], [
+            'customer_name' => $newData['customer_name'],
+            'priority' => $newData['priority'],
+        ]);
+
+        Session::flash('success', 'Lead berhasil diperbarui.');
+        $this->redirect('/leads/' . $lead['id']);
+    }
+
+    public function destroy(Request $request, array $params): void
+    {
+        $lead = Lead::withRelations((int) $params['id']);
+        if ($lead === null) {
+            $this->abort(404);
+
+            return;
+        }
+
+        if (!Csrf::verifyRequest()) {
+            Session::flash('error', 'Sesi telah kedaluwarsa, silakan coba lagi.');
+            $this->redirect('/leads');
+
+            return;
+        }
+
+        Lead::softDelete((int) $lead['id']);
+
+        AuditLogger::log((int) Auth::id(), 'lead_deleted', 'lead', (int) $lead['id'], ['lead_code' => $lead['lead_code']], null);
+
+        Session::flash('success', "Lead {$lead['lead_code']} dipindahkan ke sampah.");
+        $this->redirect('/leads');
+    }
+
+    public function restore(Request $request, array $params): void
+    {
+        $lead = Lead::withRelationsIncludingTrashed((int) $params['id']);
+        if ($lead === null) {
+            $this->abort(404);
+
+            return;
+        }
+
+        if (!Csrf::verifyRequest()) {
+            Session::flash('error', 'Sesi telah kedaluwarsa, silakan coba lagi.');
+            $this->redirect('/leads?trashed=1');
+
+            return;
+        }
+
+        Lead::restore((int) $lead['id']);
+
+        AuditLogger::log((int) Auth::id(), 'lead_restored', 'lead', (int) $lead['id'], null, ['lead_code' => $lead['lead_code']]);
+
+        Session::flash('success', "Lead {$lead['lead_code']} berhasil dipulihkan.");
+        $this->redirect('/leads?trashed=1');
+    }
+
+    /**
+     * "Lead → Masuk Antrian": the Phase 6 entry point into Sales Queue.
+     * Creates the sales_queue row and moves the lead's own status to
+     * in_queue — the two stay independently manageable afterward.
+     */
+    public function enqueue(Request $request, array $params): void
+    {
+        $lead = $this->findAuthorized((int) $params['id']);
+
+        if (!Csrf::verifyRequest()) {
+            Session::flash('error', 'Sesi telah kedaluwarsa, silakan coba lagi.');
+            $this->redirect('/leads/' . $lead['id']);
+
+            return;
+        }
+
+        if (SalesQueue::activeForLead((int) $lead['id']) !== null) {
+            Session::flash('error', 'Lead ini sudah memiliki antrian aktif.');
+            $this->redirect('/leads/' . $lead['id']);
+
+            return;
+        }
+
+        if (empty($lead['sales_id'])) {
+            Session::flash('error', 'Tugaskan lead ke sales terlebih dahulu sebelum memasukkan ke antrian.');
+            $this->redirect('/leads/' . $lead['id']);
+
+            return;
+        }
+
+        $actor = Auth::user();
+        $now = date('Y-m-d H:i:s');
+
+        $queueId = SalesQueue::createForLead([
+            'lead_id' => (int) $lead['id'],
+            'sales_id' => (int) $lead['sales_id'],
+            'priority' => $lead['priority'],
+            'status' => 'new',
+            'entered_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+            'last_updated_at' => $now,
+        ]);
+
+        \App\Models\QueueStatusHistory::record($queueId, null, 'new', (int) $actor['id'], 'Lead dimasukkan ke antrian.');
+        AuditLogger::log((int) $actor['id'], 'queue_created', 'queue', $queueId, null, ['lead_code' => $lead['lead_code']]);
+
+        $oldStatus = $lead['status'];
+        Lead::update((int) $lead['id'], ['status' => 'in_queue', 'updated_by' => $actor['id'], 'updated_at' => $now]);
+        LeadStatusHistory::record((int) $lead['id'], $oldStatus, 'in_queue', (int) $actor['id'], 'Masuk antrian sales.');
+
+        Session::flash('success', 'Lead berhasil dimasukkan ke antrian.');
+        $this->redirect('/queue/' . $queueId);
+    }
+
+    // ------------------------------------------------------------------
+    // Phase 10 — Deal Management: close a lead out as Won or Lost.
+    // ------------------------------------------------------------------
+
+    public function markWon(Request $request, array $params): void
+    {
+        $lead = $this->findAuthorized((int) $params['id']);
+
+        if (!Csrf::verifyRequest()) {
+            Session::flash('error', 'Sesi telah kedaluwarsa, silakan coba lagi.');
+            $this->redirect('/leads/' . $lead['id']);
+
+            return;
+        }
+
+        if (!Acl::can('lead.edit') || $this->isReadOnlyForSales($lead) || in_array($lead['status'], ['won', 'lost'], true)) {
+            $this->abort(403);
+
+            return;
+        }
+
+        $validator = new Validator($request->all(), [
+            'deal_value' => 'required|numeric',
+            'closing_date' => 'required',
+        ]);
+
+        if ($validator->fails()) {
+            Session::flash('error', 'Nilai deal dan tanggal closing wajib diisi dengan benar.');
+            $this->redirect('/leads/' . $lead['id']);
+
+            return;
+        }
+
+        $wonProposalId = $this->nullableInt($request->input('won_proposal_id'));
+        if ($wonProposalId !== null) {
+            $proposal = Proposal::find($wonProposalId);
+            if ($proposal === null || (int) $proposal['lead_id'] !== (int) $lead['id']) {
+                $wonProposalId = null;
+            }
+        }
+
+        $actor = Auth::user();
+        $now = date('Y-m-d H:i:s');
+        $oldStatus = $lead['status'];
+
+        Lead::update((int) $lead['id'], [
+            'status' => 'won',
+            'deal_value' => (float) $request->input('deal_value'),
+            'won_proposal_id' => $wonProposalId,
+            'closing_date' => $request->input('closing_date'),
+            'customer_confirmed' => $request->input('customer_confirmed') ? 1 : 0,
+            'confirmation_notes' => trim((string) $request->input('confirmation_notes', '')) ?: null,
+            'lost_reason' => null,
+            'updated_by' => $actor['id'],
+            'updated_at' => $now,
+        ]);
+
+        if ($wonProposalId !== null) {
+            $wonProposal = Proposal::find($wonProposalId);
+            if ($wonProposal !== null && $wonProposal['status'] !== 'accepted') {
+                Proposal::update($wonProposalId, ['status' => 'accepted', 'responded_at' => $now, 'updated_at' => $now]);
+                \App\Models\ProposalStatusHistory::record($wonProposalId, $wonProposal['status'], 'accepted', (int) $actor['id'], 'Deal ditandai Won.');
+            }
+        }
+
+        LeadStatusHistory::record((int) $lead['id'], $oldStatus, 'won', (int) $actor['id'], 'Deal closing: Rp ' . number_format((float) $request->input('deal_value'), 0, ',', '.'));
+        AuditLogger::log((int) $actor['id'], 'lead_marked_won', 'lead', (int) $lead['id'], ['status' => $oldStatus], ['status' => 'won', 'deal_value' => $request->input('deal_value')]);
+
+        $managerRole = Role::findBySlug('manager');
+        if ($managerRole !== null) {
+            foreach (User::activeByRole((int) $managerRole['id']) as $manager) {
+                Notification::create(
+                    (int) $manager['id'],
+                    'lead_won',
+                    'Deal Baru: Won',
+                    "Lead {$lead['lead_code']} ({$lead['customer_name']}) ditutup sebagai Won senilai Rp " . number_format((float) $request->input('deal_value'), 0, ',', '.') . '.',
+                    '/leads/' . $lead['id']
+                );
+            }
+        }
+
+        Session::flash('success', 'Lead ditandai sebagai Won. Selamat!');
+        $this->redirect('/leads/' . $lead['id']);
+    }
+
+    public function markLost(Request $request, array $params): void
+    {
+        $lead = $this->findAuthorized((int) $params['id']);
+
+        if (!Csrf::verifyRequest()) {
+            Session::flash('error', 'Sesi telah kedaluwarsa, silakan coba lagi.');
+            $this->redirect('/leads/' . $lead['id']);
+
+            return;
+        }
+
+        if (!Acl::can('lead.edit') || $this->isReadOnlyForSales($lead) || in_array($lead['status'], ['won', 'lost'], true)) {
+            $this->abort(403);
+
+            return;
+        }
+
+        $validator = new Validator($request->all(), ['lost_reason' => 'required|max:1000']);
+        if ($validator->fails()) {
+            Session::flash('error', 'Alasan kalah wajib diisi.');
+            $this->redirect('/leads/' . $lead['id']);
+
+            return;
+        }
+
+        $actor = Auth::user();
+        $now = date('Y-m-d H:i:s');
+        $oldStatus = $lead['status'];
+        $reason = trim((string) $request->input('lost_reason'));
+
+        Lead::update((int) $lead['id'], [
+            'status' => 'lost',
+            'lost_reason' => $reason,
+            'closing_date' => $request->input('closing_date') ?: date('Y-m-d'),
+            'deal_value' => null,
+            'won_proposal_id' => null,
+            'updated_by' => $actor['id'],
+            'updated_at' => $now,
+        ]);
+
+        LeadStatusHistory::record((int) $lead['id'], $oldStatus, 'lost', (int) $actor['id'], $reason);
+        AuditLogger::log((int) $actor['id'], 'lead_marked_lost', 'lead', (int) $lead['id'], ['status' => $oldStatus], ['status' => 'lost', 'lost_reason' => $reason]);
+
+        $managerRole = Role::findBySlug('manager');
+        if ($managerRole !== null) {
+            foreach (User::activeByRole((int) $managerRole['id']) as $manager) {
+                Notification::create(
+                    (int) $manager['id'],
+                    'lead_lost',
+                    'Deal Ditutup: Lost',
+                    "Lead {$lead['lead_code']} ({$lead['customer_name']}) ditutup sebagai Lost: {$reason}",
+                    '/leads/' . $lead['id']
+                );
+            }
+        }
+
+        Session::flash('success', 'Lead ditandai sebagai Lost.');
+        $this->redirect('/leads/' . $lead['id']);
+    }
+
+    /** Undo an accidental Won/Lost — reopens the deal for the pipeline stage it was closed from. */
+    public function reopenDeal(Request $request, array $params): void
+    {
+        $lead = $this->findAuthorized((int) $params['id']);
+
+        if (!Csrf::verifyRequest()) {
+            Session::flash('error', 'Sesi telah kedaluwarsa, silakan coba lagi.');
+            $this->redirect('/leads/' . $lead['id']);
+
+            return;
+        }
+
+        if (!Acl::can('lead.edit') || $this->isReadOnlyForSales($lead) || !in_array($lead['status'], ['won', 'lost'], true)) {
+            $this->abort(403);
+
+            return;
+        }
+
+        $actor = Auth::user();
+        $now = date('Y-m-d H:i:s');
+        $oldStatus = $lead['status'];
+
+        $lastTransition = LeadStatusHistory::mostRecentTransitionTo((int) $lead['id'], $oldStatus);
+        $restoredStatus = $lastTransition['from_status'] ?? (!empty($lead['won_proposal_id']) ? 'proposal' : 'follow_up');
+        if (in_array($restoredStatus, ['won', 'lost'], true) || $restoredStatus === null) {
+            $restoredStatus = !empty($lead['won_proposal_id']) ? 'proposal' : 'follow_up';
+        }
+
+        Lead::update((int) $lead['id'], [
+            'status' => $restoredStatus,
+            'updated_by' => $actor['id'],
+            'updated_at' => $now,
+        ]);
+
+        LeadStatusHistory::record((int) $lead['id'], $oldStatus, $restoredStatus, (int) $actor['id'], 'Status deal dibuka kembali.');
+        AuditLogger::log((int) $actor['id'], 'lead_deal_reopened', 'lead', (int) $lead['id'], ['status' => $oldStatus], ['status' => $restoredStatus]);
+
+        Session::flash('success', 'Status deal dibuka kembali.');
+        $this->redirect('/leads/' . $lead['id']);
+    }
+
+    // ------------------------------------------------------------------
+    // Shared helpers
+    // ------------------------------------------------------------------
+
+    private function renderForm(?array $lead): void
+    {
+        $this->view('leads/form', [
+            'pageTitle' => $lead ? 'Ubah Lead' : 'Tambah Lead',
+            'lead' => $lead,
+            'sources' => MasterData::allAsMap('lead_sources', true),
+            'categories' => MasterData::allAsMap('lead_categories', true),
+            'needTypes' => MasterData::allAsMap('need_types', true),
+            'priorities' => MasterData::allAsMap('priorities', true),
+            'salesUsers' => User::activeByRole($this->salesRoleId() ?? 0),
+            'showSalesField' => $this->scopeSalesId() === null,
+        ]);
+    }
+
+    private function findAuthorized(int $id): array
+    {
+        $lead = Lead::withRelations($id);
+
+        if ($lead === null) {
+            $this->abort(404);
+        }
+
+        $scopeSalesId = $this->scopeSalesId();
+        if ($scopeSalesId !== null && (int) $lead['sales_id'] !== $scopeSalesId) {
+            $this->abort(403, 'Anda hanya dapat mengakses lead yang ditugaskan kepada Anda.');
+        }
+
+        return $lead;
+    }
+
+    /**
+     * Sales users are scoped to their own leads; everyone else with
+     * lead.view (Admin Sales, Manager, Engineer Sales, Super Admin) sees
+     * the whole list.
+     */
+    private function scopeSalesId(): ?int
+    {
+        return Acl::hasRole('sales') ? Auth::id() : null;
+    }
+
+    private function isReadOnlyForSales(array $lead): bool
+    {
+        $scopeSalesId = $this->scopeSalesId();
+
+        return $scopeSalesId !== null && (int) $lead['sales_id'] !== $scopeSalesId;
+    }
+
+    private function salesRoleId(): ?int
+    {
+        static $id = null;
+        if ($id === null) {
+            $role = \App\Models\Role::findBySlug('sales');
+            $id = $role ? (int) $role['id'] : 0;
+        }
+
+        return $id;
+    }
+
+    private function nullableInt(mixed $value): ?int
+    {
+        return ($value === null || $value === '') ? null : (int) $value;
+    }
+
+    private function buildTimeline(int $leadId): array
+    {
+        $statusEvents = array_map(function ($row) {
+            return [
+                'type' => 'status',
+                'created_at' => $row['created_at'],
+                'actor' => $row['changed_by_name'] ?? 'Sistem',
+                'from' => $row['from_status'],
+                'to' => $row['to_status'],
+                'notes' => $row['notes'],
+            ];
+        }, LeadStatusHistory::forLead($leadId));
+
+        $auditEvents = array_values(array_filter(array_map(function ($row) {
+            if (in_array($row['action'], ['lead_created', 'lead_status_changed', 'lead_marked_won', 'lead_marked_lost', 'lead_deal_reopened'], true)) {
+                return null; // all already appear via lead_status_history above
+            }
+
+            return [
+                'type' => 'audit',
+                'created_at' => $row['created_at'],
+                'actor' => $row['user_name'] ?? 'Sistem',
+                'action' => $row['action'],
+                'old_data' => $row['old_data'] ? json_decode($row['old_data'], true) : null,
+                'new_data' => $row['new_data'] ? json_decode($row['new_data'], true) : null,
+            ];
+        }, AuditLog::forRecord('lead', $leadId))));
+
+        $merged = array_merge($statusEvents, $auditEvents);
+        usort($merged, fn ($a, $b) => strcmp($b['created_at'], $a['created_at']));
+
+        return $merged;
+    }
+}

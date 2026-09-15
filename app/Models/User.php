@@ -1,0 +1,101 @@
+<?php
+
+namespace App\Models;
+
+use App\Core\Database;
+use App\Core\Model;
+
+class User extends Model
+{
+    protected static string $table = 'users';
+    protected static bool $softDeletes = true;
+
+    public static function findByUsername(string $username): ?array
+    {
+        return static::whereFirst('username', $username);
+    }
+
+    public static function findByEmail(string $email): ?array
+    {
+        return static::whereFirst('email', $email);
+    }
+
+    public static function activeByRole(int $roleId): array
+    {
+        return Database::fetchAll(
+            'SELECT * FROM users WHERE role_id = ? AND is_active = 1 AND deleted_at IS NULL ORDER BY name ASC',
+            [$roleId]
+        );
+    }
+
+    public static function withRole(int $id): ?array
+    {
+        $sql = "SELECT users.*, roles.name AS role_name, roles.slug AS role_slug
+                FROM users
+                LEFT JOIN roles ON roles.id = users.role_id
+                WHERE users.id = ? AND users.deleted_at IS NULL";
+
+        return Database::fetch($sql, [$id]);
+    }
+
+    public static function countActive(): int
+    {
+        return (int) (Database::fetch(
+            "SELECT COUNT(*) AS total FROM users WHERE deleted_at IS NULL AND is_active = 1"
+        )['total'] ?? 0);
+    }
+
+    /**
+     * List + search + filter + pagination for the User Management screen.
+     *
+     * @param array{q?:string,role_id?:int,status?:string,page?:int,per_page?:int} $filters
+     * @return array{rows:array,total:int,page:int,perPage:int,totalPages:int}
+     */
+    public static function search(array $filters): array
+    {
+        $where = ['users.deleted_at IS NULL'];
+        $params = [];
+
+        if (!empty($filters['q'])) {
+            $where[] = '(users.name LIKE ? OR users.username LIKE ? OR users.email LIKE ?)';
+            $like = '%' . $filters['q'] . '%';
+            array_push($params, $like, $like, $like);
+        }
+
+        if (!empty($filters['role_id'])) {
+            $where[] = 'users.role_id = ?';
+            $params[] = (int) $filters['role_id'];
+        }
+
+        if (($filters['status'] ?? '') === 'active') {
+            $where[] = 'users.is_active = 1';
+        } elseif (($filters['status'] ?? '') === 'inactive') {
+            $where[] = 'users.is_active = 0';
+        }
+
+        $whereSql = implode(' AND ', $where);
+
+        $total = (int) (Database::fetch(
+            "SELECT COUNT(*) AS total FROM users WHERE {$whereSql}",
+            $params
+        )['total'] ?? 0);
+
+        $perPage = max(1, (int) ($filters['per_page'] ?? 20));
+        $page = max(1, (int) ($filters['page'] ?? 1));
+        $totalPages = max(1, (int) ceil($total / $perPage));
+        $page = min($page, $totalPages);
+        $offset = ($page - 1) * $perPage;
+
+        $rows = Database::fetchAll(
+            "SELECT users.*, roles.name AS role_name, roles.slug AS role_slug
+             FROM users
+             LEFT JOIN roles ON roles.id = users.role_id
+             WHERE {$whereSql}
+             ORDER BY users.created_at DESC
+             LIMIT {$perPage} OFFSET {$offset}",
+            $params
+        );
+
+        return ['rows' => $rows, 'total' => $total, 'page' => $page, 'perPage' => $perPage, 'totalPages' => $totalPages];
+    }
+}
