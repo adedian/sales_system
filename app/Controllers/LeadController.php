@@ -14,6 +14,7 @@ use App\Models\AuditLog;
 use App\Models\EngineerAssignment;
 use App\Models\FollowUp;
 use App\Models\Lead;
+use App\Models\LeadSales;
 use App\Models\LeadStatusHistory;
 use App\Models\MasterData;
 use App\Models\Notification;
@@ -30,9 +31,13 @@ class LeadController extends Controller
         $filters = [
             'q' => trim((string) $request->input('q', '')),
             'status' => $request->input('status', ''),
+            'simple_status' => $request->input('simple_status', ''),
             'priority' => $request->input('priority', ''),
             'source_id' => $request->input('source_id', ''),
             'category_id' => $request->input('category_id', ''),
+            'type_id' => $request->input('type_id', ''),
+            'system_id' => $request->input('system_id', ''),
+            'funding_id' => $request->input('funding_id', ''),
             'sales_id' => $request->input('sales_id', ''),
             'follow_up' => $request->input('follow_up', ''),
             'sort' => $request->input('sort', 'created_at'),
@@ -48,6 +53,12 @@ class LeadController extends Controller
 
         $result = Lead::search($filters);
 
+        $salesByLead = LeadSales::forLeads(array_column($result['rows'], 'id'));
+        foreach ($result['rows'] as &$row) {
+            $row['sales_names'] = $salesByLead[(int) $row['id']] ?? [];
+        }
+        unset($row);
+
         $this->view('leads/index', [
             'pageTitle' => 'Leads',
             'leads' => $result['rows'],
@@ -60,6 +71,9 @@ class LeadController extends Controller
             'priorityMap' => MasterData::allAsMap('priorities'),
             'sources' => MasterData::allAsMap('lead_sources', true),
             'categories' => MasterData::allAsMap('lead_categories', true),
+            'leadTypes' => MasterData::allAsMap('lead_types', true),
+            'leadSystems' => MasterData::allAsMap('lead_systems', true),
+            'fundingSources' => MasterData::allAsMap('funding_sources', true),
             'salesUsers' => User::activeByRole($this->salesRoleId() ?? 0),
             'canManage' => Acl::can('lead.edit'),
             'canAssign' => Acl::can('lead.assign'),
@@ -90,14 +104,23 @@ class LeadController extends Controller
 
         if ($validator->fails()) {
             Session::flash('error', collect_first_error($validator->errors()));
-            Session::flashOld($request->only(['customer_name', 'company_name', 'phone', 'email', 'address', 'source_id', 'category_id', 'need_type_id', 'needs_description', 'estimated_value', 'notes', 'priority', 'sales_id', 'follow_up_date']));
+            Session::flashOld($request->only(['customer_name', 'company_name', 'phone', 'email', 'address', 'site_location', 'source_id', 'category_id', 'type_id', 'system_id', 'funding_id', 'need_type_id', 'needs_description', 'estimated_value', 'size_kwp', 'notes', 'note2', 'priority', 'sales_ids', 'follow_up_date']));
             $this->redirect('/leads/create');
 
             return;
         }
 
         $actor = Auth::user();
-        $salesId = $this->scopeSalesId() ?? $this->nullableInt($request->input('sales_id'));
+
+        // A scoped Sales user always creates their own lead regardless of what
+        // was posted; otherwise take whichever sales were checked (first = primary).
+        $salesIds = $this->scopeSalesId() !== null
+            ? [$this->scopeSalesId()]
+            : array_values(array_unique(array_filter(array_map('intval', (array) $request->input('sales_ids', [])))));
+        $primarySalesId = $salesIds[0] ?? null;
+
+        $notes = trim((string) $request->input('notes', '')) ?: null;
+        $note2 = trim((string) $request->input('note2', '')) ?: null;
 
         $lead = Lead::createWithCode([
             'customer_name' => trim((string) $request->input('customer_name')),
@@ -105,15 +128,22 @@ class LeadController extends Controller
             'phone' => trim((string) $request->input('phone', '')) ?: null,
             'email' => trim((string) $request->input('email', '')) ?: null,
             'address' => trim((string) $request->input('address', '')) ?: null,
+            'site_location' => trim((string) $request->input('site_location', '')) ?: null,
             'source_id' => $this->nullableInt($request->input('source_id')),
             'category_id' => $this->nullableInt($request->input('category_id')),
+            'type_id' => $this->nullableInt($request->input('type_id')),
+            'system_id' => $this->nullableInt($request->input('system_id')),
+            'funding_id' => $this->nullableInt($request->input('funding_id')),
             'need_type_id' => $this->nullableInt($request->input('need_type_id')),
             'needs_description' => trim((string) $request->input('needs_description', '')) ?: null,
             'estimated_value' => $request->input('estimated_value') !== '' ? (float) $request->input('estimated_value') : null,
-            'notes' => trim((string) $request->input('notes', '')) ?: null,
+            'size_kwp' => $request->input('size_kwp') !== '' ? (float) $request->input('size_kwp') : null,
+            'notes' => $notes,
+            'note2' => $note2,
+            'note_updated_at' => ($notes !== null || $note2 !== null) ? date('Y-m-d H:i:s') : null,
             'status' => 'new',
             'priority' => $request->input('priority'),
-            'sales_id' => $salesId,
+            'sales_id' => $primarySalesId,
             'follow_up_date' => $request->input('follow_up_date') ?: null,
             'created_by' => $actor['id'],
             'updated_by' => $actor['id'],
@@ -121,11 +151,18 @@ class LeadController extends Controller
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
 
+        if (!empty($salesIds)) {
+            LeadSales::sync($lead['id'], $salesIds);
+        }
+
         LeadStatusHistory::record($lead['id'], null, 'new', (int) $actor['id'], 'Lead dibuat.');
 
         AuditLogger::log((int) $actor['id'], 'lead_created', 'lead', $lead['id'], null, [
             'lead_code' => $lead['lead_code'],
             'customer_name' => $request->input('customer_name'),
+            'type_id' => $this->nullableInt($request->input('type_id')),
+            'system_id' => $this->nullableInt($request->input('system_id')),
+            'funding_id' => $this->nullableInt($request->input('funding_id')),
         ]);
 
         Session::flash('success', "Lead {$lead['lead_code']} berhasil dibuat.");
@@ -144,6 +181,8 @@ class LeadController extends Controller
             'pageTitle' => $lead['lead_code'],
             'lead' => $lead,
             'timeline' => $timeline,
+            'assignedSales' => LeadSales::forLead((int) $lead['id']),
+            'simplifiedStatus' => Lead::simplifiedStatus($lead['status']),
             'statusMap' => MasterData::allAsMap('lead_statuses'),
             'priorityMap' => MasterData::allAsMap('priorities'),
             'salesUsers' => User::activeByRole($this->salesRoleId() ?? 0),
@@ -207,32 +246,63 @@ class LeadController extends Controller
 
         $actor = Auth::user();
 
+        $notes = trim((string) $request->input('notes', '')) ?: null;
+        $note2 = trim((string) $request->input('note2', '')) ?: null;
+        $notesChanged = $notes !== $lead['notes'] || $note2 !== $lead['note2'];
+
         $newData = [
             'customer_name' => trim((string) $request->input('customer_name')),
             'company_name' => trim((string) $request->input('company_name', '')) ?: null,
             'phone' => trim((string) $request->input('phone', '')) ?: null,
             'email' => trim((string) $request->input('email', '')) ?: null,
             'address' => trim((string) $request->input('address', '')) ?: null,
+            'site_location' => trim((string) $request->input('site_location', '')) ?: null,
             'source_id' => $this->nullableInt($request->input('source_id')),
             'category_id' => $this->nullableInt($request->input('category_id')),
+            'type_id' => $this->nullableInt($request->input('type_id')),
+            'system_id' => $this->nullableInt($request->input('system_id')),
+            'funding_id' => $this->nullableInt($request->input('funding_id')),
             'need_type_id' => $this->nullableInt($request->input('need_type_id')),
             'needs_description' => trim((string) $request->input('needs_description', '')) ?: null,
             'estimated_value' => $request->input('estimated_value') !== '' ? (float) $request->input('estimated_value') : null,
-            'notes' => trim((string) $request->input('notes', '')) ?: null,
+            'size_kwp' => $request->input('size_kwp') !== '' ? (float) $request->input('size_kwp') : null,
+            'notes' => $notes,
+            'note2' => $note2,
             'priority' => $request->input('priority'),
             'follow_up_date' => $request->input('follow_up_date') ?: null,
             'updated_by' => $actor['id'],
             'updated_at' => date('Y-m-d H:i:s'),
         ];
 
+        if ($notesChanged) {
+            $newData['note_updated_at'] = date('Y-m-d H:i:s');
+        }
+
+        // Reassignment is gated separately from the rest of the edit form —
+        // a Sales user editing their own lead's details can never smuggle in
+        // a sales_ids[] change they're not authorized to make.
+        if (Acl::can('lead.assign')) {
+            $salesIds = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('sales_ids', [])))));
+            if (!empty($salesIds)) {
+                LeadSales::sync((int) $lead['id'], $salesIds);
+                $newData['sales_id'] = $salesIds[0];
+            }
+        }
+
         Lead::update((int) $lead['id'], $newData);
 
         AuditLogger::log((int) $actor['id'], 'lead_updated', 'lead', (int) $lead['id'], [
             'customer_name' => $lead['customer_name'],
             'priority' => $lead['priority'],
+            'type_id' => $lead['type_id'],
+            'system_id' => $lead['system_id'],
+            'funding_id' => $lead['funding_id'],
         ], [
             'customer_name' => $newData['customer_name'],
             'priority' => $newData['priority'],
+            'type_id' => $newData['type_id'],
+            'system_id' => $newData['system_id'],
+            'funding_id' => $newData['funding_id'],
         ]);
 
         Session::flash('success', 'Lead berhasil diperbarui.');
@@ -534,15 +604,25 @@ class LeadController extends Controller
 
     private function renderForm(?array $lead): void
     {
+        $assignedSalesIds = $lead
+            ? array_column(LeadSales::forLead((int) $lead['id']), 'id')
+            : ($this->scopeSalesId() !== null ? [$this->scopeSalesId()] : []);
+
         $this->view('leads/form', [
             'pageTitle' => $lead ? 'Ubah Lead' : 'Tambah Lead',
             'lead' => $lead,
             'sources' => MasterData::allAsMap('lead_sources', true),
             'categories' => MasterData::allAsMap('lead_categories', true),
+            'leadTypes' => MasterData::allAsMap('lead_types', true),
+            'leadSystems' => MasterData::allAsMap('lead_systems', true),
+            'fundingSources' => MasterData::allAsMap('funding_sources', true),
             'needTypes' => MasterData::allAsMap('need_types', true),
             'priorities' => MasterData::allAsMap('priorities', true),
             'salesUsers' => User::activeByRole($this->salesRoleId() ?? 0),
-            'showSalesField' => $this->scopeSalesId() === null,
+            'assignedSalesIds' => $assignedSalesIds,
+            // Reassigning an existing lead's sales needs lead.assign; the field
+            // still shows on create for anyone not scoped to their own leads.
+            'showSalesField' => $this->scopeSalesId() === null && (!$lead || Acl::can('lead.assign')),
         ]);
     }
 
@@ -555,7 +635,7 @@ class LeadController extends Controller
         }
 
         $scopeSalesId = $this->scopeSalesId();
-        if ($scopeSalesId !== null && (int) $lead['sales_id'] !== $scopeSalesId) {
+        if ($scopeSalesId !== null && (int) $lead['sales_id'] !== $scopeSalesId && !LeadSales::isAssigned($id, $scopeSalesId)) {
             $this->abort(403, 'Anda hanya dapat mengakses lead yang ditugaskan kepada Anda.');
         }
 
@@ -576,7 +656,9 @@ class LeadController extends Controller
     {
         $scopeSalesId = $this->scopeSalesId();
 
-        return $scopeSalesId !== null && (int) $lead['sales_id'] !== $scopeSalesId;
+        return $scopeSalesId !== null
+            && (int) $lead['sales_id'] !== $scopeSalesId
+            && !LeadSales::isAssigned((int) $lead['id'], $scopeSalesId);
     }
 
     private function salesRoleId(): ?int

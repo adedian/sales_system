@@ -146,6 +146,13 @@ $demoUsers = [
     ['username' => 'engineer1', 'name' => 'Engineer Satu', 'email' => 'engineer1@internal.local', 'role' => 'engineer-sales'],
     ['username' => 'procurement1', 'name' => 'Procurement Satu', 'email' => 'procurement1@internal.local', 'role' => 'procurement'],
     ['username' => 'manager1', 'name' => 'Manager Satu', 'email' => 'manager1@internal.local', 'role' => 'manager'],
+    // Phase A (Leads revision) — roster Sales nyata dari referensi spreadsheet.
+    ['username' => 'charles', 'name' => 'Charles', 'email' => 'charles@internal.local', 'role' => 'sales'],
+    ['username' => 'ronny', 'name' => 'Pak Ronny', 'email' => 'ronny@internal.local', 'role' => 'sales'],
+    ['username' => 'vega', 'name' => 'Vega', 'email' => 'vega@internal.local', 'role' => 'sales'],
+    ['username' => 'victor', 'name' => 'Victor', 'email' => 'victor@internal.local', 'role' => 'sales'],
+    ['username' => 'fita', 'name' => 'Fita', 'email' => 'fita@internal.local', 'role' => 'sales'],
+    ['username' => 'vicky', 'name' => 'Vicky', 'email' => 'vicky@internal.local', 'role' => 'sales'],
 ];
 
 $createdUsers = [];
@@ -199,6 +206,22 @@ $masterDataSeed = [
         ['code' => 'maintenance', 'name' => 'Maintenance', 'color' => null, 'is_system' => 0],
         ['code' => 'upgrade', 'name' => 'Upgrade / Renovasi', 'color' => null, 'is_system' => 0],
         ['code' => 'consultation', 'name' => 'Konsultasi', 'color' => null, 'is_system' => 0],
+    ],
+    'lead_types' => [
+        ['code' => 'industrial', 'name' => 'Industrial', 'color' => null, 'is_system' => 0],
+        ['code' => 'commercial', 'name' => 'Commercial', 'color' => null, 'is_system' => 0],
+        ['code' => 'residential', 'name' => 'Residential', 'color' => null, 'is_system' => 0],
+    ],
+    'lead_systems' => [
+        ['code' => 'on_grid', 'name' => 'On-Grid', 'color' => null, 'is_system' => 0],
+        ['code' => 'off_grid', 'name' => 'Off-Grid', 'color' => null, 'is_system' => 0],
+        ['code' => 'hybrid', 'name' => 'Hybrid', 'color' => null, 'is_system' => 0],
+    ],
+    'funding_sources' => [
+        ['code' => 'hme', 'name' => 'HME', 'color' => null, 'is_system' => 0],
+        ['code' => 'hijau', 'name' => 'Hijau', 'color' => null, 'is_system' => 0],
+        ['code' => 'modena', 'name' => 'Modena', 'color' => null, 'is_system' => 0],
+        ['code' => 'iforte', 'name' => 'Iforte', 'color' => null, 'is_system' => 0],
     ],
     'lead_statuses' => [
         ['code' => 'new', 'name' => 'Baru', 'color' => 'primary', 'is_system' => 1],

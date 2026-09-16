@@ -53,6 +53,42 @@ $statusLabels = ['new' => 'Baru', 'in_queue' => 'Antrian', 'follow_up' => 'Follo
                 </select>
             </div>
             <div class="filter-field">
+                <label class="form-label" for="simple_status">Status Sederhana</label>
+                <select id="simple_status" name="simple_status" class="form-select">
+                    <option value="">Semua</option>
+                    <option value="proses" <?= $filters['simple_status'] === 'proses' ? 'selected' : '' ?>>Proses</option>
+                    <option value="deal" <?= $filters['simple_status'] === 'deal' ? 'selected' : '' ?>>Deal</option>
+                    <option value="cancel" <?= $filters['simple_status'] === 'cancel' ? 'selected' : '' ?>>Cancel</option>
+                </select>
+            </div>
+            <div class="filter-field">
+                <label class="form-label" for="type_id">Type</label>
+                <select id="type_id" name="type_id" class="form-select">
+                    <option value="">Semua Type</option>
+                    <?php foreach ($leadTypes as $row): ?>
+                        <option value="<?= (int) $row['id'] ?>" <?= (string) $filters['type_id'] === (string) $row['id'] ? 'selected' : '' ?>><?= e($row['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="filter-field">
+                <label class="form-label" for="system_id">System</label>
+                <select id="system_id" name="system_id" class="form-select">
+                    <option value="">Semua System</option>
+                    <?php foreach ($leadSystems as $row): ?>
+                        <option value="<?= (int) $row['id'] ?>" <?= (string) $filters['system_id'] === (string) $row['id'] ? 'selected' : '' ?>><?= e($row['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="filter-field">
+                <label class="form-label" for="funding_id">Funding</label>
+                <select id="funding_id" name="funding_id" class="form-select">
+                    <option value="">Semua Funding</option>
+                    <?php foreach ($fundingSources as $row): ?>
+                        <option value="<?= (int) $row['id'] ?>" <?= (string) $filters['funding_id'] === (string) $row['id'] ? 'selected' : '' ?>><?= e($row['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="filter-field">
                 <label class="form-label" for="priority">Prioritas</label>
                 <select id="priority" name="priority" class="form-select">
                     <option value="">Semua Prioritas</option>
@@ -110,9 +146,17 @@ $statusLabels = ['new' => 'Baru', 'in_queue' => 'Antrian', 'follow_up' => 'Follo
                     <tr>
                         <th><?= $sortLink('lead_code', 'Kode') ?></th>
                         <th><?= $sortLink('customer_name', 'Customer') ?></th>
-                        <th><?= $sortLink('status', 'Status') ?></th>
-                        <th><?= $sortLink('priority', 'Prioritas') ?></th>
+                        <th>Site Location</th>
+                        <th>Size (KWp)</th>
+                        <th>Type</th>
+                        <th>System</th>
                         <th><?= $sortLink('sales_name', 'Sales') ?></th>
+                        <th>Funding</th>
+                        <th><?= $sortLink('status', 'Status') ?></th>
+                        <th>Note</th>
+                        <th>Note 2</th>
+                        <th>Tanggal Note Update</th>
+                        <th><?= $sortLink('priority', 'Prioritas') ?></th>
                         <th><?= $sortLink('follow_up_date', 'Follow Up') ?></th>
                         <th><?= $sortLink('created_at', 'Dibuat') ?></th>
                         <th class="text-end">Aksi</th>
@@ -126,9 +170,21 @@ $statusLabels = ['new' => 'Baru', 'in_queue' => 'Antrian', 'follow_up' => 'Follo
                             <div class="user-cell-name"><?= e($lead['customer_name']) ?></div>
                             <?php if ($lead['company_name']): ?><div class="user-cell-sub"><?= e($lead['company_name']) ?></div><?php endif; ?>
                         </td>
-                        <td><span class="color-swatch color-swatch-<?= e($statusMap[$lead['status']]['color'] ?? 'muted') ?>"><?= e($statusMap[$lead['status']]['name'] ?? $lead['status']) ?></span></td>
+                        <td class="text-muted"><?= e($lead['site_location'] ?: '-') ?></td>
+                        <td class="mono"><?= $lead['size_kwp'] !== null ? e(rtrim(rtrim(number_format((float) $lead['size_kwp'], 2, '.', ''), '0'), '.')) : '-' ?></td>
+                        <td class="text-muted"><?= e($lead['type_name'] ?? '-') ?></td>
+                        <td class="text-muted"><?= e($lead['system_name'] ?? '-') ?></td>
+                        <td><?= !empty($lead['sales_names']) ? e(implode(' / ', array_column($lead['sales_names'], 'name'))) : '—' ?></td>
+                        <td class="text-muted"><?= e($lead['funding_name'] ?? '-') ?></td>
+                        <td>
+                            <span class="color-swatch color-swatch-<?= e($statusMap[$lead['status']]['color'] ?? 'muted') ?>"><?= e($statusMap[$lead['status']]['name'] ?? $lead['status']) ?></span>
+                            <?php $simpleLabels = ['proses' => 'Proses', 'deal' => 'Deal', 'cancel' => 'Cancel']; ?>
+                            <div class="text-muted small"><?= e($simpleLabels[\App\Models\Lead::simplifiedStatus($lead['status'])]) ?></div>
+                        </td>
+                        <td class="text-muted"><?= $lead['notes'] ? e(mb_strimwidth($lead['notes'], 0, 40, '...')) : '-' ?></td>
+                        <td class="text-muted"><?= $lead['note2'] ? e(mb_strimwidth($lead['note2'], 0, 40, '...')) : '-' ?></td>
+                        <td class="text-muted"><?= $lead['note_updated_at'] ? e(format_datetime($lead['note_updated_at'], 'd M Y')) : '-' ?></td>
                         <td><span class="color-swatch color-swatch-<?= e($priorityMap[$lead['priority']]['color'] ?? 'muted') ?>"><?= e($priorityMap[$lead['priority']]['name'] ?? $lead['priority']) ?></span></td>
-                        <td><?= e($lead['sales_name'] ?? '—') ?></td>
                         <td class="<?= (!empty($lead['follow_up_date']) && $lead['follow_up_date'] < date('Y-m-d') && empty($filters['trashed'])) ? 'text-danger' : 'text-muted' ?>">
                             <?= $lead['follow_up_date'] ? e(format_datetime($lead['follow_up_date'], 'd M Y')) : '-' ?>
                         </td>

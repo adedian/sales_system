@@ -32,6 +32,10 @@ $val = fn (string $field, $default = '') => $isEdit ? ($lead[$field] ?? $default
                             <input type="email" class="form-control" id="email" name="email" value="<?= e($val('email')) ?>">
                         </div>
                         <div class="col-12">
+                            <label class="form-label" for="site_location">Site Location</label>
+                            <input type="text" class="form-control" id="site_location" name="site_location" value="<?= e($val('site_location')) ?>" placeholder="Contoh: Sidoarjo">
+                        </div>
+                        <div class="col-12">
                             <label class="form-label" for="address">Alamat</label>
                             <textarea class="form-control" id="address" name="address" rows="2"><?= e($val('address')) ?></textarea>
                         </div>
@@ -63,6 +67,33 @@ $val = fn (string $field, $default = '') => $isEdit ? ($lead[$field] ?? $default
                                 <?php endforeach; ?>
                             </select>
                         </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="type_id">Type</label>
+                            <select class="form-select" id="type_id" name="type_id">
+                                <option value="">Pilih tipe</option>
+                                <?php foreach ($leadTypes as $code => $row): ?>
+                                    <option value="<?= (int) $row['id'] ?>" <?= (string) $val('type_id') === (string) $row['id'] ? 'selected' : '' ?>><?= e($row['name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="system_id">System</label>
+                            <select class="form-select" id="system_id" name="system_id">
+                                <option value="">Pilih sistem</option>
+                                <?php foreach ($leadSystems as $code => $row): ?>
+                                    <option value="<?= (int) $row['id'] ?>" <?= (string) $val('system_id') === (string) $row['id'] ? 'selected' : '' ?>><?= e($row['name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="funding_id">Funding</label>
+                            <select class="form-select" id="funding_id" name="funding_id">
+                                <option value="">Pilih funding</option>
+                                <?php foreach ($fundingSources as $code => $row): ?>
+                                    <option value="<?= (int) $row['id'] ?>" <?= (string) $val('funding_id') === (string) $row['id'] ? 'selected' : '' ?>><?= e($row['name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
                         <div class="col-12 col-md-6">
                             <label class="form-label" for="need_type_id">Jenis Kebutuhan</label>
                             <select class="form-select" id="need_type_id" name="need_type_id">
@@ -75,6 +106,10 @@ $val = fn (string $field, $default = '') => $isEdit ? ($lead[$field] ?? $default
                         <div class="col-12 col-md-6">
                             <label class="form-label" for="estimated_value">Estimasi Nilai (Rp)</label>
                             <input type="number" step="0.01" class="form-control" id="estimated_value" name="estimated_value" value="<?= e($val('estimated_value')) ?>">
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="size_kwp">Size (KWp)</label>
+                            <input type="number" step="0.01" class="form-control" id="size_kwp" name="size_kwp" value="<?= e($val('size_kwp')) ?>">
                         </div>
                         <div class="col-12">
                             <label class="form-label" for="needs_description">Deskripsi Kebutuhan</label>
@@ -92,20 +127,27 @@ $val = fn (string $field, $default = '') => $isEdit ? ($lead[$field] ?? $default
                             <label class="form-label" for="follow_up_date">Tanggal Follow Up</label>
                             <input type="date" class="form-control" id="follow_up_date" name="follow_up_date" value="<?= e($val('follow_up_date')) ?>">
                         </div>
-                        <?php if (!$isEdit && $showSalesField && count($salesUsers)): ?>
+                        <?php if ($showSalesField && count($salesUsers)): ?>
                         <div class="col-12">
-                            <label class="form-label" for="sales_id">Tugaskan ke Sales</label>
-                            <select class="form-select" id="sales_id" name="sales_id">
-                                <option value="">Belum ditugaskan</option>
+                            <label class="form-label">Sales</label>
+                            <div class="checkbox-list">
                                 <?php foreach ($salesUsers as $row): ?>
-                                    <option value="<?= (int) $row['id'] ?>"><?= e($row['name']) ?></option>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="sales_<?= (int) $row['id'] ?>" name="sales_ids[]" value="<?= (int) $row['id'] ?>" <?= in_array((int) $row['id'], $assignedSalesIds, true) ? 'checked' : '' ?>>
+                                    <label class="form-check-label" for="sales_<?= (int) $row['id'] ?>"><?= e($row['name']) ?></label>
+                                </div>
                                 <?php endforeach; ?>
-                            </select>
+                            </div>
+                            <small class="text-muted">Bisa pilih lebih dari satu. Yang teratas dalam daftar (sesuai urutan di atas) jadi Sales utama.</small>
                         </div>
                         <?php endif; ?>
-                        <div class="col-12">
-                            <label class="form-label" for="notes">Catatan</label>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="notes">Catatan 1</label>
                             <textarea class="form-control" id="notes" name="notes" rows="2"><?= e($val('notes')) ?></textarea>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="note2">Catatan 2</label>
+                            <textarea class="form-control" id="note2" name="note2" rows="2"><?= e($val('note2')) ?></textarea>
                         </div>
                     </div>
                 </div>

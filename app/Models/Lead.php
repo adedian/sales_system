@@ -43,13 +43,34 @@ class Lead extends Model
                        source.name AS source_name,
                        category.name AS category_name,
                        need_type.name AS need_type_name,
+                       lead_type.name AS type_name,
+                       lead_system.name AS system_name,
+                       funding.name AS funding_name,
                        creator.name AS created_by_name
                 FROM leads
                 LEFT JOIN users sales ON sales.id = leads.sales_id
                 LEFT JOIN lead_sources source ON source.id = leads.source_id
                 LEFT JOIN lead_categories category ON category.id = leads.category_id
                 LEFT JOIN need_types need_type ON need_type.id = leads.need_type_id
+                LEFT JOIN lead_types lead_type ON lead_type.id = leads.type_id
+                LEFT JOIN lead_systems lead_system ON lead_system.id = leads.system_id
+                LEFT JOIN funding_sources funding ON funding.id = leads.funding_id
                 LEFT JOIN users creator ON creator.id = leads.created_by";
+    }
+
+    /**
+     * Non-destructive presentation-layer simplification of the 9-stage
+     * pipeline status into the reference sheet's Proses/Deal/Cancel — the
+     * underlying `status` column and its business logic (markWon/markLost/
+     * reopenDeal) are untouched.
+     */
+    public static function simplifiedStatus(string $status): string
+    {
+        return match ($status) {
+            'won' => 'deal',
+            'lost' => 'cancel',
+            default => 'proses',
+        };
     }
 
     /**
@@ -96,6 +117,29 @@ class Lead extends Model
         if (!empty($filters['category_id'])) {
             $where[] = 'leads.category_id = ?';
             $params[] = (int) $filters['category_id'];
+        }
+
+        if (!empty($filters['type_id'])) {
+            $where[] = 'leads.type_id = ?';
+            $params[] = (int) $filters['type_id'];
+        }
+
+        if (!empty($filters['system_id'])) {
+            $where[] = 'leads.system_id = ?';
+            $params[] = (int) $filters['system_id'];
+        }
+
+        if (!empty($filters['funding_id'])) {
+            $where[] = 'leads.funding_id = ?';
+            $params[] = (int) $filters['funding_id'];
+        }
+
+        if (($filters['simple_status'] ?? '') === 'deal') {
+            $where[] = "leads.status = 'won'";
+        } elseif (($filters['simple_status'] ?? '') === 'cancel') {
+            $where[] = "leads.status = 'lost'";
+        } elseif (($filters['simple_status'] ?? '') === 'proses') {
+            $where[] = "leads.status NOT IN ('won','lost')";
         }
 
         if (!empty($filters['sales_id'])) {

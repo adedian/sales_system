@@ -9,6 +9,7 @@ use App\Core\Controller;
 use App\Core\Csrf;
 use App\Core\Request;
 use App\Models\Lead;
+use App\Models\LeadSales;
 use App\Models\LeadStatusHistory;
 use App\Models\MasterData;
 use App\Models\Notification;
@@ -205,6 +206,14 @@ class LeadApiController extends Controller
         ]);
 
         $newSalesName = $salesId !== null ? ($user['name'] ?? null) : null;
+
+        // Additive only: quick-reassign here never removes anyone from the
+        // multi-sales list (app/Views/leads/form.php's checkbox list is the
+        // only place membership is fully edited) — it just makes sure the
+        // new primary is also a recognized member.
+        if ($salesId !== null) {
+            LeadSales::add((int) $lead['id'], $salesId);
+        }
 
         if ($salesId !== null && $salesId !== $oldSalesId) {
             Notification::create(

@@ -213,6 +213,54 @@ CREATE TABLE IF NOT EXISTS `need_types` (
     UNIQUE KEY `uq_need_types_code` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `lead_types` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `code` VARCHAR(50) NOT NULL,
+    `name` VARCHAR(150) NOT NULL,
+    `description` VARCHAR(255) NULL,
+    `color` VARCHAR(20) NULL,
+    `sort_order` INT NOT NULL DEFAULT 0,
+    `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+    `is_system` TINYINT(1) NOT NULL DEFAULT 0,
+    `created_by` INT UNSIGNED NULL,
+    `updated_by` INT UNSIGNED NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY `uq_lead_types_code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `lead_systems` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `code` VARCHAR(50) NOT NULL,
+    `name` VARCHAR(150) NOT NULL,
+    `description` VARCHAR(255) NULL,
+    `color` VARCHAR(20) NULL,
+    `sort_order` INT NOT NULL DEFAULT 0,
+    `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+    `is_system` TINYINT(1) NOT NULL DEFAULT 0,
+    `created_by` INT UNSIGNED NULL,
+    `updated_by` INT UNSIGNED NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY `uq_lead_systems_code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `funding_sources` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `code` VARCHAR(50) NOT NULL,
+    `name` VARCHAR(150) NOT NULL,
+    `description` VARCHAR(255) NULL,
+    `color` VARCHAR(20) NULL,
+    `sort_order` INT NOT NULL DEFAULT 0,
+    `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+    `is_system` TINYINT(1) NOT NULL DEFAULT 0,
+    `created_by` INT UNSIGNED NULL,
+    `updated_by` INT UNSIGNED NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY `uq_funding_sources_code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `queue_statuses` (
     `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     `code` VARCHAR(50) NOT NULL,
@@ -357,6 +405,44 @@ CREATE TABLE IF NOT EXISTS `leads` (
     CONSTRAINT `fk_leads_need_type` FOREIGN KEY (`need_type_id`) REFERENCES `need_types` (`id`) ON DELETE SET NULL,
     CONSTRAINT `fk_leads_sales` FOREIGN KEY (`sales_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
     CONSTRAINT `fk_leads_won_proposal` FOREIGN KEY (`won_proposal_id`) REFERENCES `proposals` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Phase A (Leads/Antrian revision) — additive columns on an existing table,
+-- so ADD COLUMN/ADD KEY use MariaDB's IF NOT EXISTS guard (10.0.2+, this
+-- project runs 10.4.32) to stay safe to re-apply. ADD CONSTRAINT has NO
+-- IF NOT EXISTS guard in MariaDB — this block is applied once via mysql.exe
+-- CLI against the live dev DB (same operational practice as every other
+-- schema change in this project), not re-run wholesale; do not re-run this
+-- specific ADD CONSTRAINT block against a DB where it has already succeeded.
+ALTER TABLE `leads`
+    ADD COLUMN IF NOT EXISTS `type_id` INT UNSIGNED NULL AFTER `category_id`,
+    ADD COLUMN IF NOT EXISTS `system_id` INT UNSIGNED NULL AFTER `type_id`,
+    ADD COLUMN IF NOT EXISTS `funding_id` INT UNSIGNED NULL AFTER `system_id`,
+    ADD COLUMN IF NOT EXISTS `size_kwp` DECIMAL(10,2) NULL AFTER `estimated_value`,
+    ADD COLUMN IF NOT EXISTS `site_location` VARCHAR(150) NULL AFTER `address`,
+    ADD COLUMN IF NOT EXISTS `note2` TEXT NULL AFTER `notes`,
+    ADD COLUMN IF NOT EXISTS `note_updated_at` DATETIME NULL AFTER `note2`;
+
+ALTER TABLE `leads`
+    ADD KEY IF NOT EXISTS `idx_leads_type` (`type_id`),
+    ADD KEY IF NOT EXISTS `idx_leads_system` (`system_id`),
+    ADD KEY IF NOT EXISTS `idx_leads_funding` (`funding_id`);
+
+ALTER TABLE `leads`
+    ADD CONSTRAINT `fk_leads_type` FOREIGN KEY (`type_id`) REFERENCES `lead_types` (`id`) ON DELETE SET NULL,
+    ADD CONSTRAINT `fk_leads_system` FOREIGN KEY (`system_id`) REFERENCES `lead_systems` (`id`) ON DELETE SET NULL,
+    ADD CONSTRAINT `fk_leads_funding` FOREIGN KEY (`funding_id`) REFERENCES `funding_sources` (`id`) ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS `lead_sales` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `lead_id` INT UNSIGNED NOT NULL,
+    `user_id` INT UNSIGNED NOT NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY `uq_lead_sales_lead_user` (`lead_id`, `user_id`),
+    KEY `idx_lead_sales_lead` (`lead_id`),
+    KEY `idx_lead_sales_user` (`user_id`),
+    CONSTRAINT `fk_lead_sales_lead` FOREIGN KEY (`lead_id`) REFERENCES `leads` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_lead_sales_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `lead_status_history` (

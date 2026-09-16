@@ -151,6 +151,16 @@ h1, h2, h3, h4, h5, h6 { font-weight: 600; color: var(--color-text); margin: 0; 
 }
 .input-group-text { background: var(--color-surface-alt); border-color: var(--color-border-strong); color: var(--color-text-muted); }
 
+.checkbox-list {
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+.checkbox-list .form-check { margin-bottom: 4px; }
+.checkbox-list .form-check:last-child { margin-bottom: 0; }
+
 .btn { border-radius: var(--radius-sm); font-size: 14px; font-weight: 500; padding: 8px 16px; }
 .btn-primary { background: var(--color-primary); border-color: var(--color-primary); }
 .btn-primary:hover, .btn-primary:focus { background: var(--color-primary-dark); border-color: var(--color-primary-dark); }

@@ -22,7 +22,13 @@ $responseColors = [
 ?>
 <div class="page-header page-header-row">
     <div>
-        <div class="lead-code-eyebrow"><?= e($lead['lead_code']) ?> <?php if ($lead['deleted_at']): ?><span class="badge-pill badge-pill-muted">Di Sampah</span><?php endif; ?></div>
+        <div class="lead-code-eyebrow">
+        <?= e($lead['lead_code']) ?>
+        <?php if ($lead['deleted_at']): ?><span class="badge-pill badge-pill-muted">Di Sampah</span><?php endif; ?>
+        <?php $simpleLabels = ['proses' => 'Proses', 'deal' => 'Deal', 'cancel' => 'Cancel']; ?>
+        <?php $simpleColors = ['proses' => 'amber', 'deal' => 'emerald', 'cancel' => 'danger']; ?>
+        <span class="color-swatch color-swatch-<?= e($simpleColors[$simplifiedStatus]) ?>"><?= e($simpleLabels[$simplifiedStatus]) ?></span>
+    </div>
         <h2><?= e($lead['customer_name']) ?></h2>
         <p class="text-muted"><?= e($lead['company_name'] ?: 'Tanpa perusahaan') ?></p>
     </div>
@@ -71,6 +77,7 @@ $responseColors = [
                 <dt>Telepon</dt><dd><?= $lead['phone'] ? '<a href="tel:' . e($lead['phone']) . '">' . e($lead['phone']) . '</a>' : '-' ?></dd>
                 <dt>Email</dt><dd><?= $lead['email'] ? '<a href="mailto:' . e($lead['email']) . '">' . e($lead['email']) . '</a>' : '-' ?></dd>
                 <dt>Alamat</dt><dd><?= $lead['address'] ? nl2br(e($lead['address'])) : '-' ?></dd>
+                <dt>Site Location</dt><dd><?= e($lead['site_location'] ?: '-') ?></dd>
             </dl>
         </div>
     </div>
@@ -82,10 +89,16 @@ $responseColors = [
             <dl class="lead-dl">
                 <dt>Sumber</dt><dd><?= e($lead['source_name'] ?? '-') ?></dd>
                 <dt>Kategori</dt><dd><?= e($lead['category_name'] ?? '-') ?></dd>
+                <dt>Type</dt><dd><?= e($lead['type_name'] ?? '-') ?></dd>
+                <dt>System</dt><dd><?= e($lead['system_name'] ?? '-') ?></dd>
+                <dt>Funding</dt><dd><?= e($lead['funding_name'] ?? '-') ?></dd>
+                <dt>Size (KWp)</dt><dd><?= $lead['size_kwp'] !== null ? e(rtrim(rtrim(number_format((float) $lead['size_kwp'], 2, '.', ''), '0'), '.')) : '-' ?></dd>
                 <dt>Jenis Kebutuhan</dt><dd><?= e($lead['need_type_name'] ?? '-') ?></dd>
                 <dt>Estimasi Nilai</dt><dd><?= $lead['estimated_value'] !== null ? 'Rp ' . number_format((float) $lead['estimated_value'], 0, ',', '.') : '-' ?></dd>
                 <dt>Deskripsi Kebutuhan</dt><dd><?= $lead['needs_description'] ? nl2br(e($lead['needs_description'])) : '-' ?></dd>
-                <dt>Catatan</dt><dd><?= $lead['notes'] ? nl2br(e($lead['notes'])) : '-' ?></dd>
+                <dt>Catatan 1</dt><dd><?= $lead['notes'] ? nl2br(e($lead['notes'])) : '-' ?></dd>
+                <dt>Catatan 2</dt><dd><?= $lead['note2'] ? nl2br(e($lead['note2'])) : '-' ?></dd>
+                <dt>Tanggal Note Update</dt><dd><?= $lead['note_updated_at'] ? e(format_datetime($lead['note_updated_at'])) : '-' ?></dd>
             </dl>
             <hr>
             <dl class="lead-dl">
@@ -138,6 +151,15 @@ $responseColors = [
                     <?php endforeach; ?>
                 </select>
                 <div class="lead-side-current text-muted" data-badge="sales_name"><?= e($lead['sales_name'] ?? 'Belum ditugaskan') ?></div>
+                <?php
+                    $otherSales = array_filter($assignedSales, fn ($r) => (int) $r['id'] !== (int) $lead['sales_id']);
+                ?>
+                <?php if (!empty($otherSales)): ?>
+                <div class="mt-1">
+                    <label class="form-label small mb-0">Sales Lain</label>
+                    <div class="text-muted small"><?= e(implode(' / ', array_map(fn ($r) => $r['name'], $otherSales))) ?></div>
+                </div>
+                <?php endif; ?>
             </div>
 
             <div class="lead-side-field">
