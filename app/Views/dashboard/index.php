@@ -59,18 +59,16 @@ $rupiah = fn ($v) => 'Rp ' . number_format((float) $v, 0, ',', '.');
     </div>
 </div>
 
-<!-- Distribusi Posisi Lead (Phase C) — dari sales_queue.stage_id (Prioritas) antrian aktif -->
+<!-- Distribusi Posisi Lead (Revisi Sub-Fase 4) — Current Process dihitung dari state riil tiap modul (Engineer/Sales Engineer/Procurement/Approval Harga/Antrian), sama seperti Lead Monitoring report & Lead detail page -->
 <div class="page-header">
     <h3 class="mb-0">Distribusi Posisi Lead</h3>
 </div>
 <div class="stat-grid">
-    <?php $stageById = array_column($stageMap, null, 'id'); ?>
     <?php foreach ($positionCounts as $pc): ?>
-        <?php $stageRow = $pc['stage_id'] ? ($stageById[(int) $pc['stage_id']] ?? null) : null; ?>
         <div class="stat-card stat-card-compact">
-            <div class="stat-icon stat-icon-<?= e($stageRow['color'] ?? 'muted') ?>"><i class="bi bi-signpost-split"></i></div>
+            <div class="stat-icon stat-icon-<?= e($pc['color']) ?>"><i class="bi bi-signpost-split"></i></div>
             <div class="stat-body">
-                <span class="stat-label"><?= e($stageRow['name'] ?? 'Belum diisi') ?></span>
+                <span class="stat-label"><?= e($pc['label']) ?></span>
                 <span class="stat-value"><?= (int) $pc['total'] ?></span>
             </div>
         </div>

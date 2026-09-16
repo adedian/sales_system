@@ -171,8 +171,14 @@ class ReportController extends Controller
                     'stage_name' => $r['stage_name'],
                     'stage_color' => $r['stage_color'],
                     'status' => $r['queue_status'],
+                    'survey_status_code' => $r['survey_status_code'],
                 ];
-                $position = Lead::currentPosition($r, $activeQueue, $statusMap, $queueStatusMap);
+                $position = Lead::currentPosition($r, $activeQueue, $statusMap, $queueStatusMap, [
+                    'validation' => !empty($r['pending_validation_id']),
+                    'procurement' => !empty($r['active_procurement_id']),
+                    'salesEngineer' => !empty($r['active_sales_engineer_id']),
+                    'engineer' => !empty($r['active_engineer_id']),
+                ]);
 
                 $r['type_name'] = $r['type_name'] ?? '-';
                 $r['system_name'] = $r['system_name'] ?? '-';

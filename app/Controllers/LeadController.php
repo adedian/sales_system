@@ -18,6 +18,7 @@ use App\Models\LeadSales;
 use App\Models\LeadStatusHistory;
 use App\Models\MasterData;
 use App\Models\Notification;
+use App\Models\ProcurementPriceValidation;
 use App\Models\ProcurementRequest;
 use App\Models\Proposal;
 use App\Models\Role;
@@ -174,11 +175,19 @@ class LeadController extends Controller
         $lead = $this->findAuthorized((int) $params['id']);
 
         $timeline = $this->buildTimeline((int) $lead['id']);
-        $engineerRole = Role::findBySlug('engineer-sales');
         $procurementRole = Role::findBySlug('procurement');
         $activeQueue = SalesQueue::activeForLead((int) $lead['id']);
         $statusMap = MasterData::allAsMap('lead_statuses');
         $queueStatusMap = MasterData::allAsMap('queue_statuses');
+
+        // Revisi Sub-Fase 2/4: computed once, reused both for the page's own
+        // sections AND to derive Current Process below (Lead::currentPosition()).
+        $activeEngineerAssignment = EngineerAssignment::activeForLead((int) $lead['id'], 'engineer');
+        $activeSalesEngineerAssignment = EngineerAssignment::activeForLead((int) $lead['id'], 'sales_engineer');
+        $activeProcurementRequest = ProcurementRequest::activeForLead((int) $lead['id']);
+        $pendingValidation = $activeProcurementRequest !== null
+            ? ProcurementPriceValidation::pendingForRequest((int) $activeProcurementRequest['id'])
+            : null;
 
         $this->view('leads/show', [
             'pageTitle' => $lead['lead_code'],
@@ -186,7 +195,12 @@ class LeadController extends Controller
             'timeline' => $timeline,
             'assignedSales' => LeadSales::forLead((int) $lead['id']),
             'simplifiedStatus' => Lead::simplifiedStatus($lead['status']),
-            'currentPosition' => Lead::currentPosition($lead, $activeQueue, $statusMap, $queueStatusMap),
+            'currentPosition' => Lead::currentPosition($lead, $activeQueue, $statusMap, $queueStatusMap, [
+                'validation' => $pendingValidation,
+                'procurement' => $activeProcurementRequest,
+                'salesEngineer' => $activeSalesEngineerAssignment,
+                'engineer' => $activeEngineerAssignment,
+            ]),
             'statusMap' => $statusMap,
             'queueStatusMap' => $queueStatusMap,
             'priorityMap' => MasterData::allAsMap('priorities'),
@@ -196,12 +210,19 @@ class LeadController extends Controller
             'canDelete' => Acl::can('lead.delete'),
             'activeQueue' => $activeQueue,
             'canEnqueue' => Acl::can('lead.edit') && !$this->isReadOnlyForSales($lead),
-            'activeEngineerAssignment' => EngineerAssignment::activeForLead((int) $lead['id']),
-            'latestEngineerAssignment' => EngineerAssignment::latestForLead((int) $lead['id']),
+            // Revisi Sub-Fase 2: Engineer (survey lapangan lanjutan/desain) dan
+            // Sales Engineer (analisa teknis, modul engineer_assignments yang
+            // sudah ada) dibedakan lewat assignment_type, sehingga satu lead
+            // bisa punya assignment aktif untuk masing-masing tipe.
+            'activeEngineerAssignment' => $activeEngineerAssignment,
+            'latestEngineerAssignment' => EngineerAssignment::latestForLead((int) $lead['id'], 'engineer'),
+            'activeSalesEngineerAssignment' => $activeSalesEngineerAssignment,
+            'latestSalesEngineerAssignment' => EngineerAssignment::latestForLead((int) $lead['id'], 'sales_engineer'),
             'engineerStatusMap' => MasterData::allAsMap('engineer_statuses'),
-            'engineerUsers' => $engineerRole ? User::activeByRole((int) $engineerRole['id']) : [],
+            'engineerFieldUsers' => User::activeEngineers(),
+            'salesEngineerUsers' => User::activeSalesEngineers(),
             'canRequestEngineer' => Acl::can('lead.edit') && Acl::can('engineer.view') && !$this->isReadOnlyForSales($lead),
-            'activeProcurementRequest' => ProcurementRequest::activeForLead((int) $lead['id']),
+            'activeProcurementRequest' => $activeProcurementRequest,
             'latestProcurementRequest' => ProcurementRequest::latestForLead((int) $lead['id']),
             'procurementStatusMap' => MasterData::allAsMap('procurement_statuses'),
             'procurementUsers' => $procurementRole ? User::activeByRole((int) $procurementRole['id']) : [],

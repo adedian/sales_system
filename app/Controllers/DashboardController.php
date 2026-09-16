@@ -96,8 +96,7 @@ class DashboardController extends Controller
                 'procurement' => ProcurementRequest::workloadByAssignee(),
             ],
             'recentActivity' => AuditLog::recent(8),
-            'stageMap' => MasterData::allAsMap('queue_stages'),
-            'positionCounts' => SalesQueue::countActiveByStage(),
+            'positionCounts' => Lead::currentProcessDistribution(),
             'notYetQueuedCount' => Lead::countNotYetQueued(),
         ]);
     }

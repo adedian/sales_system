@@ -547,6 +547,19 @@ ALTER TABLE `users`
     ADD COLUMN IF NOT EXISTS `is_estimator` TINYINT(1) NOT NULL DEFAULT 0 AFTER `must_change_password`,
     ADD COLUMN IF NOT EXISTS `is_surveyor` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_estimator`;
 
+-- Revisi Sub-Fase 1 (Sales Engineer/Engineer/Direktur) — same capability-flag
+-- pattern as Estimator/Surveyor above: a user keeps their normal login role
+-- (usually `sales`) and can additionally be flagged for one or more of these,
+-- since this RBAC is strictly single-role-per-user. `is_engineer` = field
+-- survey lanjutan/desain teknis (Sandi/Naufal/Rian); `is_sales_engineer` =
+-- analisa teknis & koordinasi (Fita/Rika) — the pre-existing
+-- `engineer_assignments` module, now split by `assignment_type`;
+-- `is_director` = price validation gate (Pak Ronny).
+ALTER TABLE `users`
+    ADD COLUMN IF NOT EXISTS `is_engineer` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_surveyor`,
+    ADD COLUMN IF NOT EXISTS `is_sales_engineer` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_engineer`,
+    ADD COLUMN IF NOT EXISTS `is_director` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_sales_engineer`;
+
 -- Phase C (Current Position / Current PIC) — additive column, same
 -- idempotent-apply convention as Phase A/B above: ADD COLUMN/ADD KEY use
 -- MariaDB's IF NOT EXISTS guard; ADD CONSTRAINT has no such guard, so this
@@ -650,6 +663,18 @@ CREATE TABLE IF NOT EXISTS `engineer_documents` (
     CONSTRAINT `fk_engineer_documents_uploaded_by` FOREIGN KEY (`uploaded_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Revisi Sub-Fase 2 (Engineer vs Sales Engineer) — one table serves both
+-- assignment types instead of duplicating engineer_assignments (dokumen
+-- requirement §44 melarang tabel duplicate). Default 'sales_engineer' so
+-- every pre-existing row (which always meant "analisa teknis" — what the
+-- new spec calls Sales Engineer) stays semantically correct with zero data
+-- migration.
+ALTER TABLE `engineer_assignments`
+    ADD COLUMN IF NOT EXISTS `assignment_type` ENUM('engineer','sales_engineer') NOT NULL DEFAULT 'sales_engineer' AFTER `lead_id`;
+
+ALTER TABLE `engineer_assignments`
+    ADD KEY IF NOT EXISTS `idx_engineer_assignments_type` (`assignment_type`);
+
 -- -----------------------------------------------------------------------------
 -- Procurement (Phase 7) — dedicated `vendors` table (bukan generic master
 -- data: butuh kontak/alamat) + procurement_requests sebagai container per
@@ -714,7 +739,7 @@ CREATE TABLE IF NOT EXISTS `procurement_requests` (
     `engineer_assignment_id` INT UNSIGNED NULL,
     `assigned_to` INT UNSIGNED NOT NULL,
     `requested_by` INT UNSIGNED NULL,
-    `status` ENUM('waiting','in_progress','quotation_requested','pricing_completed','need_revision','cancelled') NOT NULL DEFAULT 'waiting',
+    `status` ENUM('waiting','in_progress','quotation_requested','pending_validation','pricing_completed','need_revision','cancelled') NOT NULL DEFAULT 'waiting',
     `priority` ENUM('low','medium','high','urgent') NOT NULL DEFAULT 'medium',
     `deadline` DATE NULL,
     `notes` TEXT NULL,
@@ -734,6 +759,14 @@ CREATE TABLE IF NOT EXISTS `procurement_requests` (
     CONSTRAINT `fk_procurement_requests_assigned_to` FOREIGN KEY (`assigned_to`) REFERENCES `users` (`id`) ON DELETE RESTRICT,
     CONSTRAINT `fk_procurement_requests_requested_by` FOREIGN KEY (`requested_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Revisi Sub-Fase 3 (Validasi Harga Direktur) — MariaDB has no
+-- "ADD VALUE IF NOT EXISTS" for ENUM, so this MODIFY is only safe to run
+-- once against a DB created before `pending_validation` existed in the
+-- CREATE TABLE above (same one-time-apply-via-mysql.exe-CLI convention as
+-- every other ALTER block in this file — do not re-run wholesale).
+ALTER TABLE `procurement_requests`
+    MODIFY COLUMN `status` ENUM('waiting','in_progress','quotation_requested','pending_validation','pricing_completed','need_revision','cancelled') NOT NULL DEFAULT 'waiting';
 
 CREATE TABLE IF NOT EXISTS `procurement_items` (
     `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -782,6 +815,34 @@ CREATE TABLE IF NOT EXISTS `procurement_request_notes` (
     KEY `idx_procurement_request_notes_request` (`procurement_request_id`),
     CONSTRAINT `fk_procurement_request_notes_request` FOREIGN KEY (`procurement_request_id`) REFERENCES `procurement_requests` (`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_procurement_request_notes_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------------------
+-- Revisi Sub-Fase 3 (Validasi Harga Direktur) — audit trail for the new
+-- gate between Procurement finishing pricing and it reaching Sales, mirrors
+-- procurement_status_history/procurement_request_notes shape. `status` is a
+-- plain ENUM (not generic Master Data) matching procurement_requests.status's
+-- own convention. `total_price` is a snapshot at submission time so the
+-- Direktur validates against the price actually submitted, even if items
+-- are edited later.
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `procurement_price_validations` (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `procurement_request_id` INT UNSIGNED NOT NULL,
+    `submitted_by` INT UNSIGNED NULL,
+    `submitted_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `total_price` DECIMAL(18,2) NOT NULL DEFAULT 0,
+    `status` ENUM('pending','approved','revision_required') NOT NULL DEFAULT 'pending',
+    `validated_by` INT UNSIGNED NULL,
+    `validated_at` DATETIME NULL,
+    `notes` TEXT NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY `idx_procurement_price_validations_request` (`procurement_request_id`),
+    KEY `idx_procurement_price_validations_status` (`status`),
+    CONSTRAINT `fk_procurement_price_validations_request` FOREIGN KEY (`procurement_request_id`) REFERENCES `procurement_requests` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_procurement_price_validations_submitted_by` FOREIGN KEY (`submitted_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+    CONSTRAINT `fk_procurement_price_validations_validated_by` FOREIGN KEY (`validated_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------------------

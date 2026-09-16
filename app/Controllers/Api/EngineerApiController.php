@@ -12,7 +12,6 @@ use App\Models\EngineerAssignment;
 use App\Models\EngineerAssignmentStatusHistory;
 use App\Models\MasterData;
 use App\Models\Notification;
-use App\Models\Role;
 use App\Models\User;
 
 class EngineerApiController extends Controller
@@ -22,8 +21,10 @@ class EngineerApiController extends Controller
     /** Polled by the engineer dashboard to keep the tab counts live. */
     public function summary(Request $request): void
     {
-        $scopeEngineerId = Acl::hasRole('engineer-sales') ? Auth::id() : null;
-        $scopeSalesId = Acl::hasRole('sales') ? Auth::id() : null;
+        $actor = Auth::user();
+        $inEngineerPool = $actor && ((int) ($actor['is_engineer'] ?? 0) === 1 || (int) ($actor['is_sales_engineer'] ?? 0) === 1);
+        $scopeEngineerId = (Acl::hasRole('engineer-sales') || $inEngineerPool) ? Auth::id() : null;
+        $scopeSalesId = (!$inEngineerPool && Acl::hasRole('sales')) ? Auth::id() : null;
 
         $this->json([
             'counts' => EngineerAssignment::dashboardCounts($scopeEngineerId, $scopeSalesId),
@@ -158,10 +159,10 @@ class EngineerApiController extends Controller
         }
 
         $engineerId = (int) $request->input('engineer_id');
-        $engineerRole = Role::findBySlug('engineer-sales');
         $engineer = $engineerId ? User::find($engineerId) : null;
+        $flagColumn = $assignment['assignment_type'] === 'engineer' ? 'is_engineer' : 'is_sales_engineer';
 
-        if (!$engineerId || $engineer === null || (int) $engineer['is_active'] !== 1 || (int) $engineer['role_id'] !== (int) ($engineerRole['id'] ?? 0)) {
+        if (!$engineerId || $engineer === null || (int) $engineer['is_active'] !== 1 || (int) ($engineer[$flagColumn] ?? 0) !== 1) {
             $this->json(['error' => 'Engineer tidak valid atau tidak aktif.'], 422);
 
             return;
@@ -192,7 +193,9 @@ class EngineerApiController extends Controller
             $engineerId,
             'engineer_assignment_new',
             'Assignment Baru',
-            "Lead {$assignment['lead_code']} ({$assignment['customer_name']}) menunggu analisa teknis Anda.",
+            $assignment['assignment_type'] === 'engineer'
+                ? "Lead {$assignment['lead_code']} ({$assignment['customer_name']}) menunggu survey teknis/desain Anda."
+                : "Lead {$assignment['lead_code']} ({$assignment['customer_name']}) menunggu analisa teknis Anda.",
             '/engineer/' . $assignment['id']
         );
 
@@ -215,13 +218,17 @@ class EngineerApiController extends Controller
             return null;
         }
 
-        if (Acl::hasRole('engineer-sales') && (int) $assignment['engineer_id'] !== Auth::id()) {
+        $isAssignee = (int) $assignment['engineer_id'] === Auth::id();
+        $actor = Auth::user();
+        $inEngineerPool = $actor && ((int) ($actor['is_engineer'] ?? 0) === 1 || (int) ($actor['is_sales_engineer'] ?? 0) === 1 || Acl::hasRole('engineer-sales'));
+
+        if ($inEngineerPool && !$isAssignee && !Acl::can('engineer.manage')) {
             $this->json(['error' => 'forbidden'], 403);
 
             return null;
         }
 
-        if (Acl::hasRole('sales') && (int) $assignment['lead_sales_id'] !== Auth::id()) {
+        if (Acl::hasRole('sales') && !$isAssignee && (int) $assignment['lead_sales_id'] !== Auth::id()) {
             $this->json(['error' => 'forbidden'], 403);
 
             return null;

@@ -11,7 +11,11 @@ use App\Core\Request;
 use App\Core\Session;
 use App\Core\Validator;
 use App\Models\AuditLog;
+use App\Models\EngineerAssignment;
+use App\Models\Lead;
 use App\Models\MasterData;
+use App\Models\ProcurementPriceValidation;
+use App\Models\ProcurementRequest;
 use App\Models\QueueNote;
 use App\Models\QueueStatusHistory;
 use App\Models\Role;
@@ -66,11 +70,24 @@ class QueueController extends Controller
     {
         $queue = $this->findAuthorized((int) $params['id']);
 
+        // Revisi Sub-Fase 4 — same Current Process derivation as the Lead
+        // detail page (Lead::currentPosition()), so the Antrian page shows
+        // the identical computed position, not the old manual stage_id field.
+        $lead = Lead::find((int) $queue['lead_id']);
+        $activeEngineerAssignment = EngineerAssignment::activeForLead((int) $queue['lead_id'], 'engineer');
+        $activeSalesEngineerAssignment = EngineerAssignment::activeForLead((int) $queue['lead_id'], 'sales_engineer');
+        $activeProcurementRequest = ProcurementRequest::activeForLead((int) $queue['lead_id']);
+        $pendingValidation = $activeProcurementRequest !== null
+            ? ProcurementPriceValidation::pendingForRequest((int) $activeProcurementRequest['id'])
+            : null;
+        $leadStatusMap = MasterData::allAsMap('lead_statuses');
+        $queueStatusMap = MasterData::allAsMap('queue_statuses');
+
         $this->view('queue/show', [
             'pageTitle' => 'Antrian #' . $queue['queue_number'],
             'queue' => $queue,
             'timeline' => $this->buildTimeline((int) $queue['id']),
-            'statusMap' => MasterData::allAsMap('queue_statuses'),
+            'statusMap' => $queueStatusMap,
             'priorityMap' => MasterData::allAsMap('priorities'),
             'surveyStatusMap' => MasterData::allAsMap('survey_statuses'),
             'stageMap' => MasterData::allAsMap('queue_stages'),
@@ -81,6 +98,12 @@ class QueueController extends Controller
             'canManage' => Acl::can('queue.manage'),
             'canOperate' => $this->canOperate($queue),
             'canReassign' => Acl::can('queue.manage'),
+            'currentPosition' => $lead !== null ? Lead::currentPosition($lead, $queue, $leadStatusMap, $queueStatusMap, [
+                'validation' => $pendingValidation,
+                'procurement' => $activeProcurementRequest,
+                'salesEngineer' => $activeSalesEngineerAssignment,
+                'engineer' => $activeEngineerAssignment,
+            ]) : null,
         ]);
     }
 

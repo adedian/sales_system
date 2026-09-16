@@ -67,7 +67,7 @@ $tiles = [
                 </select>
             </div>
             <div class="filter-field">
-                <label class="form-label" for="stage_id">Prioritas</label>
+                <label class="form-label" for="stage_id">Catatan Tahap</label>
                 <select id="stage_id" name="stage_id" class="form-select">
                     <option value="">Semua</option>
                     <?php foreach ($stageMap as $row): ?>
@@ -116,13 +116,13 @@ $tiles = [
             </div>
         <?php else: ?>
         <div class="table-responsive">
-            <table class="table table-modern mb-0">
+            <table class="table table-modern table-sticky mb-0">
                 <thead>
                     <tr>
                         <th><?= $sortLink('queue_number', 'No.') ?></th>
                         <th><?= $sortLink('customer_name', 'Tugas') ?></th>
                         <th>Status Survey</th>
-                        <th>Prioritas</th>
+                        <th>Catatan Tahap</th>
                         <th><?= $sortLink('priority', 'Urgensi') ?></th>
                         <th><?= $sortLink('sales_name', 'Sales') ?></th>
                         <th>Estimator</th>

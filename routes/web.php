@@ -120,6 +120,7 @@ $router->get('/settings', [SettingController::class, 'index'], ['auth', 'permiss
 $router->post('/settings', [SettingController::class, 'update'], ['auth', 'permission:system.manage']);
 
 $router->get('/procurement', [ProcurementController::class, 'index'], ['auth', 'permission:procurement.view']);
+$router->get('/procurement/validation', [ProcurementController::class, 'validationQueue'], ['auth', 'permission:procurement.view']);
 $router->post('/procurement/{id}/items', [ProcurementController::class, 'addItem'], ['auth', 'permission:procurement.view']);
 $router->post('/procurement/{id}/items/{itemId}', [ProcurementController::class, 'updateItem'], ['auth', 'permission:procurement.view']);
 $router->post('/procurement/{id}/items/{itemId}/delete', [ProcurementController::class, 'deleteItem'], ['auth', 'permission:procurement.view']);
@@ -129,6 +130,8 @@ $router->post('/procurement/{id}/need-revision', [ProcurementController::class, 
 $router->post('/procurement/{id}/cancel', [ProcurementController::class, 'cancel'], ['auth', 'permission:procurement.view']);
 $router->post('/procurement/{id}/notes', [ProcurementController::class, 'addNote'], ['auth', 'permission:procurement.view']);
 $router->post('/procurement/{id}/complete', [ProcurementController::class, 'markCompleted'], ['auth', 'permission:procurement.view']);
+$router->post('/procurement/{id}/validate/approve', [ProcurementController::class, 'approveValidation'], ['auth', 'permission:procurement.view']);
+$router->post('/procurement/{id}/validate/revision', [ProcurementController::class, 'requestValidationRevision'], ['auth', 'permission:procurement.view']);
 $router->post('/procurement/{id}/create-proposal', [ProposalController::class, 'createFromProcurement'], ['auth', 'permission:procurement.view']);
 $router->get('/procurement/{id}', [ProcurementController::class, 'show'], ['auth', 'permission:procurement.view']);
 

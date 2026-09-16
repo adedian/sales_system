@@ -10,7 +10,7 @@ class ProcurementRequest extends Model
     protected static string $table = 'procurement_requests';
 
     /** Statuses that still count as "open" work for procurement. */
-    public const OPEN_STATUSES = ['waiting', 'in_progress', 'quotation_requested', 'need_revision'];
+    public const OPEN_STATUSES = ['waiting', 'in_progress', 'quotation_requested', 'pending_validation', 'need_revision'];
 
     /** Statuses that close a request out (excluded from the default list unless requested). */
     public const CLOSED_STATUSES = ['pricing_completed', 'cancelled'];
@@ -164,7 +164,7 @@ class ProcurementRequest extends Model
             $params
         );
 
-        $counts = array_fill_keys(['waiting', 'in_progress', 'quotation_requested', 'pricing_completed', 'need_revision', 'cancelled'], 0);
+        $counts = array_fill_keys(['waiting', 'in_progress', 'quotation_requested', 'pending_validation', 'pricing_completed', 'need_revision', 'cancelled'], 0);
         foreach ($rows as $row) {
             $counts[$row['status']] = (int) $row['total'];
         }

@@ -44,8 +44,14 @@ $responseColors = [
         <?php if ($latestEngineerAssignment): ?>
         <a href="<?= url('/engineer/' . $latestEngineerAssignment['id']) ?>" class="btn btn-light"><i class="bi bi-tools me-1"></i>Lihat Assignment Engineer</a>
         <?php endif; ?>
-        <?php if (!$activeEngineerAssignment && $canRequestEngineer && !$lead['deleted_at'] && count($engineerUsers)): ?>
-        <a href="#request-engineer" class="btn btn-light"><i class="bi bi-tools me-1"></i>Minta Analisa Engineer</a>
+        <?php if (!$activeEngineerAssignment && $canRequestEngineer && !$lead['deleted_at'] && count($engineerFieldUsers)): ?>
+        <a href="#request-engineer" class="btn btn-light"><i class="bi bi-tools me-1"></i>Minta Engineer</a>
+        <?php endif; ?>
+        <?php if ($latestSalesEngineerAssignment): ?>
+        <a href="<?= url('/engineer/' . $latestSalesEngineerAssignment['id']) ?>" class="btn btn-light"><i class="bi bi-person-gear me-1"></i>Lihat Assignment Sales Engineer</a>
+        <?php endif; ?>
+        <?php if (!$activeSalesEngineerAssignment && $canRequestEngineer && !$lead['deleted_at'] && count($salesEngineerUsers)): ?>
+        <a href="#request-sales-engineer" class="btn btn-light"><i class="bi bi-person-gear me-1"></i>Minta Sales Engineer</a>
         <?php endif; ?>
         <?php if ($latestProcurementRequest): ?>
         <a href="<?= url('/procurement/' . $latestProcurementRequest['id']) ?>" class="btn btn-light"><i class="bi bi-truck me-1"></i>Lihat Request Procurement</a>
@@ -258,9 +264,9 @@ $responseColors = [
     </div>
 </div>
 
-<!-- Engineer Sales: request / active assignment summary -->
+<!-- Engineer: survey teknis lapangan lanjutan / desain teknis (Revisi Sub-Fase 2) -->
 <div class="card card-elevated mt-3" id="request-engineer">
-    <div class="card-header"><h3>Analisa Teknis Engineer</h3></div>
+    <div class="card-header"><h3>Engineer (Survey Teknis &amp; Desain)</h3></div>
     <div class="card-body">
         <?php if ($latestEngineerAssignment): ?>
             <?php $eaStatus = $engineerStatusMap[$latestEngineerAssignment['status']] ?? ['name' => $latestEngineerAssignment['status'], 'color' => 'muted']; ?>
@@ -271,23 +277,24 @@ $responseColors = [
                 <dt>Deadline</dt><dd><?= $latestEngineerAssignment['deadline'] ? e(format_datetime($latestEngineerAssignment['deadline'], 'd M Y')) : '-' ?></dd>
             </dl>
             <?php if ($latestEngineerAssignment['result_notes']): ?>
-                <div class="note-item mb-0"><div class="note-text"><?= nl2br(e($latestEngineerAssignment['result_notes'])) ?></div><div class="note-meta">Hasil analisa dari engineer</div></div>
+                <div class="note-item mb-0"><div class="note-text"><?= nl2br(e($latestEngineerAssignment['result_notes'])) ?></div><div class="note-meta">Hasil dari engineer</div></div>
             <?php endif; ?>
             <a href="<?= url('/engineer/' . $latestEngineerAssignment['id']) ?>" class="btn btn-sm btn-light mt-3">Lihat Detail Assignment</a>
         <?php endif; ?>
 
         <?php if (!$activeEngineerAssignment && $canRequestEngineer && !$lead['deleted_at']): ?>
-            <?php if (empty($engineerUsers)): ?>
-                <p class="text-muted small <?= $latestEngineerAssignment ? 'mt-3' : '' ?> mb-0">Belum ada akun Engineer Sales yang aktif.</p>
+            <?php if (empty($engineerFieldUsers)): ?>
+                <p class="text-muted small <?= $latestEngineerAssignment ? 'mt-3' : '' ?> mb-0">Belum ada akun Engineer yang aktif.</p>
             <?php else: ?>
             <form method="POST" action="<?= url('/leads/' . $lead['id'] . '/request-engineer') ?>" class="row g-2 <?= $latestEngineerAssignment ? 'mt-2' : '' ?>">
                 <?php if ($latestEngineerAssignment): ?><hr class="mt-1"><?php endif; ?>
                 <?= csrf_field() ?>
+                <input type="hidden" name="assignment_type" value="engineer">
                 <div class="col-12 col-md-4">
                     <label class="form-label">Engineer</label>
                     <select name="engineer_id" class="form-select" required>
                         <option value="">Pilih engineer...</option>
-                        <?php foreach ($engineerUsers as $row): ?>
+                        <?php foreach ($engineerFieldUsers as $row): ?>
                             <option value="<?= (int) $row['id'] ?>"><?= e($row['name']) ?></option>
                         <?php endforeach; ?>
                     </select>
@@ -315,6 +322,68 @@ $responseColors = [
             <?php endif; ?>
         <?php elseif (!$latestEngineerAssignment): ?>
             <p class="text-muted small mb-0">Belum ada assignment engineer untuk lead ini.</p>
+        <?php endif; ?>
+    </div>
+</div>
+
+<!-- Sales Engineer: analisa teknis & koordinasi (modul asli, sekarang assignment_type='sales_engineer') -->
+<div class="card card-elevated mt-3" id="request-sales-engineer">
+    <div class="card-header"><h3>Sales Engineer (Analisa Teknis)</h3></div>
+    <div class="card-body">
+        <?php if ($latestSalesEngineerAssignment): ?>
+            <?php $seStatus = $engineerStatusMap[$latestSalesEngineerAssignment['status']] ?? ['name' => $latestSalesEngineerAssignment['status'], 'color' => 'muted']; ?>
+            <dl class="lead-dl mb-3">
+                <dt>Kode Assignment</dt><dd><a href="<?= url('/engineer/' . $latestSalesEngineerAssignment['id']) ?>" class="mono"><?= e($latestSalesEngineerAssignment['assignment_code']) ?></a></dd>
+                <dt>Sales Engineer</dt><dd><?= e($latestSalesEngineerAssignment['engineer_name'] ?? '-') ?></dd>
+                <dt>Status</dt><dd><span class="color-swatch color-swatch-<?= e($seStatus['color']) ?>"><?= e($seStatus['name']) ?></span></dd>
+                <dt>Deadline</dt><dd><?= $latestSalesEngineerAssignment['deadline'] ? e(format_datetime($latestSalesEngineerAssignment['deadline'], 'd M Y')) : '-' ?></dd>
+            </dl>
+            <?php if ($latestSalesEngineerAssignment['result_notes']): ?>
+                <div class="note-item mb-0"><div class="note-text"><?= nl2br(e($latestSalesEngineerAssignment['result_notes'])) ?></div><div class="note-meta">Hasil analisa dari sales engineer</div></div>
+            <?php endif; ?>
+            <a href="<?= url('/engineer/' . $latestSalesEngineerAssignment['id']) ?>" class="btn btn-sm btn-light mt-3">Lihat Detail Assignment</a>
+        <?php endif; ?>
+
+        <?php if (!$activeSalesEngineerAssignment && $canRequestEngineer && !$lead['deleted_at']): ?>
+            <?php if (empty($salesEngineerUsers)): ?>
+                <p class="text-muted small <?= $latestSalesEngineerAssignment ? 'mt-3' : '' ?> mb-0">Belum ada akun Sales Engineer yang aktif.</p>
+            <?php else: ?>
+            <form method="POST" action="<?= url('/leads/' . $lead['id'] . '/request-engineer') ?>" class="row g-2 <?= $latestSalesEngineerAssignment ? 'mt-2' : '' ?>">
+                <?php if ($latestSalesEngineerAssignment): ?><hr class="mt-1"><?php endif; ?>
+                <?= csrf_field() ?>
+                <input type="hidden" name="assignment_type" value="sales_engineer">
+                <div class="col-12 col-md-4">
+                    <label class="form-label">Sales Engineer</label>
+                    <select name="engineer_id" class="form-select" required>
+                        <option value="">Pilih sales engineer...</option>
+                        <?php foreach ($salesEngineerUsers as $row): ?>
+                            <option value="<?= (int) $row['id'] ?>"><?= e($row['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label">Prioritas</label>
+                    <select name="priority" class="form-select">
+                        <?php foreach ($priorityMap as $code => $row): ?>
+                            <option value="<?= e($code) ?>" <?= $lead['priority'] === $code ? 'selected' : '' ?>><?= e($row['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label">Deadline</label>
+                    <input type="date" name="deadline" class="form-control">
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Catatan untuk Sales Engineer</label>
+                    <textarea name="notes_from_sales" class="form-control" rows="2" placeholder="Konteks/instruksi untuk sales engineer (opsional)"></textarea>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-send me-1"></i>Kirim ke Sales Engineer</button>
+                </div>
+            </form>
+            <?php endif; ?>
+        <?php elseif (!$latestSalesEngineerAssignment): ?>
+            <p class="text-muted small mb-0">Belum ada assignment sales engineer untuk lead ini.</p>
         <?php endif; ?>
     </div>
 </div>

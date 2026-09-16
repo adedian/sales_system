@@ -60,4 +60,7 @@ return [
     'system' => [
         'system.manage' => 'Mengelola pengaturan sistem',
     ],
+    'price' => [
+        'price.validate' => 'Memvalidasi harga dari Procurement (Direktur)',
+    ],
 ];

@@ -74,20 +74,34 @@ class Lead extends Model
     }
 
     /**
-     * Phase C — "Current Position": won/lost leads show Deal/Cancel; an
-     * active Antrian row with a Prioritas (stage) set shows that stage;
-     * an active row without a stage falls back to the queue's own status;
-     * a lead never enqueued falls back to its own status. Takes already-
-     * resolved data (not queried here) so it works identically for a
-     * single lead (detail page) or a batch/report row without N+1.
+     * Revisi Sub-Fase 4 — "Current Process": rewritten to derive the label
+     * purely from the REAL state of each stage's own module (Engineer/Sales
+     * Engineer assignment, Procurement request, Direktur price validation),
+     * not from the old `sales_queue.stage_id` ("Prioritas") field — that
+     * field mixed urgency values (Urgent/Medium/Slow) with process-stage
+     * values in one dropdown, which the new business-flow document
+     * explicitly requires to be separate concepts (Priority = urgency only,
+     * Current Process = position only). The `stage_id` column itself is
+     * left untouched in the DB (no data loss, no migration) — it's just no
+     * longer read here. Takes already-resolved data (not queried here) so
+     * it works identically for a single lead (detail page) or a batch/report
+     * row without N+1 — see Lead::monitoringReport() for the batched query.
+     *
+     * Priority order mirrors the flow: Sales -> Survey -> Data Antrian ->
+     * Engineer -> Sales Engineer -> Procurement -> Approval Harga ->
+     * (back to Procurement/Sales) -> Proposal -> Deal/Cancel. Checked from
+     * the "latest" stage backwards so whichever module currently holds an
+     * open item wins.
      *
      * @param array $lead the leads.* row (needs 'status')
-     * @param array|null $activeQueue shape: ['stage_id','stage_name','stage_color','status'] or null
-     * @param array $leadStatusMap MasterData::allAsMap('lead_statuses')
-     * @param array $queueStatusMap MasterData::allAsMap('queue_statuses')
+     * @param array|null $activeQueue shape: ['survey_status_code','status'] or null
+     * @param array $leadStatusMap MasterData::allAsMap('lead_statuses') (unused fallback labels, kept for signature compatibility)
+     * @param array $queueStatusMap MasterData::allAsMap('queue_statuses') (unused fallback labels, kept for signature compatibility)
+     * @param array $extra optional: ['validation' => ?array, 'procurement' => ?array, 'salesEngineer' => ?array, 'engineer' => ?array]
+     *              each an active/open row from its own module, or null/absent if none.
      * @return array{label:string,color:string}
      */
-    public static function currentPosition(array $lead, ?array $activeQueue, array $leadStatusMap, array $queueStatusMap): array
+    public static function currentPosition(array $lead, ?array $activeQueue, array $leadStatusMap, array $queueStatusMap, array $extra = []): array
     {
         if ($lead['status'] === 'won') {
             return ['label' => 'Deal', 'color' => 'emerald'];
@@ -96,19 +110,36 @@ class Lead extends Model
             return ['label' => 'Cancel', 'color' => 'danger'];
         }
 
-        if ($activeQueue !== null) {
-            if (!empty($activeQueue['stage_id']) && !empty($activeQueue['stage_name'])) {
-                return ['label' => $activeQueue['stage_name'], 'color' => $activeQueue['stage_color'] ?? 'muted'];
-            }
-
-            $statusRow = $queueStatusMap[$activeQueue['status']] ?? null;
-
-            return ['label' => $statusRow['name'] ?? $activeQueue['status'], 'color' => $statusRow['color'] ?? 'muted'];
+        if (!empty($extra['validation'])) {
+            return ['label' => 'Approval Harga', 'color' => 'amber'];
         }
 
-        $statusRow = $leadStatusMap[$lead['status']] ?? null;
+        if (!empty($extra['procurement'])) {
+            return ['label' => 'Procurement', 'color' => 'indigo'];
+        }
 
-        return ['label' => $statusRow['name'] ?? $lead['status'], 'color' => $statusRow['color'] ?? 'muted'];
+        if (!empty($extra['salesEngineer'])) {
+            return ['label' => 'Sales Engineer', 'color' => 'indigo'];
+        }
+
+        if (!empty($extra['engineer'])) {
+            return ['label' => 'Engineer', 'color' => 'indigo'];
+        }
+
+        if ($activeQueue !== null) {
+            $surveyCode = $activeQueue['survey_status_code'] ?? null;
+            if ($surveyCode === null || $surveyCode === 'prelim') {
+                return ['label' => 'Survey', 'color' => 'amber'];
+            }
+
+            return ['label' => 'Data Antrian', 'color' => 'indigo'];
+        }
+
+        if ($lead['status'] === 'proposal') {
+            return ['label' => 'Proposal', 'color' => 'indigo'];
+        }
+
+        return ['label' => 'Sales', 'color' => 'muted'];
     }
 
     /**
@@ -132,9 +163,16 @@ class Lead extends Model
         }
 
         if (!empty($filters['q'])) {
-            $where[] = '(leads.lead_code LIKE ? OR leads.customer_name LIKE ? OR leads.company_name LIKE ? OR leads.phone LIKE ? OR leads.email LIKE ?)';
-            $like = '%' . $filters['q'] . '%';
-            array_push($params, $like, $like, $like, $like, $like);
+            // Revisi Sub-Fase 5 — token/partial search (dokumen requirement
+            // §39): "am 01 sup" harus match "AM.0001.SUP". Setiap token
+            // di-AND-kan (semua token harus ketemu di SALAH SATU kolom),
+            // tiap token sendiri di-OR-kan lintas kolom.
+            $tokens = preg_split('/\s+/', trim((string) $filters['q']), -1, PREG_SPLIT_NO_EMPTY);
+            foreach ($tokens as $token) {
+                $where[] = '(leads.lead_code LIKE ? OR leads.customer_name LIKE ? OR leads.company_name LIKE ? OR leads.phone LIKE ? OR leads.email LIKE ?)';
+                $like = '%' . $token . '%';
+                array_push($params, $like, $like, $like, $like, $like);
+            }
         }
 
         if (!empty($filters['status'])) {
@@ -239,8 +277,8 @@ class Lead extends Model
 
     /**
      * Open leads (not Won/Lost) that have never entered Antrian — the
-     * "belum masuk antrian" bucket for the Dashboard's Phase C position
-     * tiles, complementing SalesQueue::countActiveByStage().
+     * "belum masuk antrian" bucket for the Dashboard's Current Process
+     * distribution widget, complementing Lead::currentProcessDistribution().
      */
     public static function countNotYetQueued(): int
     {
@@ -432,9 +470,13 @@ class Lead extends Model
             $params[] = $filters['status'];
         }
         if (!empty($filters['q'])) {
-            $where[] = '(leads.customer_name LIKE ? OR leads.company_name LIKE ?)';
-            $like = '%' . $filters['q'] . '%';
-            array_push($params, $like, $like);
+            // Revisi Sub-Fase 5 — same token/partial search as Lead::search().
+            $tokens = preg_split('/\s+/', trim((string) $filters['q']), -1, PREG_SPLIT_NO_EMPTY);
+            foreach ($tokens as $token) {
+                $where[] = '(leads.lead_code LIKE ? OR leads.customer_name LIKE ? OR leads.company_name LIKE ?)';
+                $like = '%' . $token . '%';
+                array_push($params, $like, $like, $like);
+            }
         }
 
         return ['where' => implode(' AND ', $where), 'params' => $params];
@@ -462,6 +504,14 @@ class Lead extends Model
     {
         $w = self::reportWhere($filters);
 
+        // Revisi Sub-Fase 4 — same ROW_NUMBER()-ranked-subquery pattern as
+        // the existing `aq` (active Antrian) join below, extended with one
+        // subquery per stage module Lead::currentPosition() now needs
+        // (Engineer/Sales Engineer assignment, Procurement request, pending
+        // Direktur validation) so the whole report stays one query, no N+1.
+        $engineerOpen = "'" . implode("','", \App\Models\EngineerAssignment::OPEN_STATUSES) . "'";
+        $procurementOpen = "'" . implode("','", \App\Models\ProcurementRequest::OPEN_STATUSES) . "'";
+
         return Database::fetchAll(
             "SELECT leads.*,
                     sales.name AS sales_name,
@@ -472,10 +522,15 @@ class Lead extends Model
                     aq.status AS queue_status,
                     aq.priority AS queue_priority,
                     stage.id AS stage_id, stage.name AS stage_name, stage.color AS stage_color,
+                    survey_status.code AS survey_status_code,
                     survey_status.name AS survey_status_name,
                     estimator.name AS estimator_name,
                     surveyor.name AS surveyor_name,
-                    current_pic.name AS current_pic_name
+                    current_pic.name AS current_pic_name,
+                    eng.id AS active_engineer_id,
+                    seng.id AS active_sales_engineer_id,
+                    preq.id AS active_procurement_id,
+                    pval.id AS pending_validation_id
              FROM leads
              LEFT JOIN users sales ON sales.id = leads.sales_id
              LEFT JOIN lead_types lead_type ON lead_type.id = leads.type_id
@@ -491,10 +546,80 @@ class Lead extends Model
              LEFT JOIN users estimator ON estimator.id = aq.estimator_id
              LEFT JOIN users surveyor ON surveyor.id = aq.surveyor_id
              LEFT JOIN users current_pic ON current_pic.id = aq.current_pic_id
+             LEFT JOIN (
+                 SELECT ea.*, ROW_NUMBER() OVER (PARTITION BY ea.lead_id ORDER BY ea.id DESC) AS rn
+                 FROM engineer_assignments ea
+                 WHERE ea.assignment_type = 'engineer' AND ea.status IN ({$engineerOpen})
+             ) eng ON eng.lead_id = leads.id AND eng.rn = 1
+             LEFT JOIN (
+                 SELECT ea.*, ROW_NUMBER() OVER (PARTITION BY ea.lead_id ORDER BY ea.id DESC) AS rn
+                 FROM engineer_assignments ea
+                 WHERE ea.assignment_type = 'sales_engineer' AND ea.status IN ({$engineerOpen})
+             ) seng ON seng.lead_id = leads.id AND seng.rn = 1
+             LEFT JOIN (
+                 SELECT pr.*, ROW_NUMBER() OVER (PARTITION BY pr.lead_id ORDER BY pr.id DESC) AS rn
+                 FROM procurement_requests pr
+                 WHERE pr.status IN ({$procurementOpen})
+             ) preq ON preq.lead_id = leads.id AND preq.rn = 1
+             LEFT JOIN (
+                 SELECT pv.*, ROW_NUMBER() OVER (PARTITION BY pv.procurement_request_id ORDER BY pv.id DESC) AS rn
+                 FROM procurement_price_validations pv
+                 WHERE pv.status = 'pending'
+             ) pval ON pval.procurement_request_id = preq.id AND pval.rn = 1
              WHERE {$w['where']}
              ORDER BY leads.created_at DESC",
             $w['params']
         );
+    }
+
+    /**
+     * Revisi Sub-Fase 4 — Dashboard's "Distribusi Posisi Lead" widget: was
+     * grouped by the raw `sales_queue.stage_id` (the old mixed
+     * urgency+stage "Prioritas" field); now tallies the same computed
+     * Current Process used everywhere else (Lead detail page, Lead
+     * Monitoring report), so all three stay in sync. Won/Lost leads are
+     * excluded (Deal/Cancel are end-states already shown by the KPI cards
+     * above this widget, not an active pipeline position).
+     *
+     * @return array<int,array{label:string,color:string,total:int}>
+     */
+    public static function currentProcessDistribution(): array
+    {
+        $rows = self::monitoringReport([]);
+        $statusMap = MasterData::allAsMap('lead_statuses');
+        $queueStatusMap = MasterData::allAsMap('queue_statuses');
+
+        $tally = [];
+        foreach ($rows as $r) {
+            if (in_array($r['status'], ['won', 'lost'], true)) {
+                continue;
+            }
+
+            $activeQueue = empty($r['queue_id']) ? null : [
+                'stage_id' => $r['stage_id'],
+                'stage_name' => $r['stage_name'],
+                'stage_color' => $r['stage_color'],
+                'status' => $r['queue_status'],
+                'survey_status_code' => $r['survey_status_code'],
+            ];
+
+            $position = self::currentPosition($r, $activeQueue, $statusMap, $queueStatusMap, [
+                'validation' => !empty($r['pending_validation_id']),
+                'procurement' => !empty($r['active_procurement_id']),
+                'salesEngineer' => !empty($r['active_sales_engineer_id']),
+                'engineer' => !empty($r['active_engineer_id']),
+            ]);
+
+            $key = $position['label'];
+            if (!isset($tally[$key])) {
+                $tally[$key] = ['label' => $key, 'color' => $position['color'], 'total' => 0];
+            }
+            $tally[$key]['total']++;
+        }
+
+        usort($tally, fn ($a, $b) => $b['total'] <=> $a['total']);
+
+        return array_values($tally);
     }
 
     /** @return array{where:string,params:array} shared by the Deal Report's table view and its CSV export. */
@@ -520,9 +645,13 @@ class Lead extends Model
             $params[] = $filters['status'];
         }
         if (!empty($filters['q'])) {
-            $where[] = '(leads.customer_name LIKE ? OR leads.company_name LIKE ?)';
-            $like = '%' . $filters['q'] . '%';
-            array_push($params, $like, $like);
+            // Revisi Sub-Fase 5 — same token/partial search as Lead::search().
+            $tokens = preg_split('/\s+/', trim((string) $filters['q']), -1, PREG_SPLIT_NO_EMPTY);
+            foreach ($tokens as $token) {
+                $where[] = '(leads.customer_name LIKE ? OR leads.company_name LIKE ?)';
+                $like = '%' . $token . '%';
+                array_push($params, $like, $like);
+            }
         }
 
         return ['where' => implode(' AND ', $where), 'params' => $params];

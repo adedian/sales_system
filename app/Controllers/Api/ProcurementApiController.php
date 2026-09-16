@@ -211,6 +211,13 @@ class ProcurementApiController extends Controller
             return null;
         }
 
+        // Revisi Sub-Fase 3 — Direktur (is_director flag, role stays `sales`)
+        // needs to poll/view any request regardless of lead ownership.
+        $actor = Auth::user();
+        if ($actor && (int) ($actor['is_director'] ?? 0) === 1) {
+            return $pr;
+        }
+
         if (Acl::hasRole('procurement') && (int) $pr['assigned_to'] !== Auth::id()) {
             $this->json(['error' => 'forbidden'], 403);
 

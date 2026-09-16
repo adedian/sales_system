@@ -25,7 +25,7 @@ class SalesQueue extends Model
         return "SELECT sales_queue.*,
                        leads.lead_code, leads.customer_name, leads.company_name, leads.phone AS lead_phone,
                        sales.name AS sales_name,
-                       survey_status.name AS survey_status_name, survey_status.color AS survey_status_color,
+                       survey_status.code AS survey_status_code, survey_status.name AS survey_status_name, survey_status.color AS survey_status_color,
                        stage.name AS stage_name, stage.color AS stage_color,
                        estimator.name AS estimator_name,
                        surveyor.name AS surveyor_name,

@@ -60,6 +60,14 @@ $tiles = [
                     <?php endforeach; ?>
                 </select>
             </div>
+            <div class="filter-field">
+                <label class="form-label" for="assignment_type">Tipe</label>
+                <select id="assignment_type" name="assignment_type" class="form-select">
+                    <option value="">Semua Tipe</option>
+                    <option value="engineer" <?= $filters['assignment_type'] === 'engineer' ? 'selected' : '' ?>>Engineer</option>
+                    <option value="sales_engineer" <?= $filters['assignment_type'] === 'sales_engineer' ? 'selected' : '' ?>>Sales Engineer</option>
+                </select>
+            </div>
             <?php if (count($engineerUsers)): ?>
             <div class="filter-field">
                 <label class="form-label" for="engineer_id">Engineer</label>
@@ -92,11 +100,12 @@ $tiles = [
             </div>
         <?php else: ?>
         <div class="table-responsive">
-            <table class="table table-modern mb-0">
+            <table class="table table-modern table-sticky mb-0">
                 <thead>
                     <tr>
                         <th><?= $sortLink('assignment_code', 'Kode') ?></th>
                         <th><?= $sortLink('customer_name', 'Lead') ?></th>
+                        <th>Tipe</th>
                         <th><?= $sortLink('status', 'Status') ?></th>
                         <th><?= $sortLink('priority', 'Prioritas') ?></th>
                         <th><?= $sortLink('engineer_name', 'Engineer') ?></th>
@@ -113,6 +122,7 @@ $tiles = [
                             <a href="<?= url('/leads/' . $a['lead_id']) ?>" class="mono d-block"><?= e($a['lead_code']) ?></a>
                             <div class="user-cell-name"><?= e($a['customer_name']) ?></div>
                         </td>
+                        <td><span class="badge-pill <?= $a['assignment_type'] === 'engineer' ? 'badge-pill-muted' : '' ?>"><?= $a['assignment_type'] === 'engineer' ? 'Engineer' : 'Sales Engineer' ?></span></td>
                         <td>
                             <span class="color-swatch color-swatch-<?= e($statusMap[$a['status']]['color'] ?? 'muted') ?>"><?= e($statusMap[$a['status']]['name'] ?? $a['status']) ?></span>
                             <?php if ($isOverdue): ?><span class="overdue-badge" title="Melewati deadline"><i class="bi bi-exclamation-triangle-fill"></i></span><?php endif; ?>

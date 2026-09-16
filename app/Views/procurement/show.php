@@ -205,14 +205,70 @@ $notes = array_values(array_filter($timeline, fn ($e) => $e['type'] === 'note'))
                 <p class="text-muted small mt-2">Format quotation: pdf, doc(x), xls(x), png, jpg &middot; maksimal 10MB.</p>
                 <?php endif; ?>
 
-                <?php if ($canOperate && !in_array($pr['status'], ['pricing_completed', 'cancelled'], true)): ?>
-                <form method="POST" action="<?= url('/procurement/' . $pr['id'] . '/complete') ?>" class="mt-3" data-confirm="Selesaikan pricing dan kembalikan request ini ke sales?">
+                <?php if ($canOperate && !in_array($pr['status'], ['pricing_completed', 'pending_validation', 'cancelled'], true)): ?>
+                <form method="POST" action="<?= url('/procurement/' . $pr['id'] . '/complete') ?>" class="mt-3" data-confirm="Selesaikan pricing dan kirim untuk validasi harga Direktur?">
                     <?= csrf_field() ?>
-                    <button type="submit" class="btn btn-success" <?= $allPriced ? '' : 'disabled title="Semua item harus memiliki harga beli terlebih dahulu"' ?>><i class="bi bi-send-check me-1"></i>Selesaikan Pricing &amp; Kirim ke Sales</button>
+                    <button type="submit" class="btn btn-success" <?= $allPriced ? '' : 'disabled title="Semua item harus memiliki harga beli terlebih dahulu"' ?>><i class="bi bi-send-check me-1"></i>Selesaikan Pricing &amp; Kirim untuk Validasi</button>
                     <?php if (!$allPriced): ?><div class="form-text text-danger">Isi harga beli untuk semua item (minimal 1 item) sebelum bisa diselesaikan.</div><?php endif; ?>
                 </form>
+                <?php elseif ($pr['status'] === 'pending_validation'): ?>
+                    <div class="badge-pill badge-pill-amber mt-3"><i class="bi bi-hourglass-split me-1"></i>Menunggu validasi harga Direktur</div>
                 <?php elseif ($pr['status'] === 'pricing_completed'): ?>
                     <div class="badge-pill badge-pill-muted mt-3"><i class="bi bi-check2-circle me-1"></i>Pricing selesai &amp; sudah dikembalikan ke sales</div>
+                <?php endif; ?>
+
+                <?php if ($isDirector && $pendingValidation): ?>
+                <div class="card card-elevated mt-3" style="border-color: var(--color-warning)">
+                    <div class="card-header"><h3><i class="bi bi-shield-check me-1"></i>Validasi Harga Direktur</h3></div>
+                    <div class="card-body">
+                        <dl class="lead-dl mb-3">
+                            <dt>Total Harga</dt><dd class="mono">Rp <?= number_format((float) $pendingValidation['total_price'], 0, ',', '.') ?></dd>
+                            <dt>Diajukan Oleh</dt><dd><?= e($pendingValidation['submitted_by_name'] ?? '-') ?></dd>
+                            <dt>Diajukan Pada</dt><dd><?= e(format_datetime($pendingValidation['submitted_at'])) ?></dd>
+                        </dl>
+                        <div class="row g-2">
+                            <div class="col-12 col-md-6">
+                                <form method="POST" action="<?= url('/procurement/' . $pr['id'] . '/validate/approve') ?>" data-confirm="Setujui harga ini dan kembalikan ke sales?">
+                                    <?= csrf_field() ?>
+                                    <textarea name="notes" class="form-control form-control-sm mb-2" rows="2" placeholder="Catatan persetujuan (opsional)"></textarea>
+                                    <button type="submit" class="btn btn-success w-100"><i class="bi bi-check-lg me-1"></i>Setujui Harga</button>
+                                </form>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <form method="POST" action="<?= url('/procurement/' . $pr['id'] . '/validate/revision') ?>" data-confirm="Kirim harga ini kembali ke Procurement untuk direvisi?">
+                                    <?= csrf_field() ?>
+                                    <textarea name="notes" class="form-control form-control-sm mb-2" rows="2" placeholder="Catatan revisi (wajib diisi)" required></textarea>
+                                    <button type="submit" class="btn btn-outline-danger w-100"><i class="bi bi-arrow-counterclockwise me-1"></i>Minta Revisi</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <?php if (!empty($validationHistory)): ?>
+                <div class="card card-elevated mt-3">
+                    <div class="card-header"><h3>Riwayat Validasi Harga</h3></div>
+                    <div class="card-body">
+                        <div class="note-list">
+                            <?php foreach ($validationHistory as $v): ?>
+                            <?php $vColor = ['pending' => 'amber', 'approved' => 'emerald', 'revision_required' => 'danger'][$v['status']] ?? 'muted'; ?>
+                            <?php $vLabel = ['pending' => 'Menunggu', 'approved' => 'Disetujui', 'revision_required' => 'Perlu Revisi'][$v['status']] ?? $v['status']; ?>
+                            <div class="note-item">
+                                <div class="note-text">
+                                    <span class="color-swatch color-swatch-<?= e($vColor) ?>"><?= e($vLabel) ?></span>
+                                    &middot; Rp <?= number_format((float) $v['total_price'], 0, ',', '.') ?>
+                                    <?php if ($v['notes']): ?><div class="mt-1"><?= nl2br(e($v['notes'])) ?></div><?php endif; ?>
+                                </div>
+                                <div class="note-meta">
+                                    Diajukan <?= e($v['submitted_by_name'] ?? '-') ?> &middot; <?= e(format_datetime($v['submitted_at'])) ?>
+                                    <?php if ($v['validated_by_name']): ?> &middot; Divalidasi <?= e($v['validated_by_name']) ?> &middot; <?= e(format_datetime($v['validated_at'])) ?><?php endif; ?>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                </div>
                 <?php endif; ?>
 
                 <?php if ($pr['status'] === 'pricing_completed'): ?>

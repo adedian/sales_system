@@ -160,6 +160,8 @@ $demoUsers = [
     ['username' => 'rian', 'name' => 'Rian', 'email' => 'rian@internal.local', 'role' => 'sales'],
     ['username' => 'tio', 'name' => 'Tio', 'email' => 'tio@internal.local', 'role' => 'sales'],
     ['username' => 'magang', 'name' => 'Magang', 'email' => 'magang@internal.local', 'role' => 'sales'],
+    // Revisi Sub-Fase 1 (Engineer/Sales Engineer/Direktur) — roster baru dari dokumen requirement.
+    ['username' => 'sandi', 'name' => 'Sandi', 'email' => 'sandi@internal.local', 'role' => 'sales'],
 ];
 
 $createdUsers = [];
@@ -211,6 +213,27 @@ foreach ($surveyorUsernames as $username) {
     Database::execute('UPDATE users SET is_surveyor = 1 WHERE username = ?', [$username]);
 }
 echo "  = estimator/surveyor flags applied.\n";
+
+/* ------------------------------------------------------------------
+ * 3c) Engineer/Sales Engineer/Direktur capability flags (Revisi
+ *     Sub-Fase 1) — same pattern as 3b above. A name can hold only one
+ *     of is_engineer/is_sales_engineer in practice per the reference
+ *     roster, but the columns are independent (not mutually exclusive).
+ * ---------------------------------------------------------------- */
+$engineerUsernames = ['sandi', 'naufal', 'rian'];
+$salesEngineerUsernames = ['fita', 'rika'];
+$directorUsernames = ['ronny'];
+
+foreach ($engineerUsernames as $username) {
+    Database::execute('UPDATE users SET is_engineer = 1 WHERE username = ?', [$username]);
+}
+foreach ($salesEngineerUsernames as $username) {
+    Database::execute('UPDATE users SET is_sales_engineer = 1 WHERE username = ?', [$username]);
+}
+foreach ($directorUsernames as $username) {
+    Database::execute('UPDATE users SET is_director = 1 WHERE username = ?', [$username]);
+}
+echo "  = engineer/sales-engineer/director flags applied.\n";
 
 /* ------------------------------------------------------------------
  * 4) Master Data (Phase 4) — satu tabel per tipe, semua kolom seragam.
@@ -309,6 +332,7 @@ $masterDataSeed = [
         ['code' => 'waiting', 'name' => 'Request Baru', 'color' => 'muted', 'is_system' => 1],
         ['code' => 'in_progress', 'name' => 'Sedang Diproses', 'color' => 'indigo', 'is_system' => 1],
         ['code' => 'quotation_requested', 'name' => 'Menunggu Quotation', 'color' => 'amber', 'is_system' => 1],
+        ['code' => 'pending_validation', 'name' => 'Menunggu Validasi Direktur', 'color' => 'amber', 'is_system' => 1],
         ['code' => 'pricing_completed', 'name' => 'Selesai', 'color' => 'emerald', 'is_system' => 1],
         ['code' => 'need_revision', 'name' => 'Butuh Revisi', 'color' => 'danger', 'is_system' => 1],
         ['code' => 'cancelled', 'name' => 'Dibatalkan', 'color' => 'muted', 'is_system' => 1],

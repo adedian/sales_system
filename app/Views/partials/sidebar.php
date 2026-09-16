@@ -48,9 +48,17 @@ $isActive = fn (string $needle) => str_ends_with($currentPath, $needle);
             <?php endif; ?>
             <?php if (can('procurement.view')): ?>
             <li>
-                <a href="<?= url('/procurement') ?>" class="sidebar-link <?= str_contains($currentPath, '/procurement') ? 'active' : '' ?>" title="Procurement">
+                <a href="<?= url('/procurement') ?>" class="sidebar-link <?= $currentPath !== '' && str_contains($currentPath, '/procurement') && !str_contains($currentPath, '/procurement/validation') ? 'active' : '' ?>" title="Procurement">
                     <i class="bi bi-truck"></i>
                     <span>Procurement</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if ((int) (auth_user()['is_director'] ?? 0) === 1): ?>
+            <li>
+                <a href="<?= url('/procurement/validation') ?>" class="sidebar-link <?= str_contains($currentPath, '/procurement/validation') ? 'active' : '' ?>" title="Validasi Harga">
+                    <i class="bi bi-shield-check"></i>
+                    <span>Validasi Harga</span>
                 </a>
             </li>
             <?php endif; ?>

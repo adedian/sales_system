@@ -47,24 +47,51 @@ class EngineerAssignment extends Model
         return Database::fetch(self::baseSelect() . ' WHERE engineer_assignments.id = ?', [$id]);
     }
 
-    /** The one still-open assignment for a lead, if any — used to block duplicate requests. */
-    public static function activeForLead(int $leadId): ?array
+    /**
+     * The one still-open assignment for a lead, if any — used to block
+     * duplicate requests. Revisi Sub-Fase 2: scoped by `$type` so a lead can
+     * have an open 'engineer' assignment AND an open 'sales_engineer'
+     * assignment at the same time without blocking each other — pass null
+     * to check across both types (e.g. for a generic "any open assignment"
+     * check).
+     */
+    public static function activeForLead(int $leadId, ?string $type = null): ?array
     {
         $placeholders = implode(',', array_fill(0, count(self::OPEN_STATUSES), '?'));
+        $params = array_merge([$leadId], self::OPEN_STATUSES);
+        $typeSql = '';
+
+        if ($type !== null) {
+            $typeSql = ' AND engineer_assignments.assignment_type = ?';
+            $params[] = $type;
+        }
 
         return Database::fetch(
-            self::baseSelect() . " WHERE engineer_assignments.lead_id = ? AND engineer_assignments.status IN ({$placeholders})
+            self::baseSelect() . " WHERE engineer_assignments.lead_id = ? AND engineer_assignments.status IN ({$placeholders}){$typeSql}
              ORDER BY engineer_assignments.id DESC LIMIT 1",
-            array_merge([$leadId], self::OPEN_STATUSES)
+            $params
         );
     }
 
-    /** Most recent assignment for a lead regardless of status — used to show a closed/returned result on the Lead page. */
-    public static function latestForLead(int $leadId): ?array
+    /**
+     * Most recent assignment for a lead regardless of status — used to show
+     * a closed/returned result on the Lead page. `$type` scopes it to just
+     * one of the two assignment types (Revisi Sub-Fase 2), null = latest
+     * regardless of type.
+     */
+    public static function latestForLead(int $leadId, ?string $type = null): ?array
     {
+        $params = [$leadId];
+        $typeSql = '';
+
+        if ($type !== null) {
+            $typeSql = ' AND engineer_assignments.assignment_type = ?';
+            $params[] = $type;
+        }
+
         return Database::fetch(
-            self::baseSelect() . ' WHERE engineer_assignments.lead_id = ? ORDER BY engineer_assignments.id DESC LIMIT 1',
-            [$leadId]
+            self::baseSelect() . " WHERE engineer_assignments.lead_id = ?{$typeSql} ORDER BY engineer_assignments.id DESC LIMIT 1",
+            $params
         );
     }
 
@@ -84,6 +111,11 @@ class EngineerAssignment extends Model
         if (!empty($filters['scope_sales_id'])) {
             $where[] = 'leads.sales_id = ?';
             $params[] = (int) $filters['scope_sales_id'];
+        }
+
+        if (!empty($filters['assignment_type'])) {
+            $where[] = 'engineer_assignments.assignment_type = ?';
+            $params[] = $filters['assignment_type'];
         }
 
         if (!empty($filters['q'])) {
@@ -222,22 +254,29 @@ class EngineerAssignment extends Model
         );
     }
 
-    /** Active-assignment count per Engineer — feeds the Manager Dashboard's team workload table. */
-    public static function workloadByEngineer(): array
+    /**
+     * Active-assignment count per Engineer — feeds the Manager Dashboard's
+     * team workload table. Revisi Sub-Fase 2: was scoped to role
+     * `engineer-sales`, which misses Fita/Rika (role `sales` +
+     * `is_sales_engineer` flag) — scoped by capability flag instead, and by
+     * `$type` so Engineer and Sales Engineer workload can be shown
+     * separately.
+     */
+    public static function workloadByEngineer(string $type = 'sales_engineer'): array
     {
+        $flagColumn = $type === 'engineer' ? 'is_engineer' : 'is_sales_engineer';
         $placeholders = implode(',', array_fill(0, count(self::OPEN_STATUSES), '?'));
 
         $rows = Database::fetchAll(
             "SELECT u.id, u.name,
-                    SUM(CASE WHEN ea.status IN ({$placeholders}) THEN 1 ELSE 0 END) AS active_count,
-                    SUM(CASE WHEN ea.status = 'completed' THEN 1 ELSE 0 END) AS completed_count
+                    SUM(CASE WHEN ea.status IN ({$placeholders}) AND ea.assignment_type = ? THEN 1 ELSE 0 END) AS active_count,
+                    SUM(CASE WHEN ea.status = 'completed' AND ea.assignment_type = ? THEN 1 ELSE 0 END) AS completed_count
              FROM users u
-             INNER JOIN roles r ON r.id = u.role_id AND r.slug = 'engineer-sales'
              LEFT JOIN engineer_assignments ea ON ea.engineer_id = u.id
-             WHERE u.is_active = 1
+             WHERE u.is_active = 1 AND u.{$flagColumn} = 1
              GROUP BY u.id, u.name
              ORDER BY active_count DESC",
-            self::OPEN_STATUSES
+            array_merge(self::OPEN_STATUSES, [$type, $type])
         );
 
         foreach ($rows as &$row) {

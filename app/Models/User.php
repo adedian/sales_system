@@ -51,9 +51,30 @@ class User extends Model
         return self::activeByFlag('is_surveyor');
     }
 
+    /**
+     * Revisi Sub-Fase 1 — same capability-flag pattern as Estimator/Surveyor
+     * above (a user keeps their normal login role and can additionally be
+     * flagged available for one or more of these).
+     */
+    public static function activeEngineers(): array
+    {
+        return self::activeByFlag('is_engineer');
+    }
+
+    public static function activeSalesEngineers(): array
+    {
+        return self::activeByFlag('is_sales_engineer');
+    }
+
+    public static function activeDirectors(): array
+    {
+        return self::activeByFlag('is_director');
+    }
+
     private static function activeByFlag(string $flagColumn): array
     {
-        if (!in_array($flagColumn, ['is_estimator', 'is_surveyor'], true)) {
+        $allowed = ['is_estimator', 'is_surveyor', 'is_engineer', 'is_sales_engineer', 'is_director'];
+        if (!in_array($flagColumn, $allowed, true)) {
             throw new \InvalidArgumentException("Kolom flag tidak dikenal: {$flagColumn}");
         }
 

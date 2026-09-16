@@ -48,6 +48,7 @@ class EngineerController extends Controller
             'status' => $request->input('status', ''),
             'priority' => $request->input('priority', ''),
             'engineer_id' => $request->input('engineer_id', ''),
+            'assignment_type' => $request->input('assignment_type', ''),
             'overdue' => $request->input('overdue') ? true : false,
             'include_closed' => $request->input('include_closed') ? true : false,
             'sort' => $request->input('sort', 'assigned_at'),
@@ -67,7 +68,8 @@ class EngineerController extends Controller
             'dashboardCounts' => EngineerAssignment::dashboardCounts($scope['scope_engineer_id'] ?? null, $scope['scope_sales_id'] ?? null),
             'statusMap' => MasterData::allAsMap('engineer_statuses'),
             'priorityMap' => MasterData::allAsMap('priorities'),
-            'engineerUsers' => ($id = $this->engineerRoleId()) ? User::activeByRole($id) : [],
+            // Revisi Sub-Fase 2 — union of both flag pools for the filter dropdown (works for either assignment type).
+            'engineerUsers' => $this->mergeUsersByName(User::activeEngineers(), User::activeSalesEngineers()),
             'canManage' => Acl::can('engineer.manage'),
         ]);
     }
@@ -85,7 +87,8 @@ class EngineerController extends Controller
             'priorityMap' => MasterData::allAsMap('priorities'),
             'canOperate' => $this->canOperate($assignment),
             'canManage' => Acl::can('engineer.manage'),
-            'engineerUsers' => ($id = $this->engineerRoleId()) ? User::activeByRole($id) : [],
+            // Reassign dropdown must only offer people eligible for THIS assignment's own type.
+            'engineerUsers' => $assignment['assignment_type'] === 'engineer' ? User::activeEngineers() : User::activeSalesEngineers(),
             'procurementUsers' => ($id = $this->procurementRoleId()) ? User::activeByRole($id) : [],
             'activeProcurementRequest' => ProcurementRequest::activeForLead((int) $assignment['lead_id']),
         ]);
@@ -113,8 +116,18 @@ class EngineerController extends Controller
             return;
         }
 
-        if (EngineerAssignment::activeForLead((int) $lead['id']) !== null) {
-            Session::flash('error', 'Lead ini sudah memiliki assignment engineer yang masih berjalan.');
+        // Revisi Sub-Fase 2 — 'engineer' (survey lapangan lanjutan/desain) dan
+        // 'sales_engineer' (analisa teknis, alur asli modul ini) tidak saling
+        // memblokir: sebuah lead bisa punya assignment aktif untuk keduanya
+        // sekaligus, berurutan.
+        $type = $request->input('assignment_type', 'sales_engineer');
+        if (!in_array($type, ['engineer', 'sales_engineer'], true)) {
+            $type = 'sales_engineer';
+        }
+
+        if (EngineerAssignment::activeForLead((int) $lead['id'], $type) !== null) {
+            $label = $type === 'engineer' ? 'Engineer' : 'Sales Engineer';
+            Session::flash('error', "Lead ini sudah memiliki assignment {$label} yang masih berjalan.");
             $this->redirect('/leads/' . $lead['id']);
 
             return;
@@ -133,12 +146,17 @@ class EngineerController extends Controller
             return;
         }
 
-        $engineerRole = Role::findBySlug('engineer-sales');
+        // Eligibility is a capability flag (is_engineer/is_sales_engineer), not
+        // the `engineer-sales` role — Fita/Rika keep role `sales` and are only
+        // flagged is_sales_engineer, so a role check alone would wrongly
+        // reject them.
+        $flagColumn = $type === 'engineer' ? 'is_engineer' : 'is_sales_engineer';
         $engineerId = (int) $request->input('engineer_id');
         $engineer = User::find($engineerId);
 
-        if ($engineer === null || (int) $engineer['is_active'] !== 1 || (int) $engineer['role_id'] !== (int) ($engineerRole['id'] ?? 0)) {
-            Session::flash('error', 'Engineer tidak valid atau tidak aktif.');
+        if ($engineer === null || (int) $engineer['is_active'] !== 1 || (int) ($engineer[$flagColumn] ?? 0) !== 1) {
+            $label = $type === 'engineer' ? 'Engineer' : 'Sales Engineer';
+            Session::flash('error', "{$label} tidak valid atau tidak aktif.");
             $this->redirect('/leads/' . $lead['id']);
 
             return;
@@ -149,6 +167,7 @@ class EngineerController extends Controller
 
         $assignment = EngineerAssignment::createForLead([
             'lead_id' => (int) $lead['id'],
+            'assignment_type' => $type,
             'engineer_id' => $engineerId,
             'assigned_by' => (int) $actor['id'],
             'status' => 'pending',
@@ -163,6 +182,7 @@ class EngineerController extends Controller
         EngineerAssignmentStatusHistory::record($assignment['id'], null, 'pending', (int) $actor['id'], 'Assignment dibuat, menunggu respon engineer.');
         AuditLogger::log((int) $actor['id'], 'engineer_assignment_requested', 'engineer_assignment', $assignment['id'], null, [
             'assignment_code' => $assignment['assignment_code'],
+            'assignment_type' => $type,
             'lead_code' => $lead['lead_code'],
             'engineer_name' => $engineer['name'],
         ]);
@@ -177,11 +197,13 @@ class EngineerController extends Controller
             $engineerId,
             'engineer_assignment_new',
             'Assignment Baru',
-            "Lead {$lead['lead_code']} ({$lead['customer_name']}) menunggu analisa teknis Anda.",
+            $type === 'engineer'
+                ? "Lead {$lead['lead_code']} ({$lead['customer_name']}) menunggu survey teknis/desain Anda."
+                : "Lead {$lead['lead_code']} ({$lead['customer_name']}) menunggu analisa teknis Anda.",
             '/engineer/' . $assignment['id']
         );
 
-        Session::flash('success', "Assignment {$assignment['assignment_code']} berhasil dikirim ke engineer.");
+        Session::flash('success', "Assignment {$assignment['assignment_code']} berhasil dikirim ke " . ($type === 'engineer' ? 'engineer' : 'sales engineer') . '.');
         $this->redirect('/engineer/' . $assignment['id']);
     }
 
@@ -594,10 +616,16 @@ class EngineerController extends Controller
         EngineerAssignmentStatusHistory::record((int) $assignment['id'], 'completed', 'returned', Auth::id(), 'Dikembalikan ke sales.');
         AuditLogger::log((int) Auth::id(), 'engineer_assignment_returned', 'engineer_assignment', (int) $assignment['id']);
 
-        $lead = Lead::find((int) $assignment['lead_id']);
-        if ($lead !== null && $lead['status'] === 'engineering') {
-            Lead::update((int) $lead['id'], ['status' => 'follow_up', 'updated_by' => Auth::id(), 'updated_at' => $now]);
-            LeadStatusHistory::record((int) $lead['id'], 'engineering', 'follow_up', Auth::id(), 'Hasil analisa teknis diterima dari engineer.');
+        // Revisi Sub-Fase 2 — hasil tipe 'engineer' belum menyelesaikan
+        // tahap teknis lead (masih perlu Sales Engineer setelahnya), jadi
+        // leads.status TIDAK dilompat ke follow_up di sini seperti alur
+        // sales_engineer; Sales tinggal klik "Minta Sales Engineer".
+        if ($assignment['assignment_type'] === 'sales_engineer') {
+            $lead = Lead::find((int) $assignment['lead_id']);
+            if ($lead !== null && $lead['status'] === 'engineering') {
+                Lead::update((int) $lead['id'], ['status' => 'follow_up', 'updated_by' => Auth::id(), 'updated_at' => $now]);
+                LeadStatusHistory::record((int) $lead['id'], 'engineering', 'follow_up', Auth::id(), 'Hasil analisa teknis diterima dari sales engineer.');
+            }
         }
 
         Session::flash('success', 'Assignment dikembalikan ke sales.');
@@ -629,6 +657,16 @@ class EngineerController extends Controller
 
         if ($assignment['status'] !== 'completed') {
             Session::flash('error', 'Isi hasil analisa terlebih dahulu sebelum mengirim ke procurement.');
+            $this->redirect('/engineer/' . $assignment['id']);
+
+            return;
+        }
+
+        // Revisi Sub-Fase 2 — hasil Engineer (survey lapangan/desain) tidak
+        // boleh lompat langsung ke Procurement, harus lewat Sales Engineer
+        // dulu sesuai flow dokumen.
+        if ($assignment['assignment_type'] === 'engineer') {
+            Session::flash('error', 'Hasil Engineer harus diteruskan ke Sales Engineer terlebih dahulu, belum bisa langsung ke Procurement.');
             $this->redirect('/engineer/' . $assignment['id']);
 
             return;
@@ -716,11 +754,21 @@ class EngineerController extends Controller
             $this->abort(404);
         }
 
-        if (Acl::hasRole('engineer-sales') && (int) $assignment['engineer_id'] !== Auth::id()) {
+        $isAssignee = $this->isOwnerEngineer($assignment);
+
+        // Revisi Sub-Fase 2 — Engineer/Sales Engineer eligibility is a
+        // capability flag now (is_engineer/is_sales_engineer), not the
+        // `engineer-sales` role, so a flag-holder can keep role `sales`
+        // (Fita/Rika). Gate on "is this a pooled worker viewing someone
+        // else's item" via the flag instead of the role.
+        $actor = Auth::user();
+        $inEngineerPool = $actor && ((int) ($actor['is_engineer'] ?? 0) === 1 || (int) ($actor['is_sales_engineer'] ?? 0) === 1 || Acl::hasRole('engineer-sales'));
+
+        if ($inEngineerPool && !$isAssignee && !Acl::can('engineer.manage')) {
             $this->abort(403, 'Anda hanya dapat mengakses assignment yang ditugaskan kepada Anda.');
         }
 
-        if (Acl::hasRole('sales') && (int) $assignment['lead_sales_id'] !== Auth::id()) {
+        if (Acl::hasRole('sales') && !$isAssignee && (int) $assignment['lead_sales_id'] !== Auth::id()) {
             $this->abort(403, 'Anda hanya dapat mengakses assignment dari lead Anda sendiri.');
         }
 
@@ -744,7 +792,10 @@ class EngineerController extends Controller
 
     private function scopeFilters(): array
     {
-        if (Acl::hasRole('engineer-sales')) {
+        $actor = Auth::user();
+        $inEngineerPool = $actor && ((int) ($actor['is_engineer'] ?? 0) === 1 || (int) ($actor['is_sales_engineer'] ?? 0) === 1);
+
+        if (Acl::hasRole('engineer-sales') || $inEngineerPool) {
             return ['scope_engineer_id' => Auth::id()];
         }
 
@@ -755,9 +806,10 @@ class EngineerController extends Controller
         return [];
     }
 
+    /** Revisi Sub-Fase 2 — pure ownership check now (works for any role, since eligibility is a capability flag, not the `engineer-sales` role). */
     private function isOwnerEngineer(array $assignment): bool
     {
-        return Acl::hasRole('engineer-sales') && (int) $assignment['engineer_id'] === Auth::id();
+        return (int) $assignment['engineer_id'] === Auth::id();
     }
 
     /** Who may accept/reject/update status/add notes/upload files/fill result/return. */
@@ -766,15 +818,19 @@ class EngineerController extends Controller
         return Acl::can('engineer.manage') || $this->isOwnerEngineer($assignment);
     }
 
-    private function engineerRoleId(): ?int
+    /** @param array<int,array<string,mixed>> ...$lists */
+    private function mergeUsersByName(array ...$lists): array
     {
-        static $id = null;
-        if ($id === null) {
-            $role = Role::findBySlug('engineer-sales');
-            $id = $role ? (int) $role['id'] : 0;
+        $merged = [];
+        foreach ($lists as $list) {
+            foreach ($list as $row) {
+                $merged[(int) $row['id']] = $row;
+            }
         }
 
-        return $id;
+        usort($merged, fn ($a, $b) => strcmp($a['name'], $b['name']));
+
+        return array_values($merged);
     }
 
     private function procurementRoleId(): ?int

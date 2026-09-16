@@ -94,8 +94,15 @@ $isOverdue = !empty($queue['deadline']) && $queue['deadline'] < date('Y-m-d') &&
                     <div class="lead-side-current"><span class="color-swatch color-swatch-<?= e($queue['survey_status_color'] ?? 'muted') ?>" data-badge="survey_status"><?= e($queue['survey_status_name'] ?? 'Belum diisi') ?></span></div>
                 </div>
 
+                <?php if ($currentPosition): ?>
                 <div class="lead-side-field">
-                    <label class="form-label">Prioritas</label>
+                    <label class="form-label">Proses Saat Ini</label>
+                    <div class="lead-side-current"><span class="color-swatch color-swatch-<?= e($currentPosition['color']) ?>"><?= e($currentPosition['label']) ?></span></div>
+                </div>
+                <?php endif; ?>
+
+                <div class="lead-side-field">
+                    <label class="form-label">Catatan Tahap (manual)</label>
                     <select class="form-select queue-live-field" data-endpoint="stage" data-field="stage_id" <?= $canOperate ? '' : 'disabled' ?>>
                         <option value="">Belum diisi</option>
                         <?php foreach ($stageMap as $row): ?>

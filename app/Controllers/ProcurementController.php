@@ -16,6 +16,7 @@ use App\Models\LeadStatusHistory;
 use App\Models\MasterData;
 use App\Models\Notification;
 use App\Models\ProcurementItem;
+use App\Models\ProcurementPriceValidation;
 use App\Models\ProcurementRequest;
 use App\Models\ProcurementRequestNote;
 use App\Models\ProcurementStatusHistory;
@@ -93,6 +94,10 @@ class ProcurementController extends Controller
             ),
             'canCreateProposal' => Acl::can('proposal.create'),
             'products' => \App\Models\Product::activeList(),
+            // Revisi Sub-Fase 3 — Validasi Harga Direktur.
+            'pendingValidation' => ProcurementPriceValidation::pendingForRequest((int) $pr['id']),
+            'validationHistory' => ProcurementPriceValidation::forRequest((int) $pr['id']),
+            'isDirector' => (int) (Auth::user()['is_director'] ?? 0) === 1,
         ]);
     }
 
@@ -414,8 +419,8 @@ class ProcurementController extends Controller
             return;
         }
 
-        if (in_array($pr['status'], ['pricing_completed', 'cancelled'], true)) {
-            Session::flash('error', 'Request yang sudah selesai/dibatalkan tidak dapat ditandai butuh revisi.');
+        if (in_array($pr['status'], ['pricing_completed', 'pending_validation', 'cancelled'], true)) {
+            Session::flash('error', 'Request yang sudah selesai/menunggu validasi/dibatalkan tidak dapat ditandai butuh revisi.');
             $this->redirect('/procurement/' . $pr['id']);
 
             return;
@@ -541,8 +546,8 @@ class ProcurementController extends Controller
             return;
         }
 
-        if (in_array($pr['status'], ['pricing_completed', 'cancelled'], true)) {
-            Session::flash('error', 'Request ini sudah final.');
+        if (in_array($pr['status'], ['pricing_completed', 'pending_validation', 'cancelled'], true)) {
+            Session::flash('error', 'Request ini sudah final atau sedang menunggu validasi.');
             $this->redirect('/procurement/' . $pr['id']);
 
             return;
@@ -557,20 +562,84 @@ class ProcurementController extends Controller
 
         $oldStatus = $pr['status'];
         $now = date('Y-m-d H:i:s');
+        $totalPrice = ProcurementItem::totalPurchasePrice((int) $pr['id']);
+
+        // Revisi Sub-Fase 3 — pricing yang selesai TIDAK langsung ke sales
+        // lagi, tapi menunggu Validasi Harga Direktur dulu (lihat
+        // approveValidation()/requestValidationRevision() di bawah, yang
+        // memindahkan logic "kembali ke sales" yang tadinya ada di sini).
+        ProcurementRequest::update((int) $pr['id'], [
+            'status' => 'pending_validation',
+            'updated_at' => $now,
+        ]);
+
+        ProcurementStatusHistory::record((int) $pr['id'], $oldStatus, 'pending_validation', Auth::id(), 'Pricing selesai, menunggu validasi harga Direktur.');
+        AuditLogger::log((int) Auth::id(), 'procurement_completed', 'procurement_request', (int) $pr['id']);
+
+        ProcurementPriceValidation::submit((int) $pr['id'], Auth::id(), $totalPrice);
+
+        foreach (User::activeDirectors() as $director) {
+            Notification::create(
+                (int) $director['id'],
+                'procurement_pending_validation',
+                'Validasi Harga Diperlukan',
+                "Lead {$pr['lead_code']} ({$pr['customer_name']}) menunggu validasi harga — total estimasi " . number_format($totalPrice, 0, ',', '.') . '.',
+                '/procurement/' . $pr['id']
+            );
+        }
+
+        Session::flash('success', 'Pricing selesai, menunggu validasi harga Direktur.');
+        $this->redirect('/procurement/' . $pr['id']);
+    }
+
+    /**
+     * "Validasi Harga Direktur — Approved": moves the price on to Sales.
+     * Gate is the `is_director` capability flag directly, not an Acl
+     * permission slug — this isn't an RBAC role (Pak Ronny keeps role
+     * `sales`), matching the same pattern as Estimator/Surveyor/Engineer.
+     */
+    public function approveValidation(Request $request, array $params): void
+    {
+        $pr = $this->findAuthorized((int) $params['id']);
+
+        if (!Csrf::verifyRequest()) {
+            Session::flash('error', 'Sesi telah kedaluwarsa, silakan coba lagi.');
+            $this->redirect('/procurement/' . $pr['id']);
+
+            return;
+        }
+
+        if (!$this->isDirector()) {
+            $this->abort(403, 'Hanya Direktur yang dapat memvalidasi harga.');
+
+            return;
+        }
+
+        $validation = ProcurementPriceValidation::pendingForRequest((int) $pr['id']);
+        if ($pr['status'] !== 'pending_validation' || $validation === null) {
+            Session::flash('error', 'Request ini tidak sedang menunggu validasi.');
+            $this->redirect('/procurement/' . $pr['id']);
+
+            return;
+        }
+
+        $notes = trim((string) $request->input('notes', '')) ?: null;
+        $now = date('Y-m-d H:i:s');
+
+        ProcurementPriceValidation::approve((int) $validation['id'], Auth::id(), $notes);
 
         ProcurementRequest::update((int) $pr['id'], [
             'status' => 'pricing_completed',
             'completed_at' => $now,
             'updated_at' => $now,
         ]);
-
-        ProcurementStatusHistory::record((int) $pr['id'], $oldStatus, 'pricing_completed', Auth::id(), 'Pricing selesai, dikembalikan ke sales.');
-        AuditLogger::log((int) Auth::id(), 'procurement_completed', 'procurement_request', (int) $pr['id']);
+        ProcurementStatusHistory::record((int) $pr['id'], 'pending_validation', 'pricing_completed', Auth::id(), 'Harga disetujui Direktur.');
+        AuditLogger::log((int) Auth::id(), 'procurement_price_approved', 'procurement_request', (int) $pr['id']);
 
         $lead = Lead::find((int) $pr['lead_id']);
         if ($lead !== null && in_array($lead['status'], ['engineering', 'procurement'], true)) {
             Lead::update((int) $lead['id'], ['status' => 'pricing_ready', 'updated_by' => Auth::id(), 'updated_at' => $now]);
-            LeadStatusHistory::record((int) $lead['id'], $lead['status'], 'pricing_ready', Auth::id(), 'Harga dari procurement siap, kembali ke sales.');
+            LeadStatusHistory::record((int) $lead['id'], $lead['status'], 'pricing_ready', Auth::id(), 'Harga dari procurement siap (disetujui Direktur), kembali ke sales.');
         }
 
         $recipientId = (int) ($pr['lead_sales_id'] ?: $pr['requested_by']);
@@ -579,13 +648,85 @@ class ProcurementController extends Controller
                 $recipientId,
                 'procurement_pricing_completed',
                 'Harga dari Procurement Siap',
-                "Pricing untuk lead {$pr['lead_code']} ({$pr['customer_name']}) sudah selesai — total estimasi " . number_format(ProcurementItem::totalPurchasePrice((int) $pr['id']), 0, ',', '.') . '.',
+                "Harga untuk lead {$pr['lead_code']} ({$pr['customer_name']}) sudah divalidasi Direktur dan siap ditindaklanjuti — total estimasi " . number_format(ProcurementItem::totalPurchasePrice((int) $pr['id']), 0, ',', '.') . '.',
                 '/procurement/' . $pr['id']
             );
         }
 
-        Session::flash('success', 'Pricing selesai, request dikembalikan ke sales.');
+        Session::flash('success', 'Harga disetujui. Request dikembalikan ke sales.');
         $this->redirect('/procurement/' . $pr['id']);
+    }
+
+    /** "Validasi Harga Direktur — Perlu Revisi": sends the pricing back to Procurement with the Direktur's notes. */
+    public function requestValidationRevision(Request $request, array $params): void
+    {
+        $pr = $this->findAuthorized((int) $params['id']);
+
+        if (!Csrf::verifyRequest()) {
+            Session::flash('error', 'Sesi telah kedaluwarsa, silakan coba lagi.');
+            $this->redirect('/procurement/' . $pr['id']);
+
+            return;
+        }
+
+        if (!$this->isDirector()) {
+            $this->abort(403, 'Hanya Direktur yang dapat memvalidasi harga.');
+
+            return;
+        }
+
+        $validation = ProcurementPriceValidation::pendingForRequest((int) $pr['id']);
+        if ($pr['status'] !== 'pending_validation' || $validation === null) {
+            Session::flash('error', 'Request ini tidak sedang menunggu validasi.');
+            $this->redirect('/procurement/' . $pr['id']);
+
+            return;
+        }
+
+        $validator = new Validator($request->all(), ['notes' => 'required|max:1000']);
+        if ($validator->fails()) {
+            Session::flash('error', 'Catatan revisi wajib diisi.');
+            $this->redirect('/procurement/' . $pr['id']);
+
+            return;
+        }
+
+        $notes = trim((string) $request->input('notes'));
+        $now = date('Y-m-d H:i:s');
+
+        ProcurementPriceValidation::requestRevision((int) $validation['id'], Auth::id(), $notes);
+
+        ProcurementRequest::update((int) $pr['id'], ['status' => 'need_revision', 'updated_at' => $now]);
+        ProcurementStatusHistory::record((int) $pr['id'], 'pending_validation', 'need_revision', Auth::id(), 'Direktur meminta revisi harga: ' . $notes);
+        AuditLogger::log((int) Auth::id(), 'procurement_price_revision_requested', 'procurement_request', (int) $pr['id'], null, ['notes' => $notes]);
+
+        if ((int) $pr['assigned_to'] > 0) {
+            Notification::create(
+                (int) $pr['assigned_to'],
+                'procurement_price_revision_requested',
+                'Direktur Meminta Revisi Harga',
+                "Direktur meminta revisi harga untuk lead {$pr['lead_code']} ({$pr['customer_name']}): {$notes}",
+                '/procurement/' . $pr['id']
+            );
+        }
+
+        Session::flash('success', 'Permintaan revisi harga dikirim ke procurement.');
+        $this->redirect('/procurement/' . $pr['id']);
+    }
+
+    /** Direktur's queue of requests awaiting price validation. */
+    public function validationQueue(Request $request): void
+    {
+        if (!$this->isDirector()) {
+            $this->abort(403, 'Hanya Direktur yang dapat mengakses halaman ini.');
+
+            return;
+        }
+
+        $this->view('procurement/validation', [
+            'pageTitle' => 'Validasi Harga',
+            'rows' => ProcurementPriceValidation::pendingQueue(),
+        ]);
     }
 
     // ------------------------------------------------------------------
@@ -600,6 +741,16 @@ class ProcurementController extends Controller
             $this->abort(404);
         }
 
+        // Revisi Sub-Fase 3 — Direktur needs read/act access to ANY request
+        // awaiting/having gone through price validation, regardless of which
+        // Sales owns the lead or which Procurement staff it's assigned to
+        // (Pak Ronny keeps role `sales`, so without this bypass he'd be
+        // blocked by the sales-ownership check below on every lead that
+        // isn't his own).
+        if ($this->isDirector()) {
+            return $pr;
+        }
+
         if (Acl::hasRole('procurement') && (int) $pr['assigned_to'] !== Auth::id()) {
             $this->abort(403, 'Anda hanya dapat mengakses request yang ditugaskan kepada Anda.');
         }
@@ -609,6 +760,13 @@ class ProcurementController extends Controller
         }
 
         return $pr;
+    }
+
+    private function isDirector(): bool
+    {
+        $actor = Auth::user();
+
+        return $actor && (int) ($actor['is_director'] ?? 0) === 1;
     }
 
     private function findAuthorizedLead(int $id): array
