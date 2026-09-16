@@ -276,7 +276,7 @@ class ProcurementRequest extends Model
         return Database::transaction(function () use ($data) {
             $placeholder = 'TMP-' . bin2hex(random_bytes(8));
             $id = self::insert(['request_code' => $placeholder] + $data);
-            $code = sprintf('PR-%06d', $id);
+            $code = sprintf('%s-%06d', Setting::get('numbering_procurement_prefix', 'PR'), $id);
             self::update($id, ['request_code' => $code]);
 
             return ['id' => $id, 'request_code' => $code];

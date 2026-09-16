@@ -124,8 +124,24 @@ $notes = array_values(array_filter($timeline, fn ($e) => $e['type'] === 'note'))
             </div>
             <div class="card-body">
                 <?php if ($canOperate && $isEditable): ?>
-                <form method="POST" action="<?= url('/proposals/' . $proposal['id'] . '/items') ?>" class="row g-2 mb-4">
+                <form method="POST" action="<?= url('/proposals/' . $proposal['id'] . '/items') ?>" class="row g-2 mb-4" id="proposalItemForm">
                     <?= csrf_field() ?>
+                    <?php if (!empty($products)): ?>
+                    <div class="col-12">
+                        <label class="form-label">Pilih dari Katalog Produk (opsional)</label>
+                        <select class="form-select form-select-sm" id="proposalProductPicker">
+                            <option value="">- Isi manual -</option>
+                            <?php foreach ($products as $prod): ?>
+                            <option value="<?= (int) $prod['id'] ?>"
+                                data-name="<?= e($prod['name']) ?>"
+                                data-unit="<?= e($prod['unit_name'] ?? '') ?>"
+                                data-spec="<?= e($prod['description'] ?? '') ?>"
+                                data-price="<?= e($prod['default_price'] ?? '') ?>"
+                            ><?= e($prod['product_code']) ?> &middot; <?= e($prod['name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <?php endif; ?>
                     <div class="col-12 col-md-3">
                         <label class="form-label">Nama Item</label>
                         <input type="text" name="item_name" class="form-control" required>
@@ -507,5 +523,20 @@ $notes = array_values(array_filter($timeline, fn ($e) => $e['type'] === 'note'))
         }).catch(function () {});
     }
     setInterval(ping, Math.max(pollInterval, 10000));
+})();
+
+(function () {
+    var picker = document.getElementById('proposalProductPicker');
+    var form = document.getElementById('proposalItemForm');
+    if (!picker || !form) return;
+    picker.addEventListener('change', function () {
+        var opt = picker.options[picker.selectedIndex];
+        if (!opt.value) return;
+        form.querySelector('[name="item_name"]').value = opt.getAttribute('data-name') || '';
+        form.querySelector('[name="unit"]').value = opt.getAttribute('data-unit') || '';
+        form.querySelector('[name="specification"]').value = opt.getAttribute('data-spec') || '';
+        var price = opt.getAttribute('data-price');
+        if (price) form.querySelector('[name="unit_price"]').value = price;
+    });
 })();
 </script>

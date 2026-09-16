@@ -87,4 +87,20 @@ return [
         'has_color' => true,
         'icon' => 'bi-file-earmark-text',
     ],
+    'units' => [
+        'table' => 'units',
+        'label' => 'Satuan',
+        'singular' => 'Satuan',
+        'description' => 'Satuan item untuk katalog produk (Pcs, Unit, Meter, dsb). Bebas dikelola.',
+        'has_color' => false,
+        'icon' => 'bi-rulers',
+    ],
+    'product-categories' => [
+        'table' => 'product_categories',
+        'label' => 'Kategori Produk',
+        'singular' => 'Kategori Produk',
+        'description' => 'Klasifikasi produk pada katalog. Bebas dikelola.',
+        'has_color' => false,
+        'icon' => 'bi-tags',
+    ],
 ];

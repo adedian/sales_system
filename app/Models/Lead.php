@@ -192,7 +192,7 @@ class Lead extends Model
         return Database::transaction(function () use ($data) {
             $placeholder = 'TMP-' . bin2hex(random_bytes(8));
             $id = self::insert(['lead_code' => $placeholder] + $data);
-            $code = sprintf('LD-%06d', $id);
+            $code = sprintf('%s-%06d', Setting::get('numbering_lead_prefix', 'LD'), $id);
             self::update($id, ['lead_code' => $code]);
 
             return ['id' => $id, 'lead_code' => $code];

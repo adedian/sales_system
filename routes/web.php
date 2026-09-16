@@ -15,11 +15,13 @@ use App\Controllers\LeadController;
 use App\Controllers\MasterDataController;
 use App\Controllers\NotificationController;
 use App\Controllers\ProcurementController;
+use App\Controllers\ProductController;
 use App\Controllers\ProfileController;
 use App\Controllers\ProposalController;
 use App\Controllers\QueueController;
 use App\Controllers\ReportController;
 use App\Controllers\RoleController;
+use App\Controllers\SettingController;
 use App\Controllers\UserController;
 use App\Controllers\VendorController;
 
@@ -105,6 +107,17 @@ $router->get('/vendors/{id}/edit', [VendorController::class, 'edit'], ['auth', '
 $router->post('/vendors/{id}', [VendorController::class, 'update'], ['auth', 'permission:vendor.manage']);
 $router->post('/vendors/{id}/toggle-status', [VendorController::class, 'toggleStatus'], ['auth', 'permission:vendor.manage']);
 $router->post('/vendors/{id}/delete', [VendorController::class, 'destroy'], ['auth', 'permission:vendor.manage']);
+
+$router->get('/products', [ProductController::class, 'index'], ['auth', 'permission:product.manage']);
+$router->get('/products/create', [ProductController::class, 'create'], ['auth', 'permission:product.manage']);
+$router->post('/products', [ProductController::class, 'store'], ['auth', 'permission:product.manage']);
+$router->get('/products/{id}/edit', [ProductController::class, 'edit'], ['auth', 'permission:product.manage']);
+$router->post('/products/{id}', [ProductController::class, 'update'], ['auth', 'permission:product.manage']);
+$router->post('/products/{id}/toggle-status', [ProductController::class, 'toggleStatus'], ['auth', 'permission:product.manage']);
+$router->post('/products/{id}/delete', [ProductController::class, 'destroy'], ['auth', 'permission:product.manage']);
+
+$router->get('/settings', [SettingController::class, 'index'], ['auth', 'permission:system.manage']);
+$router->post('/settings', [SettingController::class, 'update'], ['auth', 'permission:system.manage']);
 
 $router->get('/procurement', [ProcurementController::class, 'index'], ['auth', 'permission:procurement.view']);
 $router->post('/procurement/{id}/items', [ProcurementController::class, 'addItem'], ['auth', 'permission:procurement.view']);

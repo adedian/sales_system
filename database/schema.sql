@@ -261,6 +261,38 @@ CREATE TABLE IF NOT EXISTS `procurement_statuses` (
     UNIQUE KEY `uq_procurement_statuses_code` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `units` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `code` VARCHAR(50) NOT NULL,
+    `name` VARCHAR(150) NOT NULL,
+    `description` VARCHAR(255) NULL,
+    `color` VARCHAR(20) NULL,
+    `sort_order` INT NOT NULL DEFAULT 0,
+    `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+    `is_system` TINYINT(1) NOT NULL DEFAULT 0,
+    `created_by` INT UNSIGNED NULL,
+    `updated_by` INT UNSIGNED NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY `uq_units_code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `product_categories` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `code` VARCHAR(50) NOT NULL,
+    `name` VARCHAR(150) NOT NULL,
+    `description` VARCHAR(255) NULL,
+    `color` VARCHAR(20) NULL,
+    `sort_order` INT NOT NULL DEFAULT 0,
+    `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+    `is_system` TINYINT(1) NOT NULL DEFAULT 0,
+    `created_by` INT UNSIGNED NULL,
+    `updated_by` INT UNSIGNED NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY `uq_product_categories_code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `proposal_statuses` (
     `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     `code` VARCHAR(50) NOT NULL,
@@ -478,6 +510,35 @@ CREATE TABLE IF NOT EXISTS `vendors` (
     `deleted_at` DATETIME NULL,
     UNIQUE KEY `uq_vendors_code` (`vendor_code`),
     KEY `idx_vendors_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------------------
+-- Product catalog (Phase 14) — quick-fill source for Proposal/Procurement item
+-- rows (see ProposalController/ProcurementController "Pilih dari Katalog").
+-- Not part of the generic Master Data shape (needs category/unit/price), so it
+-- gets its own dedicated Controller/Model like `vendors` did in Phase 7.
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `products` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `product_code` VARCHAR(30) NOT NULL,
+    `name` VARCHAR(200) NOT NULL,
+    `category_id` INT UNSIGNED NULL,
+    `unit_id` INT UNSIGNED NULL,
+    `default_price` DECIMAL(18,2) NULL,
+    `description` TEXT NULL,
+    `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+    `created_by` INT UNSIGNED NULL,
+    `updated_by` INT UNSIGNED NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` DATETIME NULL,
+    UNIQUE KEY `uq_products_code` (`product_code`),
+    KEY `idx_products_category` (`category_id`),
+    KEY `idx_products_unit` (`unit_id`),
+    KEY `idx_products_deleted_at` (`deleted_at`),
+    CONSTRAINT `fk_products_category` FOREIGN KEY (`category_id`) REFERENCES `product_categories` (`id`) ON DELETE SET NULL,
+    CONSTRAINT `fk_products_unit` FOREIGN KEY (`unit_id`) REFERENCES `units` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `procurement_requests` (

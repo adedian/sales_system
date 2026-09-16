@@ -218,7 +218,7 @@ class Proposal extends Model
         return Database::transaction(function () use ($data) {
             $placeholder = 'TMP-' . bin2hex(random_bytes(8));
             $id = self::insert(['proposal_code' => $placeholder] + $data);
-            $code = sprintf('PRO-%06d', $id);
+            $code = sprintf('%s-%06d', Setting::get('numbering_proposal_prefix', 'PRO'), $id);
             self::update($id, ['proposal_code' => $code]);
 
             return ['id' => $id, 'proposal_code' => $code];

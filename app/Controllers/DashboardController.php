@@ -13,6 +13,7 @@ use App\Models\ProcurementRequest;
 use App\Models\Proposal;
 use App\Models\Role;
 use App\Models\SalesQueue;
+use App\Models\Setting;
 use App\Models\User;
 
 class DashboardController extends Controller
@@ -89,6 +90,7 @@ class DashboardController extends Controller
             'salesPerformance' => Lead::salesPerformance(),
             'aging' => $aging,
             'bottleneck' => $bottleneck,
+            'slaDays' => Setting::getInt('sla_lead_aging_days', 7),
             'workload' => [
                 'engineer' => EngineerAssignment::workloadByEngineer(),
                 'procurement' => ProcurementRequest::workloadByAssignee(),

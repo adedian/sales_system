@@ -128,14 +128,14 @@ $rupiah = fn ($v) => 'Rp ' . number_format((float) $v, 0, ',', '.');
                         <tbody>
                             <?php foreach ($aging as $row): ?>
                             <?php $isBottleneck = $bottleneck && $row['status'] === $bottleneck['status']; ?>
-                            <?php $slaRisk = $row['avg_age_days'] > 7; ?>
+                            <?php $slaRisk = $row['avg_age_days'] > $slaDays; ?>
                             <tr class="<?= $isBottleneck ? 'table-warning' : '' ?>">
                                 <td><span class="color-swatch color-swatch-<?= e($statusMap[$row['status']]['color'] ?? 'muted') ?>"><?= e($statusMap[$row['status']]['name'] ?? $row['status']) ?></span></td>
                                 <td class="mono"><?= (int) $row['total'] ?></td>
                                 <td class="mono <?= $slaRisk ? 'text-danger fw-semibold' : '' ?>"><?= e($row['avg_age_days']) ?> hari</td>
                                 <td>
                                     <?php if ($isBottleneck): ?><span class="badge-pill badge-pill-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i>Bottleneck</span><?php endif; ?>
-                                    <?php if ($slaRisk): ?><span class="badge-pill badge-pill-danger">Lewat SLA (7 hari)</span><?php endif; ?>
+                                    <?php if ($slaRisk): ?><span class="badge-pill badge-pill-danger">Lewat SLA (<?= (int) $slaDays ?> hari)</span><?php endif; ?>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -262,6 +262,7 @@ $rupiah = fn ($v) => 'Rp ' . number_format((float) $v, 0, ',', '.');
                     <li><span class="roadmap-dot done"></span> Notifikasi &amp; Realtime</li>
                     <li><span class="roadmap-dot done"></span> Dashboard &amp; Analytics</li>
                     <li><span class="roadmap-dot done"></span> Reporting</li>
+                    <li><span class="roadmap-dot done"></span> Master Data &amp; System Settings</li>
                 </ul>
             </div>
         </div>

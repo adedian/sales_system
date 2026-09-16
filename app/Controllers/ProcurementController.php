@@ -92,6 +92,7 @@ class ProcurementController extends Controller
                 [$pr['id']]
             ),
             'canCreateProposal' => Acl::can('proposal.create'),
+            'products' => \App\Models\Product::activeList(),
         ]);
     }
 

@@ -15,8 +15,19 @@ class Notification extends Model
 {
     protected static string $table = 'notifications';
 
+    /**
+     * Phase 14: gated by the notify.<module> toggle in Settings (see
+     * SettingController). $type's prefix up to the first underscore picks
+     * the module (lead_won -> notify.lead, proposal_approved -> notify.proposal,
+     * etc.) — an unrecognized prefix is never blocked, so this fails open.
+     */
     public static function create(int $userId, string $type, string $title, ?string $message = null, ?string $link = null): int
     {
+        $module = explode('_', $type, 2)[0];
+        if (in_array($module, ['lead', 'proposal', 'engineer', 'procurement'], true) && !Setting::getBool("notify_{$module}", true)) {
+            return 0;
+        }
+
         return static::insert([
             'user_id' => $userId,
             'type' => $type,

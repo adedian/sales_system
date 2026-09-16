@@ -60,6 +60,7 @@ $rolesDefinition = [
                 || str_starts_with($slug, 'engineer.')
                 || str_starts_with($slug, 'procurement.')
                 || str_starts_with($slug, 'vendor.')
+                || str_starts_with($slug, 'product.')
                 || str_starts_with($slug, 'proposal.')
                 || str_starts_with($slug, 'followup.')
                 || $slug === 'report.view'
@@ -260,6 +261,20 @@ $masterDataSeed = [
         ['code' => 'rejected', 'name' => 'Ditolak', 'color' => 'danger', 'is_system' => 1],
         ['code' => 'expired', 'name' => 'Kadaluarsa', 'color' => 'muted', 'is_system' => 1],
     ],
+    'units' => [
+        ['code' => 'pcs', 'name' => 'Pcs', 'color' => null, 'is_system' => 0],
+        ['code' => 'unit', 'name' => 'Unit', 'color' => null, 'is_system' => 0],
+        ['code' => 'meter', 'name' => 'Meter', 'color' => null, 'is_system' => 0],
+        ['code' => 'roll', 'name' => 'Roll', 'color' => null, 'is_system' => 0],
+        ['code' => 'set', 'name' => 'Set', 'color' => null, 'is_system' => 0],
+        ['code' => 'paket', 'name' => 'Paket', 'color' => null, 'is_system' => 0],
+    ],
+    'product_categories' => [
+        ['code' => 'jaringan', 'name' => 'Jaringan', 'color' => null, 'is_system' => 0],
+        ['code' => 'cctv', 'name' => 'CCTV', 'color' => null, 'is_system' => 0],
+        ['code' => 'access_control', 'name' => 'Access Control', 'color' => null, 'is_system' => 0],
+        ['code' => 'jasa', 'name' => 'Jasa / Instalasi', 'color' => null, 'is_system' => 0],
+    ],
 ];
 
 foreach ($masterDataSeed as $table => $rows) {
@@ -279,6 +294,41 @@ foreach ($masterDataSeed as $table => $rows) {
         );
         echo "  + master data [{$table}]: {$row['name']}\n";
     }
+}
+
+/* ------------------------------------------------------------------
+ * 5) System Settings (Phase 14) — company profile, document numbering
+ *    prefixes, SLA threshold, and per-module notification toggles. All
+ *    editable afterward via /settings (see SettingController).
+ * ---------------------------------------------------------------- */
+$settingsSeed = [
+    'company_name' => 'Nama Perusahaan Anda',
+    'company_address' => '',
+    'company_phone' => '',
+    'company_email' => '',
+    'numbering_lead_prefix' => 'LD',
+    'numbering_engineer_prefix' => 'EA',
+    'numbering_procurement_prefix' => 'PR',
+    'numbering_proposal_prefix' => 'PRO',
+    'sla_lead_aging_days' => '7',
+    'notify_lead' => '1',
+    'notify_proposal' => '1',
+    'notify_engineer' => '1',
+    'notify_procurement' => '1',
+];
+
+foreach ($settingsSeed as $key => $value) {
+    $exists = Database::fetch('SELECT id FROM settings WHERE `key` = ?', [$key]);
+
+    if ($exists) {
+        continue;
+    }
+
+    Database::execute(
+        'INSERT INTO settings (`key`, `value`, updated_at) VALUES (?, ?, NOW())',
+        [$key, $value]
+    );
+    echo "  + setting created: {$key}\n";
 }
 
 echo "\nSeeding selesai.\n";

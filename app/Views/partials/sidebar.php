@@ -80,7 +80,7 @@ $isActive = fn (string $needle) => str_ends_with($currentPath, $needle);
             <?php endif; ?>
         </ul>
 
-        <?php if (can('master_data.manage') || can('vendor.manage')): ?>
+        <?php if (can('master_data.manage') || can('vendor.manage') || can('product.manage')): ?>
         <div class="sidebar-section-label">Konfigurasi</div>
         <ul class="sidebar-nav-list">
             <?php if (can('master_data.manage')): ?>
@@ -99,12 +99,21 @@ $isActive = fn (string $needle) => str_ends_with($currentPath, $needle);
                 </a>
             </li>
             <?php endif; ?>
+            <?php if (can('product.manage')): ?>
+            <li>
+                <a href="<?= url('/products') ?>" class="sidebar-link <?= str_contains($currentPath, '/products') ? 'active' : '' ?>" title="Katalog Produk">
+                    <i class="bi bi-box-seam"></i>
+                    <span>Katalog Produk</span>
+                </a>
+            </li>
+            <?php endif; ?>
         </ul>
         <?php endif; ?>
 
-        <?php if (can('user.manage')): ?>
+        <?php if (can('user.manage') || can('system.manage')): ?>
         <div class="sidebar-section-label">Administrasi</div>
         <ul class="sidebar-nav-list">
+            <?php if (can('user.manage')): ?>
             <li>
                 <a href="<?= url('/users') ?>" class="sidebar-link <?= str_contains($currentPath, '/users') ? 'active' : '' ?>" title="Pengguna">
                     <i class="bi bi-people-fill"></i>
@@ -117,12 +126,21 @@ $isActive = fn (string $needle) => str_ends_with($currentPath, $needle);
                     <span>Role &amp; Permission</span>
                 </a>
             </li>
+            <?php endif; ?>
+            <?php if (can('system.manage')): ?>
+            <li>
+                <a href="<?= url('/settings') ?>" class="sidebar-link <?= str_contains($currentPath, '/settings') ? 'active' : '' ?>" title="Pengaturan">
+                    <i class="bi bi-gear-fill"></i>
+                    <span>Pengaturan</span>
+                </a>
+            </li>
+            <?php endif; ?>
         </ul>
         <?php endif; ?>
     </nav>
 
     <div class="sidebar-footer">
-        <span class="text-muted small">v1.0.0 &middot; Phase 13</span>
+        <span class="text-muted small">v1.0.0 &middot; Phase 14</span>
     </div>
 </aside>
 <div class="sidebar-backdrop" id="sidebarBackdrop"></div>

@@ -258,7 +258,7 @@ class EngineerAssignment extends Model
         return Database::transaction(function () use ($data) {
             $placeholder = 'TMP-' . bin2hex(random_bytes(8));
             $id = self::insert(['assignment_code' => $placeholder] + $data);
-            $code = sprintf('EA-%06d', $id);
+            $code = sprintf('%s-%06d', Setting::get('numbering_engineer_prefix', 'EA'), $id);
             self::update($id, ['assignment_code' => $code]);
 
             return ['id' => $id, 'assignment_code' => $code];

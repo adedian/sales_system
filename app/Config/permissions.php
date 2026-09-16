@@ -32,6 +32,9 @@ return [
     'vendor' => [
         'vendor.manage' => 'Mengelola data vendor',
     ],
+    'product' => [
+        'product.manage' => 'Mengelola katalog produk',
+    ],
     'proposal' => [
         'proposal.view' => 'Melihat proposal',
         'proposal.create' => 'Membuat proposal',

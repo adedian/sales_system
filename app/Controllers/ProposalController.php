@@ -22,6 +22,7 @@ use App\Models\ProposalItem;
 use App\Models\ProposalNegotiation;
 use App\Models\ProposalNote;
 use App\Models\ProposalStatusHistory;
+use App\Models\Setting;
 use App\Models\Role;
 use App\Models\User;
 use Dompdf\Dompdf;
@@ -73,6 +74,7 @@ class ProposalController extends Controller
             'canApprove' => $this->canApprove($proposal),
             'negotiations' => ProposalNegotiation::forProposal((int) $proposal['id']),
             'canNegotiate' => $this->canOperate($proposal) && in_array($proposal['status'], ['sent', 'viewed', 'negotiation'], true),
+            'products' => \App\Models\Product::activeList(),
         ]);
     }
 
@@ -855,6 +857,16 @@ class ProposalController extends Controller
         $validUntil = $proposal['valid_until'] ? date('d M Y', strtotime($proposal['valid_until'])) : '-';
         $createdDate = date('d M Y', strtotime($proposal['created_at']));
 
+        $companyName = Setting::get('company_name', '');
+        $companyLine = trim(implode(' &middot; ', array_filter([
+            Setting::get('company_address', ''),
+            Setting::get('company_phone', ''),
+            Setting::get('company_email', ''),
+        ])));
+        $companyBlock = $companyName !== ''
+            ? '<div class="company-block"><strong>' . $this->e($companyName) . '</strong>' . ($companyLine !== '' ? '<br>' . $companyLine : '') . '</div>'
+            : '';
+
         return <<<HTML
 <!DOCTYPE html>
 <html>
@@ -865,6 +877,7 @@ class ProposalController extends Controller
     h1 { font-size: 18px; margin: 0 0 2px; }
     h2 { font-size: 13px; margin: 0 0 10px; color: #6b7686; font-weight: normal; }
     .header { border-bottom: 2px solid #2952e3; padding-bottom: 10px; margin-bottom: 16px; }
+    .company-block { font-size: 10.5px; color: #6b7686; margin-bottom: 8px; }
     .meta-table { width: 100%; margin-bottom: 14px; }
     .meta-table td { vertical-align: top; padding: 2px 0; }
     .meta-label { color: #6b7686; width: 110px; }
@@ -884,6 +897,7 @@ class ProposalController extends Controller
 </head>
 <body>
     <div class="header">
+        {$companyBlock}
         <h1>PROPOSAL PENAWARAN</h1>
         <h2>{$this->e($proposal['proposal_code'])}</h2>
     </div>
