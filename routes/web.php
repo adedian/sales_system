@@ -180,6 +180,16 @@ $router->post('/api/queue/{id}/priority', [QueueApiController::class, 'updatePri
 $router->post('/api/queue/{id}/assign', [QueueApiController::class, 'assign'], ['auth', 'permission:queue.manage']);
 $router->post('/api/queue/{id}/deadline', [QueueApiController::class, 'updateDeadline'], ['auth', 'permission:queue.view']);
 $router->post('/api/queue/{id}/follow-up-date', [QueueApiController::class, 'updateFollowUpDate'], ['auth', 'permission:queue.view']);
+$router->post('/api/queue/{id}/task-name', [QueueApiController::class, 'updateTaskName'], ['auth', 'permission:queue.view']);
+$router->post('/api/queue/{id}/survey-status', [QueueApiController::class, 'updateSurveyStatus'], ['auth', 'permission:queue.view']);
+$router->post('/api/queue/{id}/stage', [QueueApiController::class, 'updateStage'], ['auth', 'permission:queue.view']);
+$router->post('/api/queue/{id}/estimator', [QueueApiController::class, 'updateEstimator'], ['auth', 'permission:queue.view']);
+$router->post('/api/queue/{id}/surveyor', [QueueApiController::class, 'updateSurveyor'], ['auth', 'permission:queue.view']);
+$router->post('/api/queue/{id}/notes-field', [QueueApiController::class, 'updateNotes'], ['auth', 'permission:queue.view']);
+$router->post('/api/queue/{id}/engineering-start-date', [QueueApiController::class, 'updateEngineeringStartDate'], ['auth', 'permission:queue.view']);
+$router->post('/api/queue/{id}/engineering-end-date', [QueueApiController::class, 'updateEngineeringEndDate'], ['auth', 'permission:queue.view']);
+$router->post('/api/queue/{id}/procurement-start-date', [QueueApiController::class, 'updateProcurementStartDate'], ['auth', 'permission:queue.view']);
+$router->post('/api/queue/{id}/procurement-end-date', [QueueApiController::class, 'updateProcurementEndDate'], ['auth', 'permission:queue.view']);
 
 $router->get('/api/engineer/summary', [EngineerApiController::class, 'summary'], ['auth', 'permission:engineer.view']);
 $router->get('/api/engineer/{id}/ping', [EngineerApiController::class, 'ping'], ['auth', 'permission:engineer.view']);

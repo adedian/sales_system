@@ -24,10 +24,30 @@ class SalesQueue extends Model
     {
         return "SELECT sales_queue.*,
                        leads.lead_code, leads.customer_name, leads.company_name, leads.phone AS lead_phone,
-                       sales.name AS sales_name
+                       sales.name AS sales_name,
+                       survey_status.name AS survey_status_name, survey_status.color AS survey_status_color,
+                       stage.name AS stage_name, stage.color AS stage_color,
+                       estimator.name AS estimator_name,
+                       surveyor.name AS surveyor_name
                 FROM sales_queue
                 INNER JOIN leads ON leads.id = sales_queue.lead_id
-                LEFT JOIN users sales ON sales.id = sales_queue.sales_id";
+                LEFT JOIN users sales ON sales.id = sales_queue.sales_id
+                LEFT JOIN survey_statuses survey_status ON survey_status.id = sales_queue.survey_status_id
+                LEFT JOIN queue_stages stage ON stage.id = sales_queue.stage_id
+                LEFT JOIN users estimator ON estimator.id = sales_queue.estimator_id
+                LEFT JOIN users surveyor ON surveyor.id = sales_queue.surveyor_id";
+    }
+
+    /**
+     * "Tugas" — free-text task title (Phase B). Falls back to the lead's
+     * customer name for rows created before this field existed, or left
+     * blank, so nothing regresses to an empty title.
+     */
+    public static function displayTitle(array $queue): string
+    {
+        return trim((string) ($queue['task_name'] ?? '')) !== ''
+            ? $queue['task_name']
+            : $queue['customer_name'];
     }
 
     public static function withRelations(int $id): ?array
@@ -73,6 +93,16 @@ class SalesQueue extends Model
         if (!empty($filters['priority'])) {
             $where[] = 'sales_queue.priority = ?';
             $params[] = $filters['priority'];
+        }
+
+        if (!empty($filters['survey_status_id'])) {
+            $where[] = 'sales_queue.survey_status_id = ?';
+            $params[] = (int) $filters['survey_status_id'];
+        }
+
+        if (!empty($filters['stage_id'])) {
+            $where[] = 'sales_queue.stage_id = ?';
+            $params[] = (int) $filters['stage_id'];
         }
 
         if (!empty($filters['sales_id'])) {

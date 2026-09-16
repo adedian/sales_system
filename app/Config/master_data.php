@@ -79,6 +79,22 @@ return [
         'has_color' => false,
         'icon' => 'bi-clipboard-check',
     ],
+    'survey-statuses' => [
+        'table' => 'survey_statuses',
+        'label' => 'Status Survey',
+        'singular' => 'Status Survey',
+        'description' => 'Status survey lokasi pada Antrian (Prelim, Sudah survey, dsb). Code baris bawaan terkunci karena dipakai sebagai nilai tetap di modul Antrian.',
+        'has_color' => true,
+        'icon' => 'bi-geo-alt',
+    ],
+    'queue-stages' => [
+        'table' => 'queue_stages',
+        'label' => 'Prioritas Antrian',
+        'singular' => 'Prioritas Antrian',
+        'description' => 'Tahapan kerja pada Antrian (Urgent, Hold, Revisi, Masuk Procurment, dsb) — ditampilkan sebagai "Prioritas" di modul Antrian, terpisah dari Urgensi (priorities). Code baris bawaan terkunci.',
+        'has_color' => true,
+        'icon' => 'bi-signpost-split',
+    ],
     'queue-statuses' => [
         'table' => 'queue_statuses',
         'label' => 'Status Antrian',

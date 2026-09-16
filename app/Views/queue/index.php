@@ -58,9 +58,27 @@ $tiles = [
                 </select>
             </div>
             <div class="filter-field">
-                <label class="form-label" for="priority">Prioritas</label>
+                <label class="form-label" for="survey_status_id">Status Survey</label>
+                <select id="survey_status_id" name="survey_status_id" class="form-select">
+                    <option value="">Semua</option>
+                    <?php foreach ($surveyStatusMap as $row): ?>
+                        <option value="<?= (int) $row['id'] ?>" <?= (string) $filters['survey_status_id'] === (string) $row['id'] ? 'selected' : '' ?>><?= e($row['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="filter-field">
+                <label class="form-label" for="stage_id">Prioritas</label>
+                <select id="stage_id" name="stage_id" class="form-select">
+                    <option value="">Semua</option>
+                    <?php foreach ($stageMap as $row): ?>
+                        <option value="<?= (int) $row['id'] ?>" <?= (string) $filters['stage_id'] === (string) $row['id'] ? 'selected' : '' ?>><?= e($row['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="filter-field">
+                <label class="form-label" for="priority">Urgensi</label>
                 <select id="priority" name="priority" class="form-select">
-                    <option value="">Semua Prioritas</option>
+                    <option value="">Semua Urgensi</option>
                     <?php foreach ($priorityMap as $code => $row): ?>
                         <option value="<?= e($code) ?>" <?= $filters['priority'] === $code ? 'selected' : '' ?>><?= e($row['name']) ?></option>
                     <?php endforeach; ?>
@@ -102,10 +120,14 @@ $tiles = [
                 <thead>
                     <tr>
                         <th><?= $sortLink('queue_number', 'No.') ?></th>
-                        <th><?= $sortLink('customer_name', 'Lead') ?></th>
-                        <th><?= $sortLink('status', 'Status') ?></th>
-                        <th><?= $sortLink('priority', 'Prioritas') ?></th>
+                        <th><?= $sortLink('customer_name', 'Tugas') ?></th>
+                        <th>Status Survey</th>
+                        <th>Prioritas</th>
+                        <th><?= $sortLink('priority', 'Urgensi') ?></th>
                         <th><?= $sortLink('sales_name', 'Sales') ?></th>
+                        <th>Estimator</th>
+                        <th>Surveyor</th>
+                        <th><?= $sortLink('status', 'Status') ?></th>
                         <th><?= $sortLink('deadline', 'Deadline') ?></th>
                         <th><?= $sortLink('followup_date', 'Follow Up') ?></th>
                         <th class="text-end">Aksi</th>
@@ -118,14 +140,18 @@ $tiles = [
                         <td class="mono">#<?= (int) $q['queue_number'] ?></td>
                         <td>
                             <a href="<?= url('/leads/' . $q['lead_id']) ?>" class="mono d-block"><?= e($q['lead_code']) ?></a>
-                            <div class="user-cell-name"><?= e($q['customer_name']) ?></div>
+                            <div class="user-cell-name"><?= e(\App\Models\SalesQueue::displayTitle($q)) ?></div>
                         </td>
+                        <td class="text-muted"><?= $q['survey_status_name'] ? e($q['survey_status_name']) : '-' ?></td>
+                        <td><?= $q['stage_name'] ? '<span class="color-swatch color-swatch-' . e($q['stage_color'] ?: 'muted') . '">' . e($q['stage_name']) . '</span>' : '-' ?></td>
+                        <td><span class="color-swatch color-swatch-<?= e($priorityMap[$q['priority']]['color'] ?? 'muted') ?>"><?= e($priorityMap[$q['priority']]['name'] ?? $q['priority']) ?></span></td>
+                        <td><?= e($q['sales_name'] ?? '—') ?></td>
+                        <td class="text-muted"><?= e($q['estimator_name'] ?? 'None') ?></td>
+                        <td class="text-muted"><?= e($q['surveyor_name'] ?? 'None') ?></td>
                         <td>
                             <span class="color-swatch color-swatch-<?= e($statusMap[$q['status']]['color'] ?? 'muted') ?>"><?= e($statusMap[$q['status']]['name'] ?? $q['status']) ?></span>
                             <?php if ($isOverdue): ?><span class="overdue-badge" title="Melewati deadline"><i class="bi bi-exclamation-triangle-fill"></i></span><?php endif; ?>
                         </td>
-                        <td><span class="color-swatch color-swatch-<?= e($priorityMap[$q['priority']]['color'] ?? 'muted') ?>"><?= e($priorityMap[$q['priority']]['name'] ?? $q['priority']) ?></span></td>
-                        <td><?= e($q['sales_name'] ?? '—') ?></td>
                         <td class="<?= $isOverdue ? 'text-danger fw-semibold' : 'text-muted' ?>"><?= $q['deadline'] ? e(format_datetime($q['deadline'], 'd M Y')) : '-' ?></td>
                         <td class="text-muted"><?= $q['followup_date'] ? e(format_datetime($q['followup_date'], 'd M Y')) : '-' ?></td>
                         <td class="text-end">

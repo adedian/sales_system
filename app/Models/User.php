@@ -28,6 +28,32 @@ class User extends Model
         );
     }
 
+    /**
+     * Phase B — Estimator/Surveyor are capability flags independent of
+     * role_id (a user keeps their normal login role, e.g. sales, and can
+     * additionally be flagged available for either/both), not RBAC roles.
+     */
+    public static function activeEstimators(): array
+    {
+        return self::activeByFlag('is_estimator');
+    }
+
+    public static function activeSurveyors(): array
+    {
+        return self::activeByFlag('is_surveyor');
+    }
+
+    private static function activeByFlag(string $flagColumn): array
+    {
+        if (!in_array($flagColumn, ['is_estimator', 'is_surveyor'], true)) {
+            throw new \InvalidArgumentException("Kolom flag tidak dikenal: {$flagColumn}");
+        }
+
+        return Database::fetchAll(
+            "SELECT * FROM users WHERE {$flagColumn} = 1 AND is_active = 1 AND deleted_at IS NULL ORDER BY name ASC"
+        );
+    }
+
     public static function withRole(int $id): ?array
     {
         $sql = "SELECT users.*, roles.name AS role_name, roles.slug AS role_slug

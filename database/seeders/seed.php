@@ -153,6 +153,13 @@ $demoUsers = [
     ['username' => 'victor', 'name' => 'Victor', 'email' => 'victor@internal.local', 'role' => 'sales'],
     ['username' => 'fita', 'name' => 'Fita', 'email' => 'fita@internal.local', 'role' => 'sales'],
     ['username' => 'vicky', 'name' => 'Vicky', 'email' => 'vicky@internal.local', 'role' => 'sales'],
+    // Phase B (Antrian revision) — roster Estimator/Surveyor baru dari referensi spreadsheet.
+    ['username' => 'rika', 'name' => 'Rika', 'email' => 'rika@internal.local', 'role' => 'sales'],
+    ['username' => 'naufal', 'name' => 'Naufal', 'email' => 'naufal@internal.local', 'role' => 'sales'],
+    ['username' => 'ali', 'name' => 'Ali', 'email' => 'ali@internal.local', 'role' => 'sales'],
+    ['username' => 'rian', 'name' => 'Rian', 'email' => 'rian@internal.local', 'role' => 'sales'],
+    ['username' => 'tio', 'name' => 'Tio', 'email' => 'tio@internal.local', 'role' => 'sales'],
+    ['username' => 'magang', 'name' => 'Magang', 'email' => 'magang@internal.local', 'role' => 'sales'],
 ];
 
 $createdUsers = [];
@@ -187,6 +194,23 @@ if ($createdUsers) {
         echo "      {$u['username']} / {$defaultPassword}  — {$u['role']}\n";
     }
 }
+
+/* ------------------------------------------------------------------
+ * 3b) Estimator/Surveyor capability flags (Phase B) — plain attribute
+ *     flags on `users`, independent of role_id (see app/Models/User.php
+ *     activeEstimators()/activeSurveyors()). Idempotent UPDATE, safe to
+ *     re-run; a name can hold both flags (e.g. Victor is Sales + both).
+ * ---------------------------------------------------------------- */
+$estimatorUsernames = ['victor', 'rika', 'fita', 'magang'];
+$surveyorUsernames = ['victor', 'rika', 'vega', 'naufal', 'ali', 'rian', 'tio'];
+
+foreach ($estimatorUsernames as $username) {
+    Database::execute('UPDATE users SET is_estimator = 1 WHERE username = ?', [$username]);
+}
+foreach ($surveyorUsernames as $username) {
+    Database::execute('UPDATE users SET is_surveyor = 1 WHERE username = ?', [$username]);
+}
+echo "  = estimator/surveyor flags applied.\n";
 
 /* ------------------------------------------------------------------
  * 4) Master Data (Phase 4) — satu tabel per tipe, semua kolom seragam.
@@ -254,6 +278,23 @@ $masterDataSeed = [
         ['code' => 'waiting_engineer', 'name' => 'Menunggu Engineer', 'color' => 'indigo', 'is_system' => 1],
         ['code' => 'done', 'name' => 'Selesai', 'color' => 'emerald', 'is_system' => 1],
         ['code' => 'cancelled', 'name' => 'Dibatalkan', 'color' => 'muted', 'is_system' => 1],
+    ],
+    'survey_statuses' => [
+        ['code' => 'prelim', 'name' => 'Prelim', 'color' => 'muted', 'is_system' => 1],
+        ['code' => 'sudah_survey', 'name' => 'Sudah survey', 'color' => 'emerald', 'is_system' => 1],
+        ['code' => 'sudah_survey_tapi_prelim', 'name' => 'Sudah survey tapi prelim', 'color' => 'amber', 'is_system' => 1],
+    ],
+    'queue_stages' => [
+        ['code' => 'urgent', 'name' => 'Urgent', 'color' => 'danger', 'is_system' => 1],
+        ['code' => 'medium', 'name' => 'Medium', 'color' => 'primary', 'is_system' => 1],
+        ['code' => 'slow', 'name' => 'Slow', 'color' => 'muted', 'is_system' => 1],
+        ['code' => 'done_proposal', 'name' => 'Done Proposal', 'color' => 'emerald', 'is_system' => 1],
+        ['code' => 'hold', 'name' => 'Hold', 'color' => 'muted', 'is_system' => 1],
+        ['code' => 'revisi', 'name' => 'Revisi', 'color' => 'danger', 'is_system' => 1],
+        ['code' => 'masuk_procurment', 'name' => 'Masuk Procurment', 'color' => 'indigo', 'is_system' => 1],
+        ['code' => 'approval', 'name' => 'Approval', 'color' => 'amber', 'is_system' => 1],
+        ['code' => 'review', 'name' => 'Review', 'color' => 'amber', 'is_system' => 1],
+        ['code' => 'proses', 'name' => 'Proses', 'color' => 'indigo', 'is_system' => 1],
     ],
     'engineer_statuses' => [
         ['code' => 'pending', 'name' => 'Assignment Baru', 'color' => 'muted', 'is_system' => 1],

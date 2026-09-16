@@ -3,13 +3,6 @@ $pageTitle = 'Antrian #' . $queue['queue_number'];
 $statusRow = $statusMap[$queue['status']] ?? ['name' => $queue['status'], 'color' => 'muted'];
 $priorityRow = $priorityMap[$queue['priority']] ?? ['name' => $queue['priority'], 'color' => 'muted'];
 $isOverdue = !empty($queue['deadline']) && $queue['deadline'] < date('Y-m-d') && !in_array($queue['status'], ['done', 'cancelled'], true);
-$actionLabels = [
-    'queue_created' => 'Lead dimasukkan ke antrian',
-    'queue_priority_changed' => 'Prioritas diubah',
-    'queue_assigned' => 'Penugasan sales diubah',
-    'queue_deadline_changed' => 'Deadline diubah',
-    'queue_followup_date_changed' => 'Tanggal follow up diubah',
-];
 ?>
 <div class="page-header page-header-row">
     <div>
@@ -17,10 +10,10 @@ $actionLabels = [
             Antrian #<?= (int) $queue['queue_number'] ?>
             <?php if ($isOverdue): ?><span class="overdue-badge"><i class="bi bi-exclamation-triangle-fill"></i> Overdue</span><?php endif; ?>
         </div>
-        <h2><?= e($queue['customer_name']) ?></h2>
+        <h2><?= e(\App\Models\SalesQueue::displayTitle($queue)) ?></h2>
         <p class="text-muted">
             <a href="<?= url('/leads/' . $queue['lead_id']) ?>"><?= e($queue['lead_code']) ?></a>
-            &middot; <?= e($queue['company_name'] ?: 'Tanpa perusahaan') ?>
+            &middot; <?= e($queue['customer_name']) ?><?= $queue['company_name'] ? ' (' . e($queue['company_name']) . ')' : '' ?>
         </p>
     </div>
     <a href="<?= url('/queue') ?>" class="btn btn-light"><i class="bi bi-arrow-left me-1"></i>Kembali</a>
@@ -76,6 +69,11 @@ $actionLabels = [
             <div class="card-body lead-side-panel" data-queue-id="<?= (int) $queue['id'] ?>" data-queue-updated-at="<?= e($queue['updated_at']) ?>">
 
                 <div class="lead-side-field">
+                    <label class="form-label" for="taskName">Tugas</label>
+                    <input type="text" class="form-control queue-live-field" id="taskName" data-endpoint="task-name" data-field="task_name" value="<?= e($queue['task_name']) ?>" <?= $canOperate ? '' : 'disabled' ?>>
+                </div>
+
+                <div class="lead-side-field">
                     <label class="form-label">Status</label>
                     <select class="form-select queue-live-field" data-endpoint="status" data-field="status" <?= $canOperate ? '' : 'disabled' ?>>
                         <?php foreach ($statusMap as $code => $row): ?>
@@ -86,7 +84,29 @@ $actionLabels = [
                 </div>
 
                 <div class="lead-side-field">
+                    <label class="form-label">Status Survey</label>
+                    <select class="form-select queue-live-field" data-endpoint="survey-status" data-field="survey_status_id" <?= $canOperate ? '' : 'disabled' ?>>
+                        <option value="">Belum diisi</option>
+                        <?php foreach ($surveyStatusMap as $row): ?>
+                            <option value="<?= (int) $row['id'] ?>" <?= (int) ($queue['survey_status_id'] ?? 0) === (int) $row['id'] ? 'selected' : '' ?>><?= e($row['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="lead-side-current"><span class="color-swatch color-swatch-<?= e($queue['survey_status_color'] ?? 'muted') ?>" data-badge="survey_status"><?= e($queue['survey_status_name'] ?? 'Belum diisi') ?></span></div>
+                </div>
+
+                <div class="lead-side-field">
                     <label class="form-label">Prioritas</label>
+                    <select class="form-select queue-live-field" data-endpoint="stage" data-field="stage_id" <?= $canOperate ? '' : 'disabled' ?>>
+                        <option value="">Belum diisi</option>
+                        <?php foreach ($stageMap as $row): ?>
+                            <option value="<?= (int) $row['id'] ?>" <?= (int) ($queue['stage_id'] ?? 0) === (int) $row['id'] ? 'selected' : '' ?>><?= e($row['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="lead-side-current"><span class="color-swatch color-swatch-<?= e($queue['stage_color'] ?? 'muted') ?>" data-badge="stage"><?= e($queue['stage_name'] ?? 'Belum diisi') ?></span></div>
+                </div>
+
+                <div class="lead-side-field">
+                    <label class="form-label">Urgensi</label>
                     <select class="form-select queue-live-field" data-endpoint="priority" data-field="priority" <?= $canOperate ? '' : 'disabled' ?>>
                         <?php foreach ($priorityMap as $code => $row): ?>
                             <option value="<?= e($code) ?>" <?= $queue['priority'] === $code ? 'selected' : '' ?>><?= e($row['name']) ?></option>
@@ -106,6 +126,28 @@ $actionLabels = [
                 </div>
 
                 <div class="lead-side-field">
+                    <label class="form-label">Estimator</label>
+                    <select class="form-select queue-live-field" data-endpoint="estimator" data-field="estimator_id" <?= $canOperate ? '' : 'disabled' ?>>
+                        <option value="">None</option>
+                        <?php foreach ($estimators as $row): ?>
+                            <option value="<?= (int) $row['id'] ?>" <?= (int) ($queue['estimator_id'] ?? 0) === (int) $row['id'] ? 'selected' : '' ?>><?= e($row['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="lead-side-current text-muted" data-badge="estimator_name"><?= e($queue['estimator_name'] ?? 'None') ?></div>
+                </div>
+
+                <div class="lead-side-field">
+                    <label class="form-label">Surveyor</label>
+                    <select class="form-select queue-live-field" data-endpoint="surveyor" data-field="surveyor_id" <?= $canOperate ? '' : 'disabled' ?>>
+                        <option value="">None</option>
+                        <?php foreach ($surveyors as $row): ?>
+                            <option value="<?= (int) $row['id'] ?>" <?= (int) ($queue['surveyor_id'] ?? 0) === (int) $row['id'] ? 'selected' : '' ?>><?= e($row['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="lead-side-current text-muted" data-badge="surveyor_name"><?= e($queue['surveyor_name'] ?? 'None') ?></div>
+                </div>
+
+                <div class="lead-side-field">
                     <label class="form-label">Deadline</label>
                     <input type="date" class="form-control queue-live-field" data-endpoint="deadline" data-field="deadline" value="<?= e($queue['deadline']) ?>" <?= $canOperate ? '' : 'disabled' ?>>
                 </div>
@@ -116,6 +158,32 @@ $actionLabels = [
                 </div>
 
                 <div class="lead-live-indicator text-muted" id="queueLiveIndicator"><i class="bi bi-broadcast"></i> Realtime aktif</div>
+            </div>
+        </div>
+
+        <div class="card card-elevated lead-panel mt-3">
+            <div class="card-header"><h3>Detail Pekerjaan</h3></div>
+            <div class="card-body lead-side-panel">
+                <div class="lead-side-field">
+                    <label class="form-label">Tanggal Mulai Engineering</label>
+                    <input type="date" class="form-control queue-live-field" data-endpoint="engineering-start-date" data-field="engineering_start_date" value="<?= e($queue['engineering_start_date']) ?>" <?= $canOperate ? '' : 'disabled' ?>>
+                </div>
+                <div class="lead-side-field">
+                    <label class="form-label">Tanggal Akhir Engineering</label>
+                    <input type="date" class="form-control queue-live-field" data-endpoint="engineering-end-date" data-field="engineering_end_date" value="<?= e($queue['engineering_end_date']) ?>" <?= $canOperate ? '' : 'disabled' ?>>
+                </div>
+                <div class="lead-side-field">
+                    <label class="form-label">Tanggal Mulai Procurement</label>
+                    <input type="date" class="form-control queue-live-field" data-endpoint="procurement-start-date" data-field="procurement_start_date" value="<?= e($queue['procurement_start_date']) ?>" <?= $canOperate ? '' : 'disabled' ?>>
+                </div>
+                <div class="lead-side-field">
+                    <label class="form-label">Tanggal Akhir Procurement</label>
+                    <input type="date" class="form-control queue-live-field" data-endpoint="procurement-end-date" data-field="procurement_end_date" value="<?= e($queue['procurement_end_date']) ?>" <?= $canOperate ? '' : 'disabled' ?>>
+                </div>
+                <div class="lead-side-field">
+                    <label class="form-label">Catatan Tambahan (Column1)</label>
+                    <textarea class="form-control queue-live-field" rows="2" data-endpoint="notes-field" data-field="notes" <?= $canOperate ? '' : 'disabled' ?>><?= e($queue['notes']) ?></textarea>
+                </div>
             </div>
         </div>
     </div>
@@ -184,6 +252,21 @@ $actionLabels = [
                     pbadge.className = 'color-swatch color-swatch-' + data.color;
                 } else if (endpoint === 'assign') {
                     panel.querySelector('[data-badge="sales_name"]').textContent = data.sales_name;
+                } else if (endpoint === 'survey-status') {
+                    var sbadge = panel.querySelector('[data-badge="survey_status"]');
+                    sbadge.textContent = data.label;
+                    sbadge.className = 'color-swatch color-swatch-' + data.color;
+                } else if (endpoint === 'stage') {
+                    var stbadge = panel.querySelector('[data-badge="stage"]');
+                    stbadge.textContent = data.label;
+                    stbadge.className = 'color-swatch color-swatch-' + data.color;
+                } else if (endpoint === 'estimator') {
+                    panel.querySelector('[data-badge="estimator_name"]').textContent = data.estimator_name;
+                } else if (endpoint === 'surveyor') {
+                    panel.querySelector('[data-badge="surveyor_name"]').textContent = data.surveyor_name;
+                } else if (endpoint === 'task-name') {
+                    var heading = document.querySelector('.page-header h2');
+                    if (heading) heading.textContent = data.display_title;
                 }
             }).catch(function () {
                 Toast.show('Gagal menyimpan perubahan, silakan coba lagi.', 'danger');

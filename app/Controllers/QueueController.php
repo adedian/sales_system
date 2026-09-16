@@ -28,6 +28,8 @@ class QueueController extends Controller
             'q' => trim((string) $request->input('q', '')),
             'status' => $request->input('status', ''),
             'priority' => $request->input('priority', ''),
+            'survey_status_id' => $request->input('survey_status_id', ''),
+            'stage_id' => $request->input('stage_id', ''),
             'sales_id' => $request->input('sales_id', ''),
             'overdue' => $request->input('overdue') ? true : false,
             'include_closed' => $request->input('include_closed') ? true : false,
@@ -53,6 +55,8 @@ class QueueController extends Controller
             'dashboardCounts' => SalesQueue::dashboardCounts($scopeSalesId),
             'statusMap' => MasterData::allAsMap('queue_statuses'),
             'priorityMap' => MasterData::allAsMap('priorities'),
+            'surveyStatusMap' => MasterData::allAsMap('survey_statuses'),
+            'stageMap' => MasterData::allAsMap('queue_stages'),
             'salesUsers' => $salesRoleId ? User::activeByRole($salesRoleId) : [],
             'canManage' => Acl::can('queue.manage'),
         ]);
@@ -68,6 +72,10 @@ class QueueController extends Controller
             'timeline' => $this->buildTimeline((int) $queue['id']),
             'statusMap' => MasterData::allAsMap('queue_statuses'),
             'priorityMap' => MasterData::allAsMap('priorities'),
+            'surveyStatusMap' => MasterData::allAsMap('survey_statuses'),
+            'stageMap' => MasterData::allAsMap('queue_stages'),
+            'estimators' => User::activeEstimators(),
+            'surveyors' => User::activeSurveyors(),
             'salesUsers' => ($id = $this->salesRoleId()) ? User::activeByRole($id) : [],
             'canManage' => Acl::can('queue.manage'),
             'canOperate' => $this->canOperate($queue),
@@ -189,10 +197,20 @@ class QueueController extends Controller
         // 'queue_created' is intentionally excluded — it already appears as
         // the opening entry in $statusEvents above (from_status = null).
         $actionLabels = [
-            'queue_priority_changed' => 'Prioritas diubah',
+            'queue_priority_changed' => 'Urgensi diubah',
             'queue_assigned' => 'Penugasan sales diubah',
             'queue_deadline_changed' => 'Deadline diubah',
             'queue_followup_date_changed' => 'Tanggal follow up diubah',
+            'queue_task_name_changed' => 'Nama tugas diubah',
+            'queue_survey_status_changed' => 'Status survey diubah',
+            'queue_stage_changed' => 'Prioritas diubah',
+            'queue_estimator_changed' => 'Estimator diubah',
+            'queue_surveyor_changed' => 'Surveyor diubah',
+            'queue_notes_field_changed' => 'Catatan tambahan diubah',
+            'queue_engineering_start_date_changed' => 'Tanggal mulai engineering diubah',
+            'queue_engineering_end_date_changed' => 'Tanggal akhir engineering diubah',
+            'queue_procurement_start_date_changed' => 'Tanggal mulai procurement diubah',
+            'queue_procurement_end_date_changed' => 'Tanggal akhir procurement diubah',
         ];
 
         $auditEvents = array_values(array_filter(array_map(function ($row) use ($actionLabels) {

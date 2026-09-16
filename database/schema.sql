@@ -277,6 +277,38 @@ CREATE TABLE IF NOT EXISTS `queue_statuses` (
     UNIQUE KEY `uq_queue_statuses_code` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `survey_statuses` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `code` VARCHAR(50) NOT NULL,
+    `name` VARCHAR(150) NOT NULL,
+    `description` VARCHAR(255) NULL,
+    `color` VARCHAR(20) NULL,
+    `sort_order` INT NOT NULL DEFAULT 0,
+    `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+    `is_system` TINYINT(1) NOT NULL DEFAULT 0,
+    `created_by` INT UNSIGNED NULL,
+    `updated_by` INT UNSIGNED NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY `uq_survey_statuses_code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `queue_stages` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `code` VARCHAR(50) NOT NULL,
+    `name` VARCHAR(150) NOT NULL,
+    `description` VARCHAR(255) NULL,
+    `color` VARCHAR(20) NULL,
+    `sort_order` INT NOT NULL DEFAULT 0,
+    `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+    `is_system` TINYINT(1) NOT NULL DEFAULT 0,
+    `created_by` INT UNSIGNED NULL,
+    `updated_by` INT UNSIGNED NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY `uq_queue_stages_code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `engineer_statuses` (
     `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     `code` VARCHAR(50) NOT NULL,
@@ -479,6 +511,41 @@ CREATE TABLE IF NOT EXISTS `sales_queue` (
     CONSTRAINT `fk_sales_queue_lead` FOREIGN KEY (`lead_id`) REFERENCES `leads` (`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_sales_queue_sales` FOREIGN KEY (`sales_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Phase B (Antrian revision) — additive columns, same idempotent-apply
+-- convention as Phase A's `leads` ALTER block above: ADD COLUMN/ADD KEY use
+-- MariaDB's IF NOT EXISTS guard; ADD CONSTRAINT has no such guard, so this
+-- FK block is applied once via mysql.exe CLI, not re-run wholesale.
+ALTER TABLE `sales_queue`
+    ADD COLUMN IF NOT EXISTS `task_name` VARCHAR(150) NULL AFTER `sales_id`,
+    ADD COLUMN IF NOT EXISTS `estimator_id` INT UNSIGNED NULL AFTER `task_name`,
+    ADD COLUMN IF NOT EXISTS `surveyor_id` INT UNSIGNED NULL AFTER `estimator_id`,
+    ADD COLUMN IF NOT EXISTS `stage_id` INT UNSIGNED NULL AFTER `priority`,
+    ADD COLUMN IF NOT EXISTS `survey_status_id` INT UNSIGNED NULL AFTER `status`,
+    ADD COLUMN IF NOT EXISTS `engineering_start_date` DATE NULL AFTER `followup_date`,
+    ADD COLUMN IF NOT EXISTS `engineering_end_date` DATE NULL AFTER `engineering_start_date`,
+    ADD COLUMN IF NOT EXISTS `procurement_start_date` DATE NULL AFTER `engineering_end_date`,
+    ADD COLUMN IF NOT EXISTS `procurement_end_date` DATE NULL AFTER `procurement_start_date`;
+
+ALTER TABLE `sales_queue`
+    ADD KEY IF NOT EXISTS `idx_sales_queue_estimator` (`estimator_id`),
+    ADD KEY IF NOT EXISTS `idx_sales_queue_surveyor` (`surveyor_id`),
+    ADD KEY IF NOT EXISTS `idx_sales_queue_stage` (`stage_id`),
+    ADD KEY IF NOT EXISTS `idx_sales_queue_survey_status` (`survey_status_id`);
+
+ALTER TABLE `sales_queue`
+    ADD CONSTRAINT `fk_sales_queue_estimator` FOREIGN KEY (`estimator_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+    ADD CONSTRAINT `fk_sales_queue_surveyor` FOREIGN KEY (`surveyor_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+    ADD CONSTRAINT `fk_sales_queue_stage` FOREIGN KEY (`stage_id`) REFERENCES `queue_stages` (`id`) ON DELETE SET NULL,
+    ADD CONSTRAINT `fk_sales_queue_survey_status` FOREIGN KEY (`survey_status_id`) REFERENCES `survey_statuses` (`id`) ON DELETE SET NULL;
+
+-- Phase B — Estimator/Surveyor are capability flags on `users`, not RBAC
+-- roles: any user (usually role `sales`) can be flagged available for
+-- either/both, independent of their login role. Plain columns, no FK,
+-- safe under the normal idempotent ADD COLUMN IF NOT EXISTS path.
+ALTER TABLE `users`
+    ADD COLUMN IF NOT EXISTS `is_estimator` TINYINT(1) NOT NULL DEFAULT 0 AFTER `must_change_password`,
+    ADD COLUMN IF NOT EXISTS `is_surveyor` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_estimator`;
 
 CREATE TABLE IF NOT EXISTS `queue_status_history` (
     `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
