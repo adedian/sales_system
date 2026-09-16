@@ -172,6 +172,25 @@ $responseColors = [
     </div>
 </div>
 
+<!-- Monitoring Saat Ini (Phase C) -->
+<div class="card card-elevated mt-3">
+    <div class="card-header"><h3>Monitoring Saat Ini</h3></div>
+    <div class="card-body">
+        <dl class="lead-dl">
+            <dt>Current Position</dt>
+            <dd><span class="color-swatch color-swatch-<?= e($currentPosition['color']) ?>"><?= e($currentPosition['label']) ?></span></dd>
+            <dt>Current PIC</dt>
+            <dd><?= $activeQueue ? e($activeQueue['current_pic_name'] ?? 'None') : 'Belum masuk antrian' ?></dd>
+            <dt>Status Survey</dt>
+            <dd><?= $activeQueue ? e($activeQueue['survey_status_name'] ?? 'Belum diisi') : 'Belum masuk antrian' ?></dd>
+            <dt>Estimator</dt>
+            <dd><?= $activeQueue ? e($activeQueue['estimator_name'] ?? 'None') : 'Belum masuk antrian' ?></dd>
+            <dt>Surveyor</dt>
+            <dd><?= $activeQueue ? e($activeQueue['surveyor_name'] ?? 'None') : 'Belum masuk antrian' ?></dd>
+        </dl>
+    </div>
+</div>
+
 <!-- Follow Up & Reminder (Phase 9) -->
 <div class="card card-elevated mt-3" id="follow-ups">
     <div class="card-header"><h3>Follow Up &amp; Reminder</h3></div>

@@ -10,6 +10,7 @@ $rupiah = fn ($v) => 'Rp ' . number_format((float) $v, 0, ',', '.');
     </div>
     <?php if (can('report.view')): ?>
     <a href="<?= url('/reports') ?>" class="btn btn-light"><i class="bi bi-graph-up-arrow me-1"></i>Lihat Laporan</a>
+    <a href="<?= url('/reports/lead-monitoring') ?>" class="btn btn-light"><i class="bi bi-diagram-3-fill me-1"></i>Lihat Lead Monitoring</a>
     <?php endif; ?>
 </div>
 
@@ -54,6 +55,31 @@ $rupiah = fn ($v) => 'Rp ' . number_format((float) $v, 0, ',', '.');
         <div class="stat-body">
             <span class="stat-label">Conversion Rate</span>
             <span class="stat-value"><?= e(rtrim(rtrim(number_format($kpi['conversion_rate'], 1), '0'), '.')) ?>%</span>
+        </div>
+    </div>
+</div>
+
+<!-- Distribusi Posisi Lead (Phase C) — dari sales_queue.stage_id (Prioritas) antrian aktif -->
+<div class="page-header">
+    <h3 class="mb-0">Distribusi Posisi Lead</h3>
+</div>
+<div class="stat-grid">
+    <?php $stageById = array_column($stageMap, null, 'id'); ?>
+    <?php foreach ($positionCounts as $pc): ?>
+        <?php $stageRow = $pc['stage_id'] ? ($stageById[(int) $pc['stage_id']] ?? null) : null; ?>
+        <div class="stat-card stat-card-compact">
+            <div class="stat-icon stat-icon-<?= e($stageRow['color'] ?? 'muted') ?>"><i class="bi bi-signpost-split"></i></div>
+            <div class="stat-body">
+                <span class="stat-label"><?= e($stageRow['name'] ?? 'Belum diisi') ?></span>
+                <span class="stat-value"><?= (int) $pc['total'] ?></span>
+            </div>
+        </div>
+    <?php endforeach; ?>
+    <div class="stat-card stat-card-compact">
+        <div class="stat-icon stat-icon-muted"><i class="bi bi-inbox"></i></div>
+        <div class="stat-body">
+            <span class="stat-label">Belum Masuk Antrian</span>
+            <span class="stat-value"><?= (int) $notYetQueuedCount ?></span>
         </div>
     </div>
 </div>

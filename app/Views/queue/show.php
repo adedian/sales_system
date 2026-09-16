@@ -148,6 +148,17 @@ $isOverdue = !empty($queue['deadline']) && $queue['deadline'] < date('Y-m-d') &&
                 </div>
 
                 <div class="lead-side-field">
+                    <label class="form-label">Current PIC</label>
+                    <select class="form-select queue-live-field" data-endpoint="current-pic" data-field="current_pic_id" <?= $canOperate ? '' : 'disabled' ?>>
+                        <option value="">None</option>
+                        <?php foreach ($currentPicUsers as $row): ?>
+                            <option value="<?= (int) $row['id'] ?>" <?= (int) ($queue['current_pic_id'] ?? 0) === (int) $row['id'] ? 'selected' : '' ?>><?= e($row['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="lead-side-current text-muted" data-badge="current_pic_name"><?= e($queue['current_pic_name'] ?? 'None') ?></div>
+                </div>
+
+                <div class="lead-side-field">
                     <label class="form-label">Deadline</label>
                     <input type="date" class="form-control queue-live-field" data-endpoint="deadline" data-field="deadline" value="<?= e($queue['deadline']) ?>" <?= $canOperate ? '' : 'disabled' ?>>
                 </div>
@@ -264,6 +275,8 @@ $isOverdue = !empty($queue['deadline']) && $queue['deadline'] < date('Y-m-d') &&
                     panel.querySelector('[data-badge="estimator_name"]').textContent = data.estimator_name;
                 } else if (endpoint === 'surveyor') {
                     panel.querySelector('[data-badge="surveyor_name"]').textContent = data.surveyor_name;
+                } else if (endpoint === 'current-pic') {
+                    panel.querySelector('[data-badge="current_pic_name"]').textContent = data.current_pic_name;
                 } else if (endpoint === 'task-name') {
                     var heading = document.querySelector('.page-header h2');
                     if (heading) heading.textContent = data.display_title;

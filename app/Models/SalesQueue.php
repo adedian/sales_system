@@ -28,14 +28,31 @@ class SalesQueue extends Model
                        survey_status.name AS survey_status_name, survey_status.color AS survey_status_color,
                        stage.name AS stage_name, stage.color AS stage_color,
                        estimator.name AS estimator_name,
-                       surveyor.name AS surveyor_name
+                       surveyor.name AS surveyor_name,
+                       current_pic.name AS current_pic_name
                 FROM sales_queue
                 INNER JOIN leads ON leads.id = sales_queue.lead_id
                 LEFT JOIN users sales ON sales.id = sales_queue.sales_id
                 LEFT JOIN survey_statuses survey_status ON survey_status.id = sales_queue.survey_status_id
                 LEFT JOIN queue_stages stage ON stage.id = sales_queue.stage_id
                 LEFT JOIN users estimator ON estimator.id = sales_queue.estimator_id
-                LEFT JOIN users surveyor ON surveyor.id = sales_queue.surveyor_id";
+                LEFT JOIN users surveyor ON surveyor.id = sales_queue.surveyor_id
+                LEFT JOIN users current_pic ON current_pic.id = sales_queue.current_pic_id";
+    }
+
+    /**
+     * One row per distinct stage (including NULL = "belum diisi") across
+     * every currently-active queue item — powers the Dashboard's Phase C
+     * position-breakdown tiles.
+     */
+    public static function countActiveByStage(): array
+    {
+        return Database::fetchAll(
+            "SELECT sales_queue.stage_id, COUNT(*) AS total
+             FROM sales_queue
+             WHERE sales_queue.status NOT IN ('done','cancelled')
+             GROUP BY sales_queue.stage_id"
+        );
     }
 
     /**

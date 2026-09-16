@@ -2,6 +2,7 @@
 $pageTitle = 'Laporan';
 $reports = [
     ['url' => '/reports/leads', 'icon' => 'bi-person-lines-fill', 'color' => 'primary', 'title' => 'Laporan Lead', 'desc' => 'Seluruh lead beserta status, sumber, dan estimasi nilai.'],
+    ['url' => '/reports/lead-monitoring', 'icon' => 'bi-diagram-3-fill', 'color' => 'indigo', 'title' => 'Lead Monitoring', 'desc' => 'Posisi dan PIC saat ini per lead, lintas Antrian.'],
     ['url' => '/reports/queue', 'icon' => 'bi-list-ol', 'color' => 'indigo', 'title' => 'Laporan Antrian', 'desc' => 'Antrian sales, status, dan keterlambatan.'],
     ['url' => '/reports/engineer', 'icon' => 'bi-tools', 'color' => 'amber', 'title' => 'Laporan Engineer', 'desc' => 'Assignment analisa teknis per engineer.'],
     ['url' => '/reports/procurement', 'icon' => 'bi-truck', 'color' => 'indigo', 'title' => 'Laporan Procurement', 'desc' => 'Request procurement dan nilai pembelian.'],

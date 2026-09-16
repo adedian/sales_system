@@ -151,6 +151,7 @@ $router->get('/proposals/{id}', [ProposalController::class, 'show'], ['auth', 'p
 
 $router->get('/reports', [ReportController::class, 'index'], ['auth', 'permission:report.view']);
 $router->get('/reports/leads', [ReportController::class, 'leads'], ['auth', 'permission:report.view']);
+$router->get('/reports/lead-monitoring', [ReportController::class, 'leadMonitoring'], ['auth', 'permission:report.view']);
 $router->get('/reports/queue', [ReportController::class, 'queue'], ['auth', 'permission:report.view']);
 $router->get('/reports/engineer', [ReportController::class, 'engineer'], ['auth', 'permission:report.view']);
 $router->get('/reports/procurement', [ReportController::class, 'procurement'], ['auth', 'permission:report.view']);
@@ -185,6 +186,7 @@ $router->post('/api/queue/{id}/survey-status', [QueueApiController::class, 'upda
 $router->post('/api/queue/{id}/stage', [QueueApiController::class, 'updateStage'], ['auth', 'permission:queue.view']);
 $router->post('/api/queue/{id}/estimator', [QueueApiController::class, 'updateEstimator'], ['auth', 'permission:queue.view']);
 $router->post('/api/queue/{id}/surveyor', [QueueApiController::class, 'updateSurveyor'], ['auth', 'permission:queue.view']);
+$router->post('/api/queue/{id}/current-pic', [QueueApiController::class, 'updateCurrentPic'], ['auth', 'permission:queue.view']);
 $router->post('/api/queue/{id}/notes-field', [QueueApiController::class, 'updateNotes'], ['auth', 'permission:queue.view']);
 $router->post('/api/queue/{id}/engineering-start-date', [QueueApiController::class, 'updateEngineeringStartDate'], ['auth', 'permission:queue.view']);
 $router->post('/api/queue/{id}/engineering-end-date', [QueueApiController::class, 'updateEngineeringEndDate'], ['auth', 'permission:queue.view']);

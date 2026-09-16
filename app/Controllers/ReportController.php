@@ -125,6 +125,72 @@ class ReportController extends Controller
         ]);
     }
 
+    /** Phase C — every lead plus its computed Current Position/PIC, sourced from the active Antrian row when one exists. */
+    public function leadMonitoring(Request $request): void
+    {
+        $filters = $this->readFilters($request, ['q', 'date_from', 'date_to', 'sales_id', 'status']);
+        $rows = Lead::monitoringReport($filters);
+        $statusMap = MasterData::allAsMap('lead_statuses');
+        $queueStatusMap = MasterData::allAsMap('queue_statuses');
+        $priorityMap = MasterData::allAsMap('priorities');
+
+        $notYetQueued = 0;
+        foreach ($rows as $r) {
+            if (empty($r['queue_id'])) {
+                $notYetQueued++;
+            }
+        }
+
+        $this->renderReport($request, [
+            'title' => 'Lead Monitoring',
+            'filename' => 'lead-monitoring',
+            'path' => '/reports/lead-monitoring',
+            'filterDefs' => [
+                'q' => ['type' => 'text', 'label' => 'Cari Customer/Perusahaan'],
+                'date_from' => ['type' => 'date', 'label' => 'Dari Tanggal'],
+                'date_to' => ['type' => 'date', 'label' => 'Sampai Tanggal'],
+                'sales_id' => ['type' => 'select', 'label' => 'Sales', 'options' => $this->salesOptions()],
+                'status' => ['type' => 'select', 'label' => 'Status', 'options' => $this->mapToOptions($statusMap)],
+            ],
+            'filters' => $filters,
+            'summary' => [
+                ['label' => 'Total Lead', 'value' => (string) count($rows)],
+                ['label' => 'Belum Masuk Antrian', 'value' => (string) $notYetQueued],
+            ],
+            'columns' => [
+                'lead_code' => 'Lead ID', 'customer_name' => 'Customer', 'type_name' => 'Type',
+                'system_name' => 'System', 'sales_name' => 'Sales', 'funding_name' => 'Funding',
+                'status_label' => 'Status', 'survey_status_label' => 'Status Survey',
+                'priority_label' => 'Urgensi', 'estimator_name_fmt' => 'Estimator',
+                'surveyor_name_fmt' => 'Surveyor', 'position_label' => 'Current Position',
+                'current_pic_name_fmt' => 'Current PIC', 'updated_at_fmt' => 'Last Update',
+            ],
+            'rows' => array_map(function ($r) use ($statusMap, $queueStatusMap, $priorityMap) {
+                $activeQueue = empty($r['queue_id']) ? null : [
+                    'stage_id' => $r['stage_id'],
+                    'stage_name' => $r['stage_name'],
+                    'stage_color' => $r['stage_color'],
+                    'status' => $r['queue_status'],
+                ];
+                $position = Lead::currentPosition($r, $activeQueue, $statusMap, $queueStatusMap);
+
+                $r['type_name'] = $r['type_name'] ?? '-';
+                $r['system_name'] = $r['system_name'] ?? '-';
+                $r['funding_name'] = $r['funding_name'] ?? '-';
+                $r['status_label'] = $statusMap[$r['status']]['name'] ?? $r['status'];
+                $r['survey_status_label'] = $r['survey_status_name'] ?? '-';
+                $r['priority_label'] = !empty($r['queue_priority']) ? ($priorityMap[$r['queue_priority']]['name'] ?? $r['queue_priority']) : '-';
+                $r['estimator_name_fmt'] = $r['estimator_name'] ?? '-';
+                $r['surveyor_name_fmt'] = $r['surveyor_name'] ?? '-';
+                $r['position_label'] = $position['label'];
+                $r['current_pic_name_fmt'] = $r['current_pic_name'] ?? '-';
+                $r['updated_at_fmt'] = format_datetime($r['updated_at']);
+
+                return $r;
+            }, $rows),
+        ]);
+    }
+
     public function engineer(Request $request): void
     {
         $filters = $this->readFilters($request, ['date_from', 'date_to', 'engineer_id', 'status']);

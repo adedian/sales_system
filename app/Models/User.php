@@ -28,6 +28,14 @@ class User extends Model
         );
     }
 
+    /** Phase C — Current PIC picker: any active user, not flag-restricted (could be Sales, Estimator, Surveyor, or anyone else currently responsible). */
+    public static function allActive(): array
+    {
+        return Database::fetchAll(
+            'SELECT * FROM users WHERE is_active = 1 AND deleted_at IS NULL ORDER BY name ASC'
+        );
+    }
+
     /**
      * Phase B — Estimator/Surveyor are capability flags independent of
      * role_id (a user keeps their normal login role, e.g. sales, and can

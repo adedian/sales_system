@@ -547,6 +547,19 @@ ALTER TABLE `users`
     ADD COLUMN IF NOT EXISTS `is_estimator` TINYINT(1) NOT NULL DEFAULT 0 AFTER `must_change_password`,
     ADD COLUMN IF NOT EXISTS `is_surveyor` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_estimator`;
 
+-- Phase C (Current Position / Current PIC) — additive column, same
+-- idempotent-apply convention as Phase A/B above: ADD COLUMN/ADD KEY use
+-- MariaDB's IF NOT EXISTS guard; ADD CONSTRAINT has no such guard, so this
+-- FK block is applied once via mysql.exe CLI, not re-run wholesale.
+ALTER TABLE `sales_queue`
+    ADD COLUMN IF NOT EXISTS `current_pic_id` INT UNSIGNED NULL AFTER `surveyor_id`;
+
+ALTER TABLE `sales_queue`
+    ADD KEY IF NOT EXISTS `idx_sales_queue_current_pic` (`current_pic_id`);
+
+ALTER TABLE `sales_queue`
+    ADD CONSTRAINT `fk_sales_queue_current_pic` FOREIGN KEY (`current_pic_id`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+
 CREATE TABLE IF NOT EXISTS `queue_status_history` (
     `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     `queue_id` INT UNSIGNED NOT NULL,

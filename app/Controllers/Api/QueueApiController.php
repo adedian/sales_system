@@ -471,6 +471,51 @@ class QueueApiController extends Controller
         ]);
     }
 
+    /**
+     * Phase C — Current PIC: unlike Estimator/Surveyor, not restricted to a
+     * capability flag — any active user can be the current responsible
+     * person, since it's a manually-set field covering whoever actually
+     * owns the item right now (Sales, Estimator, Surveyor, a Manager, ...).
+     */
+    public function updateCurrentPic(Request $request, array $params): void
+    {
+        $queue = $this->authorizedQueueForWrite((int) $params['id']);
+        if ($queue === null) {
+            return;
+        }
+
+        if (!Csrf::verifyRequest()) {
+            $this->json(['error' => 'csrf'], 419);
+
+            return;
+        }
+
+        $id = $this->nullableId($request->input('current_pic_id'));
+        $user = $id !== null ? User::find($id) : null;
+
+        if ($id !== null && ($user === null || (int) $user['is_active'] !== 1)) {
+            $this->json(['error' => 'PIC tidak valid atau tidak aktif.'], 422);
+
+            return;
+        }
+
+        $now = date('Y-m-d H:i:s');
+        SalesQueue::update((int) $queue['id'], [
+            'current_pic_id' => $id,
+            'last_updated_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        AuditLogger::log((int) Auth::id(), 'queue_current_pic_changed', 'queue', (int) $queue['id'], ['current_pic_id' => $queue['current_pic_id']], ['current_pic_id' => $id]);
+
+        $this->json([
+            'success' => true,
+            'current_pic_id' => $id,
+            'current_pic_name' => $user['name'] ?? 'None',
+            'updated_at' => $now,
+        ]);
+    }
+
     public function updateNotes(Request $request, array $params): void
     {
         $queue = $this->authorizedQueueForWrite((int) $params['id']);

@@ -176,6 +176,9 @@ class LeadController extends Controller
         $timeline = $this->buildTimeline((int) $lead['id']);
         $engineerRole = Role::findBySlug('engineer-sales');
         $procurementRole = Role::findBySlug('procurement');
+        $activeQueue = SalesQueue::activeForLead((int) $lead['id']);
+        $statusMap = MasterData::allAsMap('lead_statuses');
+        $queueStatusMap = MasterData::allAsMap('queue_statuses');
 
         $this->view('leads/show', [
             'pageTitle' => $lead['lead_code'],
@@ -183,13 +186,15 @@ class LeadController extends Controller
             'timeline' => $timeline,
             'assignedSales' => LeadSales::forLead((int) $lead['id']),
             'simplifiedStatus' => Lead::simplifiedStatus($lead['status']),
-            'statusMap' => MasterData::allAsMap('lead_statuses'),
+            'currentPosition' => Lead::currentPosition($lead, $activeQueue, $statusMap, $queueStatusMap),
+            'statusMap' => $statusMap,
+            'queueStatusMap' => $queueStatusMap,
             'priorityMap' => MasterData::allAsMap('priorities'),
             'salesUsers' => User::activeByRole($this->salesRoleId() ?? 0),
             'canManage' => Acl::can('lead.edit') && !$this->isReadOnlyForSales($lead),
             'canAssign' => Acl::can('lead.assign'),
             'canDelete' => Acl::can('lead.delete'),
-            'activeQueue' => SalesQueue::activeForLead((int) $lead['id']),
+            'activeQueue' => $activeQueue,
             'canEnqueue' => Acl::can('lead.edit') && !$this->isReadOnlyForSales($lead),
             'activeEngineerAssignment' => EngineerAssignment::activeForLead((int) $lead['id']),
             'latestEngineerAssignment' => EngineerAssignment::latestForLead((int) $lead['id']),

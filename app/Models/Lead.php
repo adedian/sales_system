@@ -74,6 +74,44 @@ class Lead extends Model
     }
 
     /**
+     * Phase C — "Current Position": won/lost leads show Deal/Cancel; an
+     * active Antrian row with a Prioritas (stage) set shows that stage;
+     * an active row without a stage falls back to the queue's own status;
+     * a lead never enqueued falls back to its own status. Takes already-
+     * resolved data (not queried here) so it works identically for a
+     * single lead (detail page) or a batch/report row without N+1.
+     *
+     * @param array $lead the leads.* row (needs 'status')
+     * @param array|null $activeQueue shape: ['stage_id','stage_name','stage_color','status'] or null
+     * @param array $leadStatusMap MasterData::allAsMap('lead_statuses')
+     * @param array $queueStatusMap MasterData::allAsMap('queue_statuses')
+     * @return array{label:string,color:string}
+     */
+    public static function currentPosition(array $lead, ?array $activeQueue, array $leadStatusMap, array $queueStatusMap): array
+    {
+        if ($lead['status'] === 'won') {
+            return ['label' => 'Deal', 'color' => 'emerald'];
+        }
+        if ($lead['status'] === 'lost') {
+            return ['label' => 'Cancel', 'color' => 'danger'];
+        }
+
+        if ($activeQueue !== null) {
+            if (!empty($activeQueue['stage_id']) && !empty($activeQueue['stage_name'])) {
+                return ['label' => $activeQueue['stage_name'], 'color' => $activeQueue['stage_color'] ?? 'muted'];
+            }
+
+            $statusRow = $queueStatusMap[$activeQueue['status']] ?? null;
+
+            return ['label' => $statusRow['name'] ?? $activeQueue['status'], 'color' => $statusRow['color'] ?? 'muted'];
+        }
+
+        $statusRow = $leadStatusMap[$lead['status']] ?? null;
+
+        return ['label' => $statusRow['name'] ?? $lead['status'], 'color' => $statusRow['color'] ?? 'muted'];
+    }
+
+    /**
      * @param array{q?:string,status?:string,priority?:string,source_id?:int,
      *              category_id?:int,sales_id?:int,follow_up?:string,
      *              sort?:string,dir?:string,page?:int,per_page?:int,
@@ -197,6 +235,20 @@ class Lead extends Model
         }
 
         return $counts;
+    }
+
+    /**
+     * Open leads (not Won/Lost) that have never entered Antrian — the
+     * "belum masuk antrian" bucket for the Dashboard's Phase C position
+     * tiles, complementing SalesQueue::countActiveByStage().
+     */
+    public static function countNotYetQueued(): int
+    {
+        return (int) (Database::fetch(
+            "SELECT COUNT(*) AS total FROM leads
+             WHERE deleted_at IS NULL AND status NOT IN ('won','lost')
+             AND id NOT IN (SELECT lead_id FROM sales_queue WHERE status NOT IN ('done','cancelled'))"
+        )['total'] ?? 0);
     }
 
     /**
@@ -394,6 +446,53 @@ class Lead extends Model
 
         return Database::fetchAll(
             self::baseSelect() . " WHERE {$w['where']} ORDER BY leads.created_at DESC",
+            $w['params']
+        );
+    }
+
+    /**
+     * Phase C — Lead Monitoring report: every lead plus its active Antrian
+     * row (if any) in one query via a ROW_NUMBER()-ranked subquery, so a
+     * lead with no queue row still appears (LEFT JOIN) and a lead with
+     * several historical queue rows only contributes its most recent
+     * active one. The queue's own `priority` is aliased distinctly
+     * (`queue_priority`) so it isn't shadowed by leads.priority.
+     */
+    public static function monitoringReport(array $filters): array
+    {
+        $w = self::reportWhere($filters);
+
+        return Database::fetchAll(
+            "SELECT leads.*,
+                    sales.name AS sales_name,
+                    lead_type.name AS type_name,
+                    lead_system.name AS system_name,
+                    funding.name AS funding_name,
+                    aq.id AS queue_id,
+                    aq.status AS queue_status,
+                    aq.priority AS queue_priority,
+                    stage.id AS stage_id, stage.name AS stage_name, stage.color AS stage_color,
+                    survey_status.name AS survey_status_name,
+                    estimator.name AS estimator_name,
+                    surveyor.name AS surveyor_name,
+                    current_pic.name AS current_pic_name
+             FROM leads
+             LEFT JOIN users sales ON sales.id = leads.sales_id
+             LEFT JOIN lead_types lead_type ON lead_type.id = leads.type_id
+             LEFT JOIN lead_systems lead_system ON lead_system.id = leads.system_id
+             LEFT JOIN funding_sources funding ON funding.id = leads.funding_id
+             LEFT JOIN (
+                 SELECT sq.*, ROW_NUMBER() OVER (PARTITION BY sq.lead_id ORDER BY sq.id DESC) AS rn
+                 FROM sales_queue sq
+                 WHERE sq.status NOT IN ('done','cancelled')
+             ) aq ON aq.lead_id = leads.id AND aq.rn = 1
+             LEFT JOIN queue_stages stage ON stage.id = aq.stage_id
+             LEFT JOIN survey_statuses survey_status ON survey_status.id = aq.survey_status_id
+             LEFT JOIN users estimator ON estimator.id = aq.estimator_id
+             LEFT JOIN users surveyor ON surveyor.id = aq.surveyor_id
+             LEFT JOIN users current_pic ON current_pic.id = aq.current_pic_id
+             WHERE {$w['where']}
+             ORDER BY leads.created_at DESC",
             $w['params']
         );
     }
