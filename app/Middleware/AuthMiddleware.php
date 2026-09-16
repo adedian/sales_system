@@ -24,6 +24,16 @@ class AuthMiddleware
             exit;
         }
 
+        // A password set by an admin (new account, or a manual reset) is
+        // temporary — must_change_password was being flagged and shown as a
+        // banner, but nothing actually stopped the user navigating past it.
+        $user = Auth::user();
+        $exempt = $isApi || str_ends_with($currentPath, '/change-password') || str_ends_with($currentPath, '/logout');
+        if (!$exempt && $user !== null && !empty($user['must_change_password'])) {
+            header('Location: ' . url('/change-password'));
+            exit;
+        }
+
         return true;
     }
 }

@@ -140,7 +140,7 @@ $isActive = fn (string $needle) => str_ends_with($currentPath, $needle);
     </nav>
 
     <div class="sidebar-footer">
-        <span class="text-muted small">v1.0.0 &middot; Phase 14</span>
+        <span class="text-muted small"><?= e(\App\Models\Setting::get('company_name', '') ?: 'Sistem Internal Sales') ?></span>
     </div>
 </aside>
 <div class="sidebar-backdrop" id="sidebarBackdrop"></div>

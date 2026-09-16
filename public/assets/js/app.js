@@ -159,19 +159,40 @@
     });
 
     /* ------------------------------------------------------------------
+     * Submit-button loading state — disables the button and shows a
+     * spinner (see .btn.is-loading in app.css) so a slow request or an
+     * impatient double-click can't fire the same form twice.
+     * ---------------------------------------------------------------- */
+    function setSubmitLoading(form) {
+        const btn = form.querySelector('button[type="submit"], input[type="submit"]');
+        if (btn && !btn.disabled) {
+            btn.disabled = true;
+            btn.classList.add('is-loading');
+        }
+    }
+
+    document.querySelectorAll('form:not([data-confirm])').forEach((form) => {
+        form.addEventListener('submit', () => setSubmitLoading(form));
+    });
+
+    /* ------------------------------------------------------------------
      * Generic "confirm before submit" for destructive actions
      * (deactivate user, delete role, etc.) — add data-confirm="message"
-     * to any <form>.
+     * to any <form>. Loading state is applied once the user actually
+     * confirms, not on the first (intercepted) submit.
      * ---------------------------------------------------------------- */
     document.querySelectorAll('form[data-confirm]').forEach((form) => {
         form.addEventListener('submit', (event) => {
-            if (form.dataset.confirmed === 'true') return;
+            if (form.dataset.confirmed === 'true') {
+                setSubmitLoading(form);
+                return;
+            }
             event.preventDefault();
 
             confirmDialog(form.getAttribute('data-confirm')).then((ok) => {
                 if (ok) {
                     form.dataset.confirmed = 'true';
-                    form.submit();
+                    form.requestSubmit();
                 }
             });
         });

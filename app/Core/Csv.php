@@ -26,12 +26,30 @@ class Csv
         foreach ($rows as $row) {
             $line = [];
             foreach (array_keys($columns) as $key) {
-                $line[] = $row[$key] ?? '';
+                $line[] = self::sanitizeCell($row[$key] ?? '');
             }
             fputcsv($out, $line);
         }
 
         fclose($out);
         exit;
+    }
+
+    /**
+     * OWASP CSV Injection guard: a cell starting with =, +, -, @, tab or CR
+     * is interpreted as a formula by Excel/Sheets when the file is opened.
+     * Report rows can contain free-text user input (notes, lead names, ...),
+     * so prefix a leading apostrophe to force those characters to render as
+     * plain text instead of executing.
+     */
+    private static function sanitizeCell(mixed $value): string
+    {
+        $value = (string) $value;
+
+        if ($value !== '' && str_contains("=+-@\t\r", $value[0])) {
+            return "'" . $value;
+        }
+
+        return $value;
     }
 }

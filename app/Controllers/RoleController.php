@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Core\Acl;
 use App\Core\Auth;
 use App\Core\AuditLogger;
 use App\Core\Controller;
@@ -66,7 +67,7 @@ class RoleController extends Controller
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
 
-        $permissionIds = $this->resolvePermissionIds((array) $request->input('permissions', []));
+        $permissionIds = $this->resolvePermissionIds($this->allowedSlugs((array) $request->input('permissions', []), (int) $actor['role_id']));
         Role::syncPermissions($roleId, $permissionIds);
 
         AuditLogger::log((int) $actor['id'], 'role_created', 'role', $roleId, null, [
@@ -127,6 +128,16 @@ class RoleController extends Controller
             return;
         }
 
+        // The Super Admin role is the top of the privilege chain — letting anyone
+        // else edit it (even down to their own permission subset) would let them
+        // cripple or repurpose it. Only a Super Admin may touch it.
+        if ($role['slug'] === 'super-admin' && !Acl::hasRole('super-admin')) {
+            Session::flash('error', 'Role Super Admin hanya dapat diubah oleh Super Admin.');
+            $this->redirect('/roles');
+
+            return;
+        }
+
         $actor = Auth::user();
         $before = Role::permissionSlugs($id);
 
@@ -136,7 +147,7 @@ class RoleController extends Controller
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
 
-        $permissionIds = $this->resolvePermissionIds((array) $request->input('permissions', []));
+        $permissionIds = $this->resolvePermissionIds($this->allowedSlugs((array) $request->input('permissions', []), (int) $actor['role_id']));
         Role::syncPermissions($id, $permissionIds);
         $after = Role::permissionSlugs($id);
 
@@ -190,6 +201,24 @@ class RoleController extends Controller
 
         Session::flash('success', 'Role berhasil dihapus.');
         $this->redirect('/roles');
+    }
+
+    /**
+     * A role editor can only hand out permissions they themselves hold —
+     * otherwise a role with user.manage (e.g. Admin Sales) could grant its
+     * own role permissions it was never meant to have. Super Admin already
+     * holds every permission, so this is a no-op for them.
+     *
+     * @param string[] $requestedSlugs
+     * @return string[]
+     */
+    private function allowedSlugs(array $requestedSlugs, int $actorRoleId): array
+    {
+        if (Acl::hasRole('super-admin')) {
+            return $requestedSlugs;
+        }
+
+        return array_values(array_intersect($requestedSlugs, Acl::permissions($actorRoleId)));
     }
 
     /**

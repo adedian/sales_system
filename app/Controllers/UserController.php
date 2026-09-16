@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Core\Acl;
 use App\Core\Auth;
 use App\Core\AuditLogger;
 use App\Core\Controller;
@@ -68,6 +69,17 @@ class UserController extends Controller
         $role = Role::find((int) $request->input('role_id'));
         if (!$validator->fails() && $role === null) {
             Session::flash('error', 'Role tidak valid.');
+            Session::flashOld($request->only(['name', 'username', 'email', 'phone', 'role_id']));
+            $this->redirect('/users/create');
+
+            return;
+        }
+
+        // Only an existing Super Admin may mint another Super Admin account —
+        // otherwise any role holding user.manage (e.g. Admin Sales) could
+        // self-escalate by creating a new top-tier account.
+        if (!$validator->fails() && $role !== null && $role['slug'] === 'super-admin' && !Acl::hasRole('super-admin')) {
+            Session::flash('error', 'Anda tidak memiliki izin untuk menetapkan role Super Admin.');
             Session::flashOld($request->only(['name', 'username', 'email', 'phone', 'role_id']));
             $this->redirect('/users/create');
 
@@ -183,8 +195,14 @@ class UserController extends Controller
         // own role or active flag here — prevents an accidental self-lockout.
         if (!$isSelf) {
             $role = Role::find((int) $request->input('role_id'));
-            if ($role !== null) {
+            if ($role !== null && ($role['slug'] !== 'super-admin' || Acl::hasRole('super-admin'))) {
+                // Same escalation guard as store(): only Super Admin can hand out the Super Admin role.
                 $newData['role_id'] = (int) $request->input('role_id');
+            } elseif ($role !== null && $role['slug'] === 'super-admin') {
+                Session::flash('error', 'Anda tidak memiliki izin untuk menetapkan role Super Admin.');
+                $this->redirect("/users/{$id}/edit");
+
+                return;
             }
             $newData['is_active'] = $request->input('is_active') ? 1 : 0;
         }
