@@ -141,7 +141,7 @@ $statusLabels = ['new' => 'Baru', 'in_queue' => 'Antrian', 'follow_up' => 'Follo
             </div>
         <?php else: ?>
         <div class="table-responsive">
-            <table class="table table-modern mb-0">
+            <table class="table table-modern table-sticky mb-0">
                 <thead>
                     <tr>
                         <th><?= $sortLink('lead_code', 'Kode') ?></th>
@@ -153,9 +153,7 @@ $statusLabels = ['new' => 'Baru', 'in_queue' => 'Antrian', 'follow_up' => 'Follo
                         <th><?= $sortLink('sales_name', 'Sales') ?></th>
                         <th>Funding</th>
                         <th><?= $sortLink('status', 'Status') ?></th>
-                        <th>Note</th>
-                        <th>Note 2</th>
-                        <th>Tanggal Note Update</th>
+                        <th>Catatan</th>
                         <th><?= $sortLink('priority', 'Prioritas') ?></th>
                         <th><?= $sortLink('follow_up_date', 'Follow Up') ?></th>
                         <th><?= $sortLink('created_at', 'Dibuat') ?></th>
@@ -181,9 +179,12 @@ $statusLabels = ['new' => 'Baru', 'in_queue' => 'Antrian', 'follow_up' => 'Follo
                             <?php $simpleLabels = ['proses' => 'Proses', 'deal' => 'Deal', 'cancel' => 'Cancel']; ?>
                             <div class="text-muted small"><?= e($simpleLabels[\App\Models\Lead::simplifiedStatus($lead['status'])]) ?></div>
                         </td>
-                        <td class="text-muted"><?= $lead['notes'] ? e(mb_strimwidth($lead['notes'], 0, 40, '...')) : '-' ?></td>
-                        <td class="text-muted"><?= $lead['note2'] ? e(mb_strimwidth($lead['note2'], 0, 40, '...')) : '-' ?></td>
-                        <td class="text-muted"><?= $lead['note_updated_at'] ? e(format_datetime($lead['note_updated_at'], 'd M Y')) : '-' ?></td>
+                        <td class="text-muted" style="max-width:220px">
+                            <?php if ($lead['notes']): ?><div class="text-truncate" title="<?= e($lead['notes']) ?>"><?= e(mb_strimwidth($lead['notes'], 0, 44, '...')) ?></div><?php endif; ?>
+                            <?php if ($lead['note2']): ?><div class="text-truncate small" title="<?= e($lead['note2']) ?>"><?= e(mb_strimwidth($lead['note2'], 0, 44, '...')) ?></div><?php endif; ?>
+                            <?php if ($lead['note_updated_at']): ?><div class="small text-muted"><?= e(format_datetime($lead['note_updated_at'], 'd M Y')) ?></div><?php endif; ?>
+                            <?php if (!$lead['notes'] && !$lead['note2']): ?>-<?php endif; ?>
+                        </td>
                         <td><span class="color-swatch color-swatch-<?= e($priorityMap[$lead['priority']]['color'] ?? 'muted') ?>"><?= e($priorityMap[$lead['priority']]['name'] ?? $lead['priority']) ?></span></td>
                         <td class="<?= (!empty($lead['follow_up_date']) && $lead['follow_up_date'] < date('Y-m-d') && empty($filters['trashed'])) ? 'text-danger' : 'text-muted' ?>">
                             <?= $lead['follow_up_date'] ? e(format_datetime($lead['follow_up_date'], 'd M Y')) : '-' ?>

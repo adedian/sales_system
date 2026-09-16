@@ -10,7 +10,7 @@
 <div class="card card-elevated">
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-modern mb-0">
+            <table class="table table-modern table-sticky mb-0">
                 <thead>
                     <tr>
                         <th>Role</th>

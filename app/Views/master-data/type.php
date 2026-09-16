@@ -43,7 +43,7 @@ $colorOptions = ['primary' => 'Biru', 'indigo' => 'Indigo', 'emerald' => 'Hijau'
             </div>
         <?php else: ?>
         <div class="table-responsive">
-            <table class="table table-modern mb-0">
+            <table class="table table-modern table-sticky mb-0">
                 <thead>
                     <tr>
                         <th>Kode</th>

@@ -59,7 +59,7 @@ $exportQs['format'] = 'csv';
             <div class="empty-state"><i class="bi bi-clipboard-data"></i><p>Tidak ada data yang cocok dengan filter.</p></div>
         <?php else: ?>
         <div class="table-responsive">
-            <table class="table table-modern mb-0">
+            <table class="table table-modern table-sticky mb-0">
                 <thead>
                     <tr><?php foreach ($columns as $label): ?><th><?= e($label) ?></th><?php endforeach; ?></tr>
                 </thead>
