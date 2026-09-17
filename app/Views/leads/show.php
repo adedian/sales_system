@@ -645,6 +645,8 @@ $latestPriceValidation = $priceValidations[0] ?? null;
             <div class="info-item"><span class="info-item-label">Deadline</span><span class="info-item-value"><?= $latestProcurementRequest['deadline'] ? e(format_datetime($latestProcurementRequest['deadline'], 'd M Y')) : '-' ?></span></div>
         </div>
         <a href="<?= url('/procurement/' . $latestProcurementRequest['id']) ?>" class="btn btn-sm btn-light mb-3">Lihat Detail Request</a>
+    <?php elseif (empty($prelim) || $prelim['status'] !== 'approved'): ?>
+        <p class="text-muted small mb-3">Belum bisa dimulai — menunggu Prelim di-ACC oleh Client terlebih dahulu.</p>
     <?php else: ?>
         <p class="text-muted small mb-3">Belum ada request procurement untuk lead ini. <span class="text-muted">(Waiting)</span></p>
     <?php endif; ?>
@@ -711,7 +713,9 @@ $latestPriceValidation = $priceValidations[0] ?? null;
 
 <div class="detail-section" id="proposals">
     <h3 class="detail-section-title">Proposal</h3>
-    <?php if (empty($proposals)): ?>
+    <?php if (empty($proposals) && !$canCreateProposal && (empty($prelim) || $prelim['status'] !== 'approved') && !$lead['deleted_at']): ?>
+        <p class="text-muted small mb-0">Belum bisa dimulai — menunggu Prelim di-ACC oleh Client terlebih dahulu.</p>
+    <?php elseif (empty($proposals)): ?>
         <p class="text-muted small <?= $canCreateProposal ? 'mb-3' : 'mb-0' ?>">Belum ada proposal untuk lead ini.</p>
     <?php else: ?>
     <div class="table-responsive mb-3">

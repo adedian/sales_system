@@ -18,6 +18,7 @@ use App\Models\LeadSales;
 use App\Models\LeadStatusHistory;
 use App\Models\MasterData;
 use App\Models\Notification;
+use App\Models\Prelim;
 use App\Models\ProcurementPriceValidation;
 use App\Models\ProcurementRequest;
 use App\Models\Proposal;
@@ -297,13 +298,21 @@ class LeadController extends Controller
             'latestProcurementRequest' => ProcurementRequest::latestForLead((int) $lead['id']),
             'procurementStatusMap' => MasterData::allAsMap('procurement_statuses'),
             'procurementUsers' => $procurementRole ? User::activeByRole((int) $procurementRole['id']) : [],
-            'canRequestProcurement' => Acl::can('lead.edit') && Acl::can('procurement.view') && !$this->isReadOnlyForSales($lead),
+            // Revisi Alur Bisnis (Prelim) — this is the skip-Engineering shortcut
+            // straight to Procurement, gated by the same Prelim-ACC requirement
+            // as ProcurementController::requestFromLead() enforces server-side.
+            'canRequestProcurement' => Acl::can('lead.edit') && Acl::can('procurement.view') && !$this->isReadOnlyForSales($lead) && Prelim::hasApprovedForLead((int) $lead['id']),
             'priceValidations' => ($priceValidationRequest = $activeProcurementRequest ?? ProcurementRequest::latestForLead((int) $lead['id'])) !== null
                 ? ProcurementPriceValidation::forRequest((int) $priceValidationRequest['id'])
                 : [],
             'proposals' => Proposal::forLead((int) $lead['id']),
             'proposalStatusMap' => MasterData::allAsMap('proposal_statuses'),
-            'canCreateProposal' => Acl::can('lead.edit') && Acl::can('proposal.create') && !$this->isReadOnlyForSales($lead),
+            // Revisi Alur Bisnis (Prelim) — this gates the Lead page's own
+            // "Buat Proposal Baru" (skip-Engineering/Procurement shortcut,
+            // ProposalController::createFromLead()); Procurement's own
+            // "Buat Proposal" button is separately gated by that request's
+            // own pricing_completed status, unreachable before Prelim ACC now.
+            'canCreateProposal' => Acl::can('lead.edit') && Acl::can('proposal.create') && !$this->isReadOnlyForSales($lead) && Prelim::hasApprovedForLead((int) $lead['id']),
             'followUps' => FollowUp::forLead((int) $lead['id']),
             'canLogFollowUp' => Acl::can('followup.create') && !$this->isReadOnlyForSales($lead) && !$lead['deleted_at'],
             'followUpMethodLabels' => (new FollowUpController())->methodLabels(),

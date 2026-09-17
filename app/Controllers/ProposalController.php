@@ -15,6 +15,7 @@ use App\Models\Lead;
 use App\Models\LeadStatusHistory;
 use App\Models\MasterData;
 use App\Models\Notification;
+use App\Models\Prelim;
 use App\Models\ProcurementItem;
 use App\Models\ProcurementRequest;
 use App\Models\Proposal;
@@ -178,6 +179,18 @@ class ProposalController extends Controller
 
         if (!Acl::can('proposal.create') || $lead['deleted_at']) {
             $this->abort(403);
+
+            return;
+        }
+
+        // Revisi Alur Bisnis (Prelim) — this is the skip-Engineering/
+        // Procurement shortcut straight to Proposal (pure service/consulting
+        // leads); Proposal+BOQ is mandated to start only after Client ACC
+        // Prelim, same gate as EngineerController::requestAssignment() and
+        // ProcurementController::requestFromLead().
+        if (!Prelim::hasApprovedForLead((int) $lead['id'])) {
+            Session::flash('error', 'Proposal belum bisa dibuat karena Prelim belum di-ACC oleh Client.');
+            $this->redirect('/leads/' . $lead['id']);
 
             return;
         }
