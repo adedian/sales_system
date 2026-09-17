@@ -280,7 +280,7 @@ $resetUrl = url('/leads') . (!empty($filters['trashed']) ? '?trashed=1' : '');
                                     <?php if ($canDelete): ?>
                                     <div class="dropdown">
                                         <button class="btn btn-sm btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="More"><i class="bi bi-three-dots"></i></button>
-                                        <ul class="dropdown-menu dropdown-menu-end">
+                                        <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                                             <li>
                                                 <form method="POST" action="<?= url('/leads/' . $lead['id'] . '/delete') ?>" data-confirm="Pindahkan lead <?= e($lead['lead_code']) ?> ke sampah?">
                                                     <?= csrf_field() ?>

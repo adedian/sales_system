@@ -53,6 +53,25 @@ class Lead extends Model
         return Database::fetch(self::baseSelect() . ' WHERE leads.id = ?', [$id]);
     }
 
+    /**
+     * A lead "belongs to" a sales user if they're the primary owner
+     * (leads.sales_id) OR a co-assigned member via the lead_sales pivot
+     * (Phase A multi-sales) — LeadSales::add()/sync() always keep the
+     * current primary in that table too, so this is a strict superset of
+     * `leads.sales_id = ?` alone. Used everywhere a Sales user's "my leads"
+     * scope, or an admin's "Sales: X" filter, is built — without this, a
+     * lead credited to two sales (e.g. "Vega / Fita" in the UI) only ever
+     * counted toward whichever one is primary, and a co-assigned sales
+     * couldn't even see the lead in their own scoped views.
+     *
+     * Binds the same sales id twice — callers must push $salesId to
+     * $params twice, in the same order this fragment appears.
+     */
+    private static function ownedBySalesSql(string $column = 'leads.sales_id'): string
+    {
+        return "({$column} = ? OR EXISTS (SELECT 1 FROM lead_sales WHERE lead_sales.lead_id = leads.id AND lead_sales.user_id = ?))";
+    }
+
     private static function baseSelect(): string
     {
         return "SELECT leads.*,
@@ -192,9 +211,11 @@ class Lead extends Model
 
         $where[] = !empty($filters['trashed']) ? 'leads.deleted_at IS NOT NULL' : 'leads.deleted_at IS NULL';
 
-        // Row-level scoping: a Sales user only ever sees their own leads.
+        // Row-level scoping: a Sales user only ever sees their own leads
+        // (primary owner or co-assigned via lead_sales — see ownedBySalesSql()).
         if (!empty($filters['scope_sales_id'])) {
-            $where[] = 'leads.sales_id = ?';
+            $where[] = self::ownedBySalesSql();
+            $params[] = (int) $filters['scope_sales_id'];
             $params[] = (int) $filters['scope_sales_id'];
         }
 
@@ -255,7 +276,8 @@ class Lead extends Model
         }
 
         if (!empty($filters['sales_id'])) {
-            $where[] = 'leads.sales_id = ?';
+            $where[] = self::ownedBySalesSql();
+            $params[] = (int) $filters['sales_id'];
             $params[] = (int) $filters['sales_id'];
         }
 
@@ -355,7 +377,8 @@ class Lead extends Model
         $sql = "SELECT status, COUNT(*) AS total FROM leads WHERE deleted_at IS NULL";
         $params = [];
         if ($scopeSalesId !== null) {
-            $sql .= ' AND sales_id = ?';
+            $sql .= ' AND ' . self::ownedBySalesSql();
+            $params[] = $scopeSalesId;
             $params[] = $scopeSalesId;
         }
         $sql .= ' GROUP BY status';
@@ -394,9 +417,9 @@ class Lead extends Model
         return Database::fetchAll(
             "SELECT id, lead_code, customer_name, company_name, follow_up_date, status
              FROM leads
-             WHERE sales_id = ? AND deleted_at IS NULL AND follow_up_date IS NOT NULL AND follow_up_date <= CURDATE()
+             WHERE " . self::ownedBySalesSql() . " AND deleted_at IS NULL AND follow_up_date IS NOT NULL AND follow_up_date <= CURDATE()
              ORDER BY follow_up_date ASC",
-            [$salesId]
+            [$salesId, $salesId]
         );
     }
 
@@ -405,9 +428,9 @@ class Lead extends Model
         $limit = max(1, $limit);
 
         return Database::fetchAll(
-            self::baseSelect() . " WHERE leads.sales_id = ? AND leads.deleted_at IS NULL
+            self::baseSelect() . ' WHERE ' . self::ownedBySalesSql() . " AND leads.deleted_at IS NULL
              ORDER BY leads.created_at DESC LIMIT {$limit}",
-            [$salesId]
+            [$salesId, $salesId]
         );
     }
 
@@ -481,7 +504,12 @@ class Lead extends Model
     /**
      * Per-sales breakdown: active leads, Won/Lost counts + value, conversion
      * rate. Every active Sales user appears even with zero leads, so the
-     * Manager can see who's idle as well as who's busy.
+     * Manager can see who's idle as well as who's busy. Joined through
+     * lead_sales (not leads.sales_id directly) so a lead co-assigned to
+     * multiple sales (e.g. "Vega / Fita") counts toward everyone listed,
+     * not just whoever is primary — lead_sales always includes the primary
+     * too (see LeadSales::add()), so this is a strict superset, never fewer
+     * leads than counting sales_id alone would give.
      */
     public static function salesPerformance(): array
     {
@@ -494,7 +522,8 @@ class Lead extends Model
                 SUM(CASE WHEN l.status = 'won' THEN l.deal_value ELSE 0 END) AS won_value,
                 SUM(CASE WHEN l.status = 'lost' THEN 1 ELSE 0 END) AS lost_count
              FROM users u
-             LEFT JOIN leads l ON l.sales_id = u.id AND l.deleted_at IS NULL
+             LEFT JOIN lead_sales ls ON ls.user_id = u.id
+             LEFT JOIN leads l ON l.id = ls.lead_id AND l.deleted_at IS NULL
              WHERE u.is_active = 1 AND u.is_sales = 1
              GROUP BY u.id, u.name
              ORDER BY won_value DESC, total_leads DESC"
@@ -556,7 +585,8 @@ class Lead extends Model
             $params[] = $filters['date_to'] . ' 23:59:59';
         }
         if (!empty($filters['sales_id'])) {
-            $where[] = 'leads.sales_id = ?';
+            $where[] = self::ownedBySalesSql();
+            $params[] = (int) $filters['sales_id'];
             $params[] = (int) $filters['sales_id'];
         }
         if (!empty($filters['status'])) {
@@ -829,7 +859,8 @@ class Lead extends Model
             $params[] = $filters['date_to'];
         }
         if (!empty($filters['sales_id'])) {
-            $where[] = 'leads.sales_id = ?';
+            $where[] = self::ownedBySalesSql();
+            $params[] = (int) $filters['sales_id'];
             $params[] = (int) $filters['sales_id'];
         }
         if (!empty($filters['status']) && in_array($filters['status'], ['won', 'lost'], true)) {
@@ -903,7 +934,8 @@ class Lead extends Model
                 (SELECT COUNT(*) FROM followups f WHERE f.sales_id = u.id) AS followup_count,
                 (SELECT COUNT(*) FROM proposals p WHERE p.sales_id = u.id AND p.deleted_at IS NULL AND p.status <> 'draft') AS proposal_count
              FROM users u
-             LEFT JOIN leads l ON l.sales_id = u.id AND {$joinSql}
+             LEFT JOIN lead_sales ls ON ls.user_id = u.id
+             LEFT JOIN leads l ON l.id = ls.lead_id AND {$joinSql}
              WHERE {$outerSql}
              GROUP BY u.id, u.name
              ORDER BY won_value DESC, total_leads DESC",

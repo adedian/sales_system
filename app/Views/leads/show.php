@@ -135,7 +135,7 @@ $latestPriceValidation = $priceValidations[0] ?? null;
             <button class="btn btn-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="bi bi-three-dots"></i> More
             </button>
-            <ul class="dropdown-menu dropdown-menu-end">
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                 <?php if ($activeQueue): ?>
                 <li><a class="dropdown-item" href="<?= url('/queue/' . $activeQueue['id']) ?>"><i class="bi bi-list-ol me-2"></i>Lihat Antrian #<?= (int) $activeQueue['queue_number'] ?></a></li>
                 <?php elseif ($canEnqueue && !$lead['deleted_at']): ?>
