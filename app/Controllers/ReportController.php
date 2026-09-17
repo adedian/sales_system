@@ -189,7 +189,7 @@ class ReportController extends Controller
                 $r['estimator_name_fmt'] = $r['estimator_name'] ?? '-';
                 $r['surveyor_name_fmt'] = $r['surveyor_name'] ?? '-';
                 $r['position_label'] = $position['label'];
-                $r['current_pic_name_fmt'] = $r['current_pic_name'] ?? '-';
+                $r['current_pic_name_fmt'] = Lead::picFromReportRow($r, $position['label']);
                 $r['updated_at_fmt'] = format_datetime($r['updated_at']);
 
                 return $r;
@@ -515,7 +515,12 @@ class ReportController extends Controller
 
     private function salesOptions(): array
     {
-        return $this->roleOptions('sales');
+        $options = [];
+        foreach (User::activeSales() as $user) {
+            $options[$user['id']] = $user['name'];
+        }
+
+        return $options;
     }
 
     private function roleOptions(string $roleSlug): array

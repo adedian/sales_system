@@ -702,6 +702,24 @@ h1, h2, h3, h4, h5, h6 { font-weight: 600; color: var(--color-text); margin: 0; 
 .filter-field .form-label { font-size: 12px; color: var(--color-text-muted); margin-bottom: 0; }
 .filter-field-actions { flex-direction: row; gap: 8px; }
 
+/* Search + Filter quick bar (Leads/Antrian list redesign) — replaces a wall
+   of always-visible dropdowns with Search + a Filter button that opens an
+   offcanvas, plus chips for whatever is actually active. */
+.filter-quick-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.filter-quick-search { flex: 1 1 260px; }
+.filter-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.filter-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--color-primary-soft); color: var(--color-primary);
+    border-radius: 100px; padding: 4px 10px 4px 12px; font-size: 12.5px; font-weight: 500;
+}
+.filter-chip:hover { background: #dfe6fd; }
+.filter-chip i { font-size: 11px; }
+.filter-chip-clear { background: var(--color-surface-alt); color: var(--color-text-muted); }
+.filter-chip-clear:hover { background: var(--color-border); }
+.filter-offcanvas-field { margin-bottom: 16px; }
+.filter-offcanvas-field .form-label { font-size: 12.5px; color: var(--color-text-muted); margin-bottom: 4px; }
+
 .user-cell { display: flex; align-items: center; gap: 10px; }
 .user-avatar {
     width: 34px; height: 34px; border-radius: 50%; background: var(--color-primary-soft); color: var(--color-primary);
@@ -858,4 +876,140 @@ h1, h2, h3, h4, h5, h6 { font-weight: 600; color: var(--color-text); margin: 0; 
     .app-content { padding: 16px; }
     .stat-grid { grid-template-columns: 1fr; }
     .table-modern thead th, .table-modern tbody td { padding: 10px 14px; }
+}
+
+/* ==========================================================================
+   Lead detail v2 (enterprise redesign) — additive, does not touch .lead-dl /
+   .lead-panel / .lead-detail-grid above (queue/procurement/engineer/proposal
+   detail pages still use those).
+   ========================================================================== */
+.lead-back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--color-text-muted); margin-bottom: 10px; }
+.lead-back-link:hover { color: var(--color-primary); }
+
+.lead-header-v2 { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 20px; }
+.lead-header-eyebrow { display: flex; align-items: center; gap: 8px; font-family: ui-monospace, monospace; font-size: 12.5px; color: var(--color-text-muted); font-weight: 600; letter-spacing: 0.02em; margin-bottom: 4px; }
+.lead-header-main h2 { font-size: 22px; }
+.lead-header-meta { color: var(--color-text-muted); font-size: 13px; margin-top: 2px; }
+.lead-header-side { display: flex; gap: 28px; flex-wrap: wrap; }
+.lead-header-side-item { display: flex; flex-direction: column; gap: 2px; }
+.lead-header-side-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-faint); }
+.lead-header-side-value { font-size: 13.5px; font-weight: 500; }
+.lead-header-actions { display: flex; align-items: flex-start; gap: 8px; }
+
+/* Process Status Panel — one elegant panel, not three colorful cards */
+.process-panel { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 18px 20px; margin-bottom: 20px; }
+.process-panel-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+.process-panel-item { padding: 0 20px; border-left: 1px solid var(--color-border); display: flex; flex-direction: column; gap: 4px; justify-content: center; }
+.process-panel-item:first-child { border-left: none; padding-left: 0; }
+.process-panel-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-faint); font-weight: 600; }
+.process-panel-value { font-size: 14.5px; font-weight: 600; color: var(--color-text); }
+.process-panel-value-lg { font-size: 17px; }
+.process-panel-since { font-size: 11.5px; color: var(--color-text-faint); margin-top: 2px; }
+
+/* Section container — replaces heavy card-elevated stacking for Detail Lead body */
+.detail-section { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 20px 22px; margin-bottom: 16px; }
+.detail-section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-muted); margin-bottom: 14px; }
+.detail-section-sub { font-size: 12.5px; color: var(--color-text-faint); margin: -8px 0 14px; }
+.detail-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.detail-divider { border: none; border-top: 1px solid var(--color-border); margin: 16px 0; }
+
+/* Info grid — label above value, 2-column on desktop */
+.info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 24px; }
+.info-item { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.info-item-label { font-size: 11.5px; color: var(--color-text-faint); }
+.info-item-value { font-size: 13.5px; color: var(--color-text); word-break: break-word; }
+.info-item-full { grid-column: 1 / -1; }
+
+/* Workflow stepper — horizontal on desktop, scrolls on small screens */
+.workflow-stepper { display: flex; align-items: flex-start; overflow-x: auto; padding-bottom: 4px; }
+.workflow-step { flex: 1 0 auto; min-width: 92px; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; padding-top: 4px; }
+.workflow-step::before {
+    content: ""; position: absolute; top: 10px; left: -50%; width: 100%; height: 2px; background: var(--color-border); z-index: 0;
+}
+.workflow-step:first-child::before { display: none; }
+.workflow-step-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--color-surface); border: 2px solid var(--color-border-strong); z-index: 1; margin-bottom: 8px; }
+.workflow-step-label { font-size: 12px; color: var(--color-text-faint); font-weight: 500; }
+.workflow-step-completed .workflow-step-dot { background: var(--color-primary); border-color: var(--color-primary); }
+.workflow-step-completed::before { background: var(--color-primary); }
+.workflow-step-completed .workflow-step-label { color: var(--color-text-muted); }
+.workflow-step-current .workflow-step-dot { background: var(--color-surface); border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-soft); }
+.workflow-step-current .workflow-step-label { color: var(--color-primary); font-weight: 700; }
+.workflow-step-cancelled .workflow-step-dot { background: var(--color-danger); border-color: var(--color-danger); }
+.workflow-step-cancelled::before { background: var(--color-danger); }
+.workflow-step-cancelled .workflow-step-label { color: var(--color-danger); }
+
+/* Process History — compact, distinct from the Activity timeline */
+.process-history { display: flex; flex-direction: column; }
+.process-history-item { display: grid; grid-template-columns: 84px 1fr; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--color-border); font-size: 12.5px; }
+.process-history-item:last-child { border-bottom: none; }
+.process-history-date { color: var(--color-text-faint); }
+.process-history-body strong { font-weight: 600; }
+.process-history-notes { color: var(--color-text-muted); margin-top: 2px; }
+
+@media (max-width: 1199.98px) {
+    .process-panel-grid { grid-template-columns: repeat(2, 1fr); row-gap: 16px; }
+    .process-panel-item:nth-child(3) { border-left: none; padding-left: 0; }
+}
+@media (max-width: 991.98px) {
+    .detail-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 767.98px) {
+    .process-panel-grid { grid-template-columns: 1fr; }
+    .process-panel-item { border-left: none; padding-left: 0; border-top: 1px solid var(--color-border); padding-top: 12px; }
+    .process-panel-item:first-child { border-top: none; padding-top: 0; }
+    .info-grid { grid-template-columns: 1fr; }
+    .lead-header-actions { width: 100%; }
+    .lead-header-side { gap: 18px; }
+}
+
+/* ==========================================================================
+   Dashboard redesign — Pipeline Overview / Process Distribution / Attention
+   Required. Additive: existing .stat-grid/.stat-card usage elsewhere is
+   untouched.
+   ========================================================================== */
+.pipeline-overview { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 20px 22px; margin-bottom: 14px; }
+.pipeline-overview-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+.pipeline-overview-item { padding: 0 22px; border-left: 1px solid var(--color-border); display: flex; flex-direction: column; gap: 4px; }
+.pipeline-overview-item:first-child { border-left: none; padding-left: 0; }
+.pipeline-overview-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-faint); font-weight: 600; }
+.pipeline-overview-value { font-size: 26px; font-weight: 700; color: var(--color-text); line-height: 1.2; }
+.pipeline-overview-value.emerald { color: var(--color-emerald); }
+.pipeline-overview-value.danger { color: var(--color-danger); }
+
+.metric-strip { display: grid; grid-template-columns: repeat(5, 1fr); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: 20px; }
+.metric-strip-item { padding: 14px 18px; border-left: 1px solid var(--color-border); display: flex; flex-direction: column; gap: 2px; }
+.metric-strip-item:first-child { border-left: none; }
+.metric-strip-label { font-size: 11px; color: var(--color-text-faint); }
+.metric-strip-value { font-size: 14.5px; font-weight: 600; }
+
+/* Process Distribution — horizontal bar list, not another row of icon cards */
+.process-distribution { display: flex; flex-direction: column; gap: 12px; }
+.process-distribution-item { display: grid; grid-template-columns: 120px 1fr 32px; align-items: center; gap: 12px; font-size: 13px; }
+.process-distribution-label { color: var(--color-text-muted); }
+.process-distribution-track { background: var(--color-surface-alt); border-radius: 100px; height: 8px; overflow: hidden; }
+.process-distribution-fill { height: 100%; border-radius: 100px; }
+.process-distribution-value { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Attention Required — a short list of leads that need action, not a count */
+.attention-list { display: flex; flex-direction: column; }
+.attention-item { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--color-border); }
+.attention-item:last-child { border-bottom: none; }
+.attention-item-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.attention-item-name { font-size: 13.5px; font-weight: 500; }
+.attention-item-meta { font-size: 12px; color: var(--color-text-faint); }
+.attention-item-side { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+@media (max-width: 1199.98px) {
+    .pipeline-overview-grid { grid-template-columns: repeat(2, 1fr); row-gap: 16px; }
+    .pipeline-overview-item:nth-child(3) { border-left: none; padding-left: 0; }
+    .metric-strip { grid-template-columns: repeat(3, 1fr); }
+    .metric-strip-item:nth-child(4) { border-left: none; }
+}
+@media (max-width: 767.98px) {
+    .pipeline-overview-grid { grid-template-columns: 1fr; }
+    .pipeline-overview-item { border-left: none; padding-left: 0; border-top: 1px solid var(--color-border); padding-top: 12px; }
+    .pipeline-overview-item:first-child { border-top: none; padding-top: 0; }
+    .metric-strip { grid-template-columns: 1fr 1fr; }
+    .metric-strip-item:nth-child(3) { border-left: none; }
+    .process-distribution-item { grid-template-columns: 90px 1fr 28px; }
 }

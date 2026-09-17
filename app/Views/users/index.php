@@ -55,12 +55,23 @@
                     <tr>
                         <th>Pengguna</th>
                         <th>Role</th>
+                        <th>Fungsi</th>
                         <th>Status</th>
                         <th>Login Terakhir</th>
                         <th class="text-end">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
+                    <?php
+                        $flagLabels = [
+                            'is_sales' => 'Sales',
+                            'is_estimator' => 'Estimator',
+                            'is_surveyor' => 'Surveyor',
+                            'is_engineer' => 'Engineer',
+                            'is_sales_engineer' => 'Sales Engineer',
+                            'is_director' => 'Direktur',
+                        ];
+                    ?>
                     <?php foreach ($users as $u): ?>
                     <tr>
                         <td>
@@ -73,6 +84,18 @@
                             </div>
                         </td>
                         <td><span class="badge-pill"><?= e($u['role_name'] ?? '-') ?></span></td>
+                        <td>
+                            <?php
+                                $activeFlags = array_filter(array_keys($flagLabels), fn ($flag) => !empty($u[$flag]));
+                            ?>
+                            <?php if (empty($activeFlags)): ?>
+                                <span class="text-muted">-</span>
+                            <?php else: ?>
+                                <?php foreach ($activeFlags as $flag): ?>
+                                    <span class="badge-pill badge-pill-muted"><?= e($flagLabels[$flag]) ?></span>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </td>
                         <td>
                             <?php if ((int) $u['is_active'] === 1): ?>
                                 <span class="status-dot status-active"></span>Aktif

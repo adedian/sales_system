@@ -10,7 +10,6 @@ use App\Core\Csrf;
 use App\Core\Request;
 use App\Models\MasterData;
 use App\Models\QueueStatusHistory;
-use App\Models\Role;
 use App\Models\SalesQueue;
 use App\Models\User;
 
@@ -159,10 +158,9 @@ class QueueApiController extends Controller
         }
 
         $salesId = (int) $request->input('sales_id');
-        $salesRole = Role::findBySlug('sales');
         $user = $salesId ? User::find($salesId) : null;
 
-        if (!$salesId || $user === null || (int) $user['is_active'] !== 1 || (int) $user['role_id'] !== (int) ($salesRole['id'] ?? 0)) {
+        if (!$salesId || $user === null || (int) $user['is_active'] !== 1 || (int) $user['is_sales'] !== 1) {
             $this->json(['error' => 'Sales tidak valid atau tidak aktif.'], 422);
 
             return;

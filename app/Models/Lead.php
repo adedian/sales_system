@@ -10,6 +10,23 @@ class Lead extends Model
     protected static string $table = 'leads';
     protected static bool $softDeletes = true;
 
+    /**
+     * Ordinal progression of leads.status, used only to guard the
+     * Engineer/Sales Engineer checks in currentPosition() below — see that
+     * method's docblock.
+     */
+    private const STATUS_RANK = [
+        'new' => 0,
+        'in_queue' => 1,
+        'follow_up' => 2,
+        'engineering' => 3,
+        'procurement' => 4,
+        'pricing_ready' => 5,
+        'proposal' => 6,
+        'won' => 7,
+        'lost' => 7,
+    ];
+
     private const SORTABLE = [
         'lead_code' => 'leads.lead_code',
         'customer_name' => 'leads.customer_name',
@@ -91,7 +108,13 @@ class Lead extends Model
      * Engineer -> Sales Engineer -> Procurement -> Approval Harga ->
      * (back to Procurement/Sales) -> Proposal -> Deal/Cancel. Checked from
      * the "latest" stage backwards so whichever module currently holds an
-     * open item wins.
+     * open item wins — EXCEPT Survey/Data Antrian/Engineer/Sales Engineer,
+     * which are additionally gated by leads.status: once the lead has moved
+     * past the engineering stage, a queue row or assignment nobody ever
+     * closed out must not keep reporting as current (see STATUS_RANK /
+     * $pastEngineeringStage below). Procurement/Approval Harga are left
+     * ungated since a lead can legitimately re-enter Procurement after
+     * price approval (final PO/quotation) per the documented business flow.
      *
      * @param array $lead the leads.* row (needs 'status')
      * @param array|null $activeQueue shape: ['survey_status_code','status'] or null
@@ -118,15 +141,28 @@ class Lead extends Model
             return ['label' => 'Procurement', 'color' => 'indigo'];
         }
 
-        if (!empty($extra['salesEngineer'])) {
+        // Guard: an Engineer/Sales Engineer assignment that nobody ever
+        // accepted/rejected/completed stays "open" indefinitely. Once the
+        // lead has genuinely moved past the engineering stage (procurement
+        // engaged, price validated, proposal sent, closed) that stale
+        // assignment must stop overriding the real current position —
+        // otherwise a lead already at "Harga Siap" or later gets reported
+        // as stuck on "Engineer" forever.
+        $pastEngineeringStage = (self::STATUS_RANK[$lead['status']] ?? 0) > self::STATUS_RANK['engineering'];
+
+        if (!$pastEngineeringStage && !empty($extra['salesEngineer'])) {
             return ['label' => 'Sales Engineer', 'color' => 'indigo'];
         }
 
-        if (!empty($extra['engineer'])) {
+        if (!$pastEngineeringStage && !empty($extra['engineer'])) {
             return ['label' => 'Engineer', 'color' => 'indigo'];
         }
 
-        if ($activeQueue !== null) {
+        // Same staleness guard as Engineer/Sales Engineer above: a queue row
+        // that was never marked done/cancelled when the lead moved on
+        // shouldn't keep reporting Survey/Data Antrian as current once the
+        // lead is demonstrably past the engineering stage.
+        if (!$pastEngineeringStage && $activeQueue !== null) {
             $surveyCode = $activeQueue['survey_status_code'] ?? null;
             if ($surveyCode === null || $surveyCode === 'prelim') {
                 return ['label' => 'Survey', 'color' => 'amber'];
@@ -248,11 +284,70 @@ class Lead extends Model
         $offset = ($page - 1) * $perPage;
 
         $rows = Database::fetchAll(
-            self::baseSelect() . " {$whereSql} ORDER BY {$sortKey} {$dir}, leads.id DESC LIMIT {$perPage} OFFSET {$offset}",
+            self::searchSelect() . " {$whereSql} ORDER BY {$sortKey} {$dir}, leads.id DESC LIMIT {$perPage} OFFSET {$offset}",
             $params
         );
 
         return ['rows' => $rows, 'total' => $total, 'page' => $page, 'perPage' => $perPage, 'totalPages' => $totalPages];
+    }
+
+    /**
+     * Row select for the Leads List — same columns as baseSelect() (minus
+     * source/category/need_type/creator, unused by that table) plus the same
+     * "what module currently holds an open item" joins as monitoringReport(),
+     * so the list can show Current Process/Current PIC (via
+     * Lead::currentPosition(), computed in the controller) without N+1
+     * queries per row.
+     */
+    private static function searchSelect(): string
+    {
+        $engineerOpen = "'" . implode("','", \App\Models\EngineerAssignment::OPEN_STATUSES) . "'";
+        $procurementOpen = "'" . implode("','", \App\Models\ProcurementRequest::OPEN_STATUSES) . "'";
+
+        return "SELECT leads.*,
+                       sales.name AS sales_name,
+                       lead_type.name AS type_name,
+                       lead_system.name AS system_name,
+                       funding.name AS funding_name,
+                       aq.id AS queue_id,
+                       survey_status.code AS survey_status_code,
+                       current_pic.name AS current_pic_name,
+                       eng.id AS active_engineer_id,
+                       seng.id AS active_sales_engineer_id,
+                       preq.id AS active_procurement_id,
+                       pval.id AS pending_validation_id
+                FROM leads
+                LEFT JOIN users sales ON sales.id = leads.sales_id
+                LEFT JOIN lead_types lead_type ON lead_type.id = leads.type_id
+                LEFT JOIN lead_systems lead_system ON lead_system.id = leads.system_id
+                LEFT JOIN funding_sources funding ON funding.id = leads.funding_id
+                LEFT JOIN (
+                    SELECT sq.*, ROW_NUMBER() OVER (PARTITION BY sq.lead_id ORDER BY sq.id DESC) AS rn
+                    FROM sales_queue sq
+                    WHERE sq.status NOT IN ('done','cancelled')
+                ) aq ON aq.lead_id = leads.id AND aq.rn = 1
+                LEFT JOIN survey_statuses survey_status ON survey_status.id = aq.survey_status_id
+                LEFT JOIN users current_pic ON current_pic.id = aq.current_pic_id
+                LEFT JOIN (
+                    SELECT ea.*, ROW_NUMBER() OVER (PARTITION BY ea.lead_id ORDER BY ea.id DESC) AS rn
+                    FROM engineer_assignments ea
+                    WHERE ea.assignment_type = 'engineer' AND ea.status IN ({$engineerOpen})
+                ) eng ON eng.lead_id = leads.id AND eng.rn = 1
+                LEFT JOIN (
+                    SELECT ea.*, ROW_NUMBER() OVER (PARTITION BY ea.lead_id ORDER BY ea.id DESC) AS rn
+                    FROM engineer_assignments ea
+                    WHERE ea.assignment_type = 'sales_engineer' AND ea.status IN ({$engineerOpen})
+                ) seng ON seng.lead_id = leads.id AND seng.rn = 1
+                LEFT JOIN (
+                    SELECT pr.*, ROW_NUMBER() OVER (PARTITION BY pr.lead_id ORDER BY pr.id DESC) AS rn
+                    FROM procurement_requests pr
+                    WHERE pr.status IN ({$procurementOpen})
+                ) preq ON preq.lead_id = leads.id AND preq.rn = 1
+                LEFT JOIN (
+                    SELECT pv.*, ROW_NUMBER() OVER (PARTITION BY pv.procurement_request_id ORDER BY pv.id DESC) AS rn
+                    FROM procurement_price_validations pv
+                    WHERE pv.status = 'pending'
+                ) pval ON pval.procurement_request_id = preq.id AND pval.rn = 1";
     }
 
     public static function countByStatus(?int $scopeSalesId = null): array
@@ -399,9 +494,8 @@ class Lead extends Model
                 SUM(CASE WHEN l.status = 'won' THEN l.deal_value ELSE 0 END) AS won_value,
                 SUM(CASE WHEN l.status = 'lost' THEN 1 ELSE 0 END) AS lost_count
              FROM users u
-             INNER JOIN roles r ON r.id = u.role_id AND r.slug = 'sales'
              LEFT JOIN leads l ON l.sales_id = u.id AND l.deleted_at IS NULL
-             WHERE u.is_active = 1
+             WHERE u.is_active = 1 AND u.is_sales = 1
              GROUP BY u.id, u.name
              ORDER BY won_value DESC, total_leads DESC"
         );
@@ -595,20 +689,7 @@ class Lead extends Model
                 continue;
             }
 
-            $activeQueue = empty($r['queue_id']) ? null : [
-                'stage_id' => $r['stage_id'],
-                'stage_name' => $r['stage_name'],
-                'stage_color' => $r['stage_color'],
-                'status' => $r['queue_status'],
-                'survey_status_code' => $r['survey_status_code'],
-            ];
-
-            $position = self::currentPosition($r, $activeQueue, $statusMap, $queueStatusMap, [
-                'validation' => !empty($r['pending_validation_id']),
-                'procurement' => !empty($r['active_procurement_id']),
-                'salesEngineer' => !empty($r['active_sales_engineer_id']),
-                'engineer' => !empty($r['active_engineer_id']),
-            ]);
+            $position = self::positionFromReportRow($r, $statusMap, $queueStatusMap);
 
             $key = $position['label'];
             if (!isset($tally[$key])) {
@@ -620,6 +701,117 @@ class Lead extends Model
         usort($tally, fn ($a, $b) => $b['total'] <=> $a['total']);
 
         return array_values($tally);
+    }
+
+    /**
+     * Dashboard "Active Leads" — most recently touched open leads with their
+     * computed Current Process, for a compact overview table. Reuses
+     * monitoringReport([]) like currentProcessDistribution() above (small
+     * dataset, no dedicated cache table).
+     */
+    public static function activeLeadsOverview(int $limit = 8): array
+    {
+        $rows = self::monitoringReport([]);
+        $statusMap = MasterData::allAsMap('lead_statuses');
+        $queueStatusMap = MasterData::allAsMap('queue_statuses');
+
+        $open = array_values(array_filter($rows, fn ($r) => !in_array($r['status'], ['won', 'lost'], true)));
+        usort($open, fn ($a, $b) => strcmp($b['updated_at'], $a['updated_at']));
+
+        $result = [];
+        foreach (array_slice($open, 0, $limit) as $r) {
+            $position = self::positionFromReportRow($r, $statusMap, $queueStatusMap);
+            $r['position_label'] = $position['label'];
+            $r['position_color'] = $position['color'];
+            $r['pic_display'] = self::picFromReportRow($r, $position['label']);
+            $result[] = $r;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Dashboard "Attention Required" — open leads that are either urgent
+     * priority, awaiting Direktur price validation, or have gone longer than
+     * the configured aging SLA without an update. Surfaces WHAT needs
+     * action, not just another count.
+     */
+    public static function attentionRequired(int $slaDays, int $limit = 5): array
+    {
+        $rows = self::monitoringReport([]);
+        $statusMap = MasterData::allAsMap('lead_statuses');
+        $queueStatusMap = MasterData::allAsMap('queue_statuses');
+
+        $candidates = [];
+        foreach ($rows as $r) {
+            if (in_array($r['status'], ['won', 'lost'], true)) {
+                continue;
+            }
+
+            $daysIdle = (int) floor((time() - strtotime($r['updated_at'])) / 86400);
+            $isPendingValidation = !empty($r['pending_validation_id']);
+            $isUrgent = $r['priority'] === 'urgent';
+
+            if (!$isUrgent && !$isPendingValidation && $daysIdle < $slaDays) {
+                continue;
+            }
+
+            $position = self::positionFromReportRow($r, $statusMap, $queueStatusMap);
+            $candidates[] = [
+                'id' => $r['id'],
+                'lead_code' => $r['lead_code'],
+                'customer_name' => $r['customer_name'],
+                'company_name' => $r['company_name'],
+                'position_label' => $position['label'],
+                'position_color' => $position['color'],
+                'priority' => $r['priority'],
+                'days_idle' => $daysIdle,
+                'is_pending_validation' => $isPendingValidation,
+            ];
+        }
+
+        usort($candidates, fn ($a, $b) => $b['days_idle'] <=> $a['days_idle']);
+
+        return array_slice($candidates, 0, $limit);
+    }
+
+    /** Shared by activeLeadsOverview()/attentionRequired()/currentProcessDistribution() — see monitoringReport()'s column shape. */
+    private static function positionFromReportRow(array $r, array $statusMap, array $queueStatusMap): array
+    {
+        $activeQueue = empty($r['queue_id']) ? null : [
+            'stage_id' => $r['stage_id'],
+            'stage_name' => $r['stage_name'],
+            'stage_color' => $r['stage_color'],
+            'status' => $r['queue_status'],
+            'survey_status_code' => $r['survey_status_code'],
+        ];
+
+        return self::currentPosition($r, $activeQueue, $statusMap, $queueStatusMap, [
+            'validation' => !empty($r['pending_validation_id']),
+            'procurement' => !empty($r['active_procurement_id']),
+            'salesEngineer' => !empty($r['active_sales_engineer_id']),
+            'engineer' => !empty($r['active_engineer_id']),
+        ]);
+    }
+
+    /**
+     * Same "only trust a name we can be sure of" rule as LeadController's
+     * Leads List enrichment — current_pic_name is only ever joined from the
+     * queue row (Survey/Data Antrian), so it would be stale/wrong for any
+     * other resolved stage. Public: also used by ReportController's Lead
+     * Monitoring report, which resolves Current Position from these same
+     * monitoringReport() rows.
+     */
+    public static function picFromReportRow(array $r, string $positionLabel): string
+    {
+        if (in_array($positionLabel, ['Survey', 'Data Antrian'], true)) {
+            return $r['current_pic_name'] ?? '-';
+        }
+        if (in_array($positionLabel, ['Sales', 'Proposal'], true)) {
+            return $r['sales_name'] ?? '-';
+        }
+
+        return '-';
     }
 
     /** @return array{where:string,params:array} shared by the Deal Report's table view and its CSV export. */
@@ -692,7 +884,7 @@ class Lead extends Model
         }
         $joinSql = implode(' AND ', $joinWhere);
 
-        $outerWhere = ['u.is_active = 1'];
+        $outerWhere = ['u.is_active = 1', 'u.is_sales = 1'];
         $outerParams = [];
         if (!empty($filters['sales_id'])) {
             $outerWhere[] = 'u.id = ?';
@@ -711,7 +903,6 @@ class Lead extends Model
                 (SELECT COUNT(*) FROM followups f WHERE f.sales_id = u.id) AS followup_count,
                 (SELECT COUNT(*) FROM proposals p WHERE p.sales_id = u.id AND p.deleted_at IS NULL AND p.status <> 'draft') AS proposal_count
              FROM users u
-             INNER JOIN roles r ON r.id = u.role_id AND r.slug = 'sales'
              LEFT JOIN leads l ON l.sales_id = u.id AND {$joinSql}
              WHERE {$outerSql}
              GROUP BY u.id, u.name

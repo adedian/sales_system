@@ -71,9 +71,21 @@ class User extends Model
         return self::activeByFlag('is_director');
     }
 
+    /**
+     * Redesign UI/UX Enterprise — `is_sales` is the explicit "operationally
+     * Sales" flag, independent of the `sales` login role that Surveyor/
+     * Engineer/Sales Engineer staff also share as their generic login role.
+     * Use this (not activeByRole(salesRoleId)) anywhere that needs the real
+     * Sales roster — dropdowns, dashboard performance, assignment validation.
+     */
+    public static function activeSales(): array
+    {
+        return self::activeByFlag('is_sales');
+    }
+
     private static function activeByFlag(string $flagColumn): array
     {
-        $allowed = ['is_estimator', 'is_surveyor', 'is_engineer', 'is_sales_engineer', 'is_director'];
+        $allowed = ['is_estimator', 'is_surveyor', 'is_engineer', 'is_sales_engineer', 'is_director', 'is_sales'];
         if (!in_array($flagColumn, $allowed, true)) {
             throw new \InvalidArgumentException("Kolom flag tidak dikenal: {$flagColumn}");
         }

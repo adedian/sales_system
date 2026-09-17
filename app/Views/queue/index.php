@@ -16,6 +16,37 @@ $tiles = [
     'waiting_engineer' => ['label' => 'Menunggu Engineer', 'icon' => 'bi-send'],
     'done' => ['label' => 'Selesai', 'icon' => 'bi-check-circle'],
 ];
+
+$findById = function (array $rows, $id) {
+    foreach ($rows as $row) {
+        if ((string) $row['id'] === (string) $id) return $row;
+    }
+    return null;
+};
+
+$chips = [];
+if ($filters['status'] !== '') {
+    $chips[] = ['key' => 'status', 'label' => 'Status: ' . ($statusMap[$filters['status']]['name'] ?? $filters['status'])];
+}
+if (!empty($filters['survey_status_id'])) {
+    $row = $findById($surveyStatusMap, $filters['survey_status_id']);
+    $chips[] = ['key' => 'survey_status_id', 'label' => 'Status Survey: ' . ($row['name'] ?? $filters['survey_status_id'])];
+}
+if (!empty($filters['stage_id'])) {
+    $row = $findById($stageMap, $filters['stage_id']);
+    $chips[] = ['key' => 'stage_id', 'label' => 'Catatan Tahap: ' . ($row['name'] ?? $filters['stage_id'])];
+}
+if ($filters['priority'] !== '') {
+    $chips[] = ['key' => 'priority', 'label' => 'Urgensi: ' . ($priorityMap[$filters['priority']]['name'] ?? $filters['priority'])];
+}
+if (!empty($filters['sales_id'])) {
+    $row = $findById($salesUsers, $filters['sales_id']);
+    $chips[] = ['key' => 'sales_id', 'label' => 'Sales: ' . ($row['name'] ?? $filters['sales_id'])];
+}
+if (!empty($filters['overdue'])) {
+    $chips[] = ['key' => 'overdue', 'label' => 'Overdue saja'];
+}
+$chipRemoveUrl = fn ($key) => url('/queue') . '?' . http_build_query(array_merge($filters, [$key => '', 'page' => 1]));
 ?>
 <div class="page-header">
     <h2>Antrian Sales</h2>
@@ -43,67 +74,88 @@ $tiles = [
 
 <div class="card card-elevated">
     <div class="card-body filter-bar">
-        <form method="GET" action="<?= url('/queue') ?>" class="filter-form">
-            <div class="filter-field filter-field-grow">
-                <label class="form-label" for="q">Cari</label>
-                <input type="text" id="q" name="q" class="form-control" placeholder="Kode lead, nama, perusahaan" value="<?= e($filters['q']) ?>">
+        <form method="GET" action="<?= url('/queue') ?>" id="queueFilterForm">
+            <div class="filter-quick-bar">
+                <div class="filter-quick-search">
+                    <input type="text" name="q" class="form-control" placeholder="Cari kode lead, nama, perusahaan..." value="<?= e($filters['q']) ?>">
+                </div>
+                <button type="button" class="btn btn-light" data-bs-toggle="offcanvas" data-bs-target="#queueFilterOffcanvas">
+                    <i class="bi bi-funnel me-1"></i>Filter<?php if (!empty($chips)): ?> <span class="badge-pill badge-pill-muted ms-1"><?= count($chips) ?></span><?php endif; ?>
+                </button>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i></button>
             </div>
-            <div class="filter-field">
-                <label class="form-label" for="status">Status</label>
-                <select id="status" name="status" class="form-select">
-                    <option value="">Aktif (belum selesai)</option>
-                    <?php foreach ($statusMap as $code => $row): ?>
-                        <option value="<?= e($code) ?>" <?= $filters['status'] === $code ? 'selected' : '' ?>><?= e($row['name']) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="filter-field">
-                <label class="form-label" for="survey_status_id">Status Survey</label>
-                <select id="survey_status_id" name="survey_status_id" class="form-select">
-                    <option value="">Semua</option>
-                    <?php foreach ($surveyStatusMap as $row): ?>
-                        <option value="<?= (int) $row['id'] ?>" <?= (string) $filters['survey_status_id'] === (string) $row['id'] ? 'selected' : '' ?>><?= e($row['name']) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="filter-field">
-                <label class="form-label" for="stage_id">Catatan Tahap</label>
-                <select id="stage_id" name="stage_id" class="form-select">
-                    <option value="">Semua</option>
-                    <?php foreach ($stageMap as $row): ?>
-                        <option value="<?= (int) $row['id'] ?>" <?= (string) $filters['stage_id'] === (string) $row['id'] ? 'selected' : '' ?>><?= e($row['name']) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="filter-field">
-                <label class="form-label" for="priority">Urgensi</label>
-                <select id="priority" name="priority" class="form-select">
-                    <option value="">Semua Urgensi</option>
-                    <?php foreach ($priorityMap as $code => $row): ?>
-                        <option value="<?= e($code) ?>" <?= $filters['priority'] === $code ? 'selected' : '' ?>><?= e($row['name']) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <?php if (count($salesUsers)): ?>
-            <div class="filter-field">
-                <label class="form-label" for="sales_id">Sales</label>
-                <select id="sales_id" name="sales_id" class="form-select">
-                    <option value="">Semua Sales</option>
-                    <?php foreach ($salesUsers as $row): ?>
-                        <option value="<?= (int) $row['id'] ?>" <?= (string) $filters['sales_id'] === (string) $row['id'] ? 'selected' : '' ?>><?= e($row['name']) ?></option>
-                    <?php endforeach; ?>
-                </select>
+
+            <?php if (!empty($chips)): ?>
+            <div class="filter-chips">
+                <?php foreach ($chips as $chip): ?>
+                <a href="<?= e($chipRemoveUrl($chip['key'])) ?>" class="filter-chip"><?= e($chip['label']) ?> <i class="bi bi-x-lg"></i></a>
+                <?php endforeach; ?>
+                <a href="<?= url('/queue') ?>" class="filter-chip filter-chip-clear">Reset semua</a>
             </div>
             <?php endif; ?>
-            <div class="filter-field filter-field-actions">
-                <div class="form-check form-check-inline pt-4">
-                    <input class="form-check-input" type="checkbox" id="overdue" name="overdue" value="1" <?= $filters['overdue'] ? 'checked' : '' ?>>
-                    <label class="form-check-label" for="overdue">Overdue saja</label>
+
+            <div class="offcanvas offcanvas-end" tabindex="-1" id="queueFilterOffcanvas">
+                <div class="offcanvas-header">
+                    <h5 class="offcanvas-title">Filter Antrian</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Tutup"></button>
                 </div>
-            </div>
-            <div class="filter-field filter-field-actions">
-                <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i></button>
-                <a href="<?= url('/queue') ?>" class="btn btn-light">Reset</a>
+                <div class="offcanvas-body">
+                    <div class="filter-offcanvas-field">
+                        <label class="form-label" for="status">Status</label>
+                        <select id="status" name="status" class="form-select">
+                            <option value="">Aktif (belum selesai)</option>
+                            <?php foreach ($statusMap as $code => $row): ?>
+                                <option value="<?= e($code) ?>" <?= $filters['status'] === $code ? 'selected' : '' ?>><?= e($row['name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="filter-offcanvas-field">
+                        <label class="form-label" for="survey_status_id">Status Survey</label>
+                        <select id="survey_status_id" name="survey_status_id" class="form-select">
+                            <option value="">Semua</option>
+                            <?php foreach ($surveyStatusMap as $row): ?>
+                                <option value="<?= (int) $row['id'] ?>" <?= (string) $filters['survey_status_id'] === (string) $row['id'] ? 'selected' : '' ?>><?= e($row['name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="filter-offcanvas-field">
+                        <label class="form-label" for="stage_id">Catatan Tahap</label>
+                        <select id="stage_id" name="stage_id" class="form-select">
+                            <option value="">Semua</option>
+                            <?php foreach ($stageMap as $row): ?>
+                                <option value="<?= (int) $row['id'] ?>" <?= (string) $filters['stage_id'] === (string) $row['id'] ? 'selected' : '' ?>><?= e($row['name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="filter-offcanvas-field">
+                        <label class="form-label" for="priority">Urgensi</label>
+                        <select id="priority" name="priority" class="form-select">
+                            <option value="">Semua Urgensi</option>
+                            <?php foreach ($priorityMap as $code => $row): ?>
+                                <option value="<?= e($code) ?>" <?= $filters['priority'] === $code ? 'selected' : '' ?>><?= e($row['name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <?php if (count($salesUsers)): ?>
+                    <div class="filter-offcanvas-field">
+                        <label class="form-label" for="sales_id">Sales</label>
+                        <select id="sales_id" name="sales_id" class="form-select">
+                            <option value="">Semua Sales</option>
+                            <?php foreach ($salesUsers as $row): ?>
+                                <option value="<?= (int) $row['id'] ?>" <?= (string) $filters['sales_id'] === (string) $row['id'] ? 'selected' : '' ?>><?= e($row['name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <?php endif; ?>
+                    <div class="filter-offcanvas-field form-check">
+                        <input class="form-check-input" type="checkbox" id="overdue" name="overdue" value="1" <?= $filters['overdue'] ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="overdue">Overdue saja</label>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary flex-grow-1">Terapkan Filter</button>
+                        <a href="<?= url('/queue') ?>" class="btn btn-light">Reset</a>
+                    </div>
+                </div>
             </div>
         </form>
     </div>

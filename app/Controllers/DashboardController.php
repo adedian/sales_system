@@ -70,6 +70,8 @@ class DashboardController extends Controller
             }
         }
 
+        $slaDays = Setting::getInt('sla_lead_aging_days', 7);
+
         $this->view('dashboard/index', [
             'pageTitle' => 'Dashboard',
             'stats' => [
@@ -79,6 +81,9 @@ class DashboardController extends Controller
             ],
             'kpi' => [
                 'total_leads' => array_sum($statusCounts),
+                'proses_count' => array_sum($statusCounts) - $statusCounts['won'] - $statusCounts['lost'],
+                'deal_count' => $statusCounts['won'],
+                'cancel_count' => $statusCounts['lost'],
                 'pipeline_value' => Lead::pipelineValue(),
                 'proposal_value' => Proposal::openValue(),
                 'won_value' => Lead::wonValue(),
@@ -87,12 +92,23 @@ class DashboardController extends Controller
             ],
             'pipelineByStatus' => $pipelineByStatus,
             'statusMap' => $statusMap,
+            'priorityMap' => MasterData::allAsMap('priorities'),
             'salesPerformance' => Lead::salesPerformance(),
             'aging' => $aging,
             'bottleneck' => $bottleneck,
-            'slaDays' => Setting::getInt('sla_lead_aging_days', 7),
+            'slaDays' => $slaDays,
+            'activeLeads' => Lead::activeLeadsOverview(8),
+            'attentionRequired' => Lead::attentionRequired($slaDays, 5),
+            // NB: EngineerAssignment::workloadByEngineer() defaults to
+            // assignment_type 'sales_engineer' — this dashboard previously
+            // called it with no argument for the "Engineer" card, which
+            // actually rendered Sales Engineer staff (Fita/Rika) under an
+            // "Engineer" label. Both are now explicit and separate, plus
+            // the previously-missing Surveyor workload.
             'workload' => [
-                'engineer' => EngineerAssignment::workloadByEngineer(),
+                'sales_engineer' => EngineerAssignment::workloadByEngineer('sales_engineer'),
+                'engineer' => EngineerAssignment::workloadByEngineer('engineer'),
+                'surveyor' => SalesQueue::workloadBySurveyor(),
                 'procurement' => ProcurementRequest::workloadByAssignee(),
             ],
             'recentActivity' => AuditLog::recent(8),

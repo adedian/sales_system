@@ -44,7 +44,7 @@ class FollowUpController extends Controller
             'upcoming' => $upcoming,
             'recentLog' => FollowUp::recent($effectiveScope, 20),
             'priorityMap' => MasterData::allAsMap('priorities'),
-            'salesUsers' => $scopeSalesId === null ? User::activeByRole($this->salesRoleId() ?? 0) : [],
+            'salesUsers' => $scopeSalesId === null ? User::activeSales() : [],
             'filters' => ['sales_id' => $salesIdFilter],
             'methodLabels' => $this->methodLabels(),
             'responseLabels' => $this->responseLabels(),
@@ -150,17 +150,6 @@ class FollowUpController extends Controller
     private function nullableInt(mixed $value): ?int
     {
         return ($value === null || $value === '') ? null : (int) $value;
-    }
-
-    private function salesRoleId(): ?int
-    {
-        static $id = null;
-        if ($id === null) {
-            $role = \App\Models\Role::findBySlug('sales');
-            $id = $role ? (int) $role['id'] : 0;
-        }
-
-        return $id;
     }
 
     public function methodLabels(): array

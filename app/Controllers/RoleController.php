@@ -12,6 +12,7 @@ use App\Core\Request;
 use App\Core\Session;
 use App\Core\Validator;
 use App\Models\Role;
+use App\Models\User;
 
 class RoleController extends Controller
 {
@@ -21,6 +22,14 @@ class RoleController extends Controller
             'pageTitle' => 'Role',
             'breadcrumb' => ['Pengguna & Role' => url('/users'), 'Role'],
             'roles' => Role::withUserCount(),
+            'operationalFunctions' => [
+                ['label' => 'Sales', 'users' => User::activeSales()],
+                ['label' => 'Estimator', 'users' => User::activeEstimators()],
+                ['label' => 'Surveyor', 'users' => User::activeSurveyors()],
+                ['label' => 'Engineer', 'users' => User::activeEngineers()],
+                ['label' => 'Sales Engineer', 'users' => User::activeSalesEngineers()],
+                ['label' => 'Direktur / Price Validator', 'users' => User::activeDirectors()],
+            ],
         ]);
     }
 

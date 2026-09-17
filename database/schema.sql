@@ -560,6 +560,19 @@ ALTER TABLE `users`
     ADD COLUMN IF NOT EXISTS `is_sales_engineer` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_engineer`,
     ADD COLUMN IF NOT EXISTS `is_director` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_sales_engineer`;
 
+-- Redesign UI/UX Enterprise (role vs personnel audit) — `sales` the RBAC
+-- login role is shared by everyone who isn't Admin/Procurement/Manager/
+-- Super Admin (it's this system's generic "field staff" login), so it was
+-- being used to build the "Sales" business-function roster (dashboard Sales
+-- Performance, Sales dropdowns) too — pulling in Surveyor/Engineer/Sales
+-- Engineer-only staff who happen to share that login role. `is_sales` is the
+-- same capability-flag pattern as is_estimator/is_surveyor/etc. above: the
+-- explicit "this person operationally sells/owns leads" flag, independent
+-- of login role, so a user like Fita can be both Sales and Sales Engineer
+-- without a Surveyor-only user like Ali being miscounted as Sales.
+ALTER TABLE `users`
+    ADD COLUMN IF NOT EXISTS `is_sales` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_director`;
+
 -- Phase C (Current Position / Current PIC) — additive column, same
 -- idempotent-apply convention as Phase A/B above: ADD COLUMN/ADD KEY use
 -- MariaDB's IF NOT EXISTS guard; ADD CONSTRAINT has no such guard, so this

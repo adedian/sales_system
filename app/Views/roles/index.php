@@ -1,8 +1,8 @@
 <?php $pageTitle = 'Role'; ?>
 <div class="page-header page-header-row">
     <div>
-        <h2>Role &amp; Permission</h2>
-        <p class="text-muted">Kelola role serta permission yang melekat padanya.</p>
+        <h2>Role Administratif</h2>
+        <p class="text-muted">Role menentukan akses/permission ke sistem. Tidak sama dengan fungsi operasional di lapangan (lihat panel di bawah).</p>
     </div>
     <a href="<?= url('/roles/create') ?>" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Tambah Role</a>
 </div>
@@ -43,6 +43,38 @@
                                 </form>
                                 <?php endif; ?>
                             </div>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="page-header mt-4">
+    <h2>Fungsi Operasional</h2>
+    <p class="text-muted">Master Personnel — fungsi di lapangan, independen dari Role login. Satu pengguna boleh punya lebih dari satu fungsi. Diatur lewat <a href="<?= url('/users') ?>">halaman Pengguna</a>.</p>
+</div>
+
+<div class="card card-elevated">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-modern mb-0">
+                <thead>
+                    <tr>
+                        <th>Fungsi</th>
+                        <th class="text-center">Jumlah</th>
+                        <th>Personel</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($operationalFunctions as $fn): ?>
+                    <tr>
+                        <td><?= e($fn['label']) ?></td>
+                        <td class="text-center mono"><?= count($fn['users']) ?></td>
+                        <td class="text-muted">
+                            <?= !empty($fn['users']) ? e(implode(', ', array_column($fn['users'], 'name'))) : '-' ?>
                         </td>
                     </tr>
                     <?php endforeach; ?>

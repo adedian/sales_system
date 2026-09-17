@@ -57,6 +57,34 @@ class LeadController extends Controller
         $salesByLead = LeadSales::forLeads(array_column($result['rows'], 'id'));
         foreach ($result['rows'] as &$row) {
             $row['sales_names'] = $salesByLead[(int) $row['id']] ?? [];
+
+            // Same computation as the Lead detail page and the Lead Monitoring
+            // report — Lead::searchSelect() already joined the flags this needs,
+            // so this stays a single query for the whole list, no N+1.
+            $activeQueue = empty($row['queue_id']) ? null : ['survey_status_code' => $row['survey_status_code']];
+            $row['current_position'] = Lead::currentPosition($row, $activeQueue, [], [], [
+                'validation' => !empty($row['pending_validation_id']),
+                'procurement' => !empty($row['active_procurement_id']),
+                'salesEngineer' => !empty($row['active_sales_engineer_id']),
+                'engineer' => !empty($row['active_engineer_id']),
+            ]);
+
+            // current_pic_name is only ever joined from the queue row (Survey/
+            // Data Antrian) — showing it for any other resolved stage would be
+            // stale/wrong (e.g. an old queue PIC left over from before the
+            // lead moved on). Only trust it when that's genuinely the current
+            // stage; fall back to the lead's own Sales for the Sales/Proposal
+            // stages, and '-' where the list query has no assignee name
+            // (Engineer/Sales Engineer/Procurement/Approval Harga) — the
+            // Detail Lead page resolves the correct name for those instead.
+            $positionLabel = $row['current_position']['label'];
+            if (in_array($positionLabel, ['Survey', 'Data Antrian'], true)) {
+                $row['current_pic_display'] = $row['current_pic_name'] ?? '-';
+            } elseif (in_array($positionLabel, ['Sales', 'Proposal'], true)) {
+                $row['current_pic_display'] = $row['sales_name'] ?? '-';
+            } else {
+                $row['current_pic_display'] = '-';
+            }
         }
         unset($row);
 
@@ -75,7 +103,7 @@ class LeadController extends Controller
             'leadTypes' => MasterData::allAsMap('lead_types', true),
             'leadSystems' => MasterData::allAsMap('lead_systems', true),
             'fundingSources' => MasterData::allAsMap('funding_sources', true),
-            'salesUsers' => User::activeByRole($this->salesRoleId() ?? 0),
+            'salesUsers' => User::activeSales(),
             'canManage' => Acl::can('lead.edit'),
             'canAssign' => Acl::can('lead.assign'),
             'canDelete' => Acl::can('lead.delete'),
@@ -204,7 +232,7 @@ class LeadController extends Controller
             'statusMap' => $statusMap,
             'queueStatusMap' => $queueStatusMap,
             'priorityMap' => MasterData::allAsMap('priorities'),
-            'salesUsers' => User::activeByRole($this->salesRoleId() ?? 0),
+            'salesUsers' => User::activeSales(),
             'canManage' => Acl::can('lead.edit') && !$this->isReadOnlyForSales($lead),
             'canAssign' => Acl::can('lead.assign'),
             'canDelete' => Acl::can('lead.delete'),
@@ -227,6 +255,9 @@ class LeadController extends Controller
             'procurementStatusMap' => MasterData::allAsMap('procurement_statuses'),
             'procurementUsers' => $procurementRole ? User::activeByRole((int) $procurementRole['id']) : [],
             'canRequestProcurement' => Acl::can('lead.edit') && Acl::can('procurement.view') && !$this->isReadOnlyForSales($lead),
+            'priceValidations' => ($priceValidationRequest = $activeProcurementRequest ?? ProcurementRequest::latestForLead((int) $lead['id'])) !== null
+                ? ProcurementPriceValidation::forRequest((int) $priceValidationRequest['id'])
+                : [],
             'proposals' => Proposal::forLead((int) $lead['id']),
             'proposalStatusMap' => MasterData::allAsMap('proposal_statuses'),
             'canCreateProposal' => Acl::can('lead.edit') && Acl::can('proposal.create') && !$this->isReadOnlyForSales($lead),
@@ -644,7 +675,7 @@ class LeadController extends Controller
             'fundingSources' => MasterData::allAsMap('funding_sources', true),
             'needTypes' => MasterData::allAsMap('need_types', true),
             'priorities' => MasterData::allAsMap('priorities', true),
-            'salesUsers' => User::activeByRole($this->salesRoleId() ?? 0),
+            'salesUsers' => User::activeSales(),
             'assignedSalesIds' => $assignedSalesIds,
             // Reassigning an existing lead's sales needs lead.assign; the field
             // still shows on create for anyone not scoped to their own leads.
@@ -685,17 +716,6 @@ class LeadController extends Controller
         return $scopeSalesId !== null
             && (int) $lead['sales_id'] !== $scopeSalesId
             && !LeadSales::isAssigned((int) $lead['id'], $scopeSalesId);
-    }
-
-    private function salesRoleId(): ?int
-    {
-        static $id = null;
-        if ($id === null) {
-            $role = \App\Models\Role::findBySlug('sales');
-            $id = $role ? (int) $role['id'] : 0;
-        }
-
-        return $id;
     }
 
     private function nullableInt(mixed $value): ?int

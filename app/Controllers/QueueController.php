@@ -18,7 +18,6 @@ use App\Models\ProcurementPriceValidation;
 use App\Models\ProcurementRequest;
 use App\Models\QueueNote;
 use App\Models\QueueStatusHistory;
-use App\Models\Role;
 use App\Models\SalesQueue;
 use App\Models\User;
 
@@ -47,7 +46,6 @@ class QueueController extends Controller
         }
 
         $result = SalesQueue::search($filters);
-        $salesRoleId = $this->salesRoleId();
 
         $this->view('queue/index', [
             'pageTitle' => 'Antrian Sales',
@@ -61,7 +59,7 @@ class QueueController extends Controller
             'priorityMap' => MasterData::allAsMap('priorities'),
             'surveyStatusMap' => MasterData::allAsMap('survey_statuses'),
             'stageMap' => MasterData::allAsMap('queue_stages'),
-            'salesUsers' => $salesRoleId ? User::activeByRole($salesRoleId) : [],
+            'salesUsers' => User::activeSales(),
             'canManage' => Acl::can('queue.manage'),
         ]);
     }
@@ -94,7 +92,7 @@ class QueueController extends Controller
             'estimators' => User::activeEstimators(),
             'surveyors' => User::activeSurveyors(),
             'currentPicUsers' => User::allActive(),
-            'salesUsers' => ($id = $this->salesRoleId()) ? User::activeByRole($id) : [],
+            'salesUsers' => User::activeSales(),
             'canManage' => Acl::can('queue.manage'),
             'canOperate' => $this->canOperate($queue),
             'canReassign' => Acl::can('queue.manage'),
@@ -183,17 +181,6 @@ class QueueController extends Controller
     {
         return Acl::can('queue.manage')
             || (Acl::hasRole('sales') && (int) $queue['sales_id'] === Auth::id());
-    }
-
-    private function salesRoleId(): ?int
-    {
-        static $id = null;
-        if ($id === null) {
-            $role = Role::findBySlug('sales');
-            $id = $role ? (int) $role['id'] : 0;
-        }
-
-        return $id;
     }
 
     private function buildTimeline(int $queueId): array

@@ -50,7 +50,11 @@ if (!function_exists('url')) {
 if (!function_exists('asset')) {
     function asset(string $path): string
     {
-        return url('assets/' . ltrim($path, '/'));
+        $relative = ltrim($path, '/');
+        $absolute = __DIR__ . '/../../public/assets/' . $relative;
+        $version = is_file($absolute) ? filemtime($absolute) : null;
+
+        return url('assets/' . $relative) . ($version !== null ? '?v=' . $version : '');
     }
 }
 

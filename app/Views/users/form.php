@@ -61,6 +61,32 @@ $isSelf = $isEdit && (int) $targetUser['id'] === auth_user()['id'];
                     <input type="password" class="form-control" id="password" name="password" minlength="8" <?= $isEdit ? 'placeholder="Kosongkan jika tidak ingin mengubah"' : 'required' ?>>
                     <div class="form-text">Minimal 8 karakter. <?= $isEdit ? 'Mengisi field ini akan memaksa pengguna mengganti password saat login berikutnya.' : 'Pengguna wajib mengganti password saat login pertama.' ?></div>
                 </div>
+
+                <div class="col-12">
+                    <hr>
+                    <label class="form-label mb-0">Fungsi Operasional</label>
+                    <div class="form-text mt-0 mb-2">Fungsi tambahan di luar role login — independen dari Role, dan satu pengguna boleh punya lebih dari satu fungsi.</div>
+                    <?php
+                        $flagOptions = [
+                            'is_sales' => 'Sales',
+                            'is_estimator' => 'Estimator',
+                            'is_surveyor' => 'Surveyor',
+                            'is_engineer' => 'Engineer',
+                            'is_sales_engineer' => 'Sales Engineer',
+                            'is_director' => 'Direktur / Price Validator',
+                        ];
+                    ?>
+                    <div class="row g-2">
+                        <?php foreach ($flagOptions as $flag => $label): ?>
+                        <div class="col-6 col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="<?= e($flag) ?>" name="<?= e($flag) ?>" value="1" <?= !empty($targetUser[$flag]) ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="<?= e($flag) ?>"><?= e($label) ?></label>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
             </div>
 
             <div class="form-actions">

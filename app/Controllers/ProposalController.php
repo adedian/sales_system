@@ -55,7 +55,7 @@ class ProposalController extends Controller
             'filters' => $filters,
             'dashboardCounts' => Proposal::dashboardCounts($scope['scope_sales_id'] ?? null),
             'statusMap' => MasterData::allAsMap('proposal_statuses'),
-            'salesUsers' => ($id = $this->salesRoleId()) ? User::activeByRole($id) : [],
+            'salesUsers' => User::activeSales(),
             'canApprove' => Acl::can('proposal.approve'),
         ]);
     }
@@ -1057,17 +1057,6 @@ HTML;
             Lead::update($leadId, ['status' => 'proposal', 'updated_by' => $actorId, 'updated_at' => $now]);
             LeadStatusHistory::record($leadId, $lead['status'], 'proposal', $actorId, 'Proposal sedang disusun.');
         }
-    }
-
-    private function salesRoleId(): ?int
-    {
-        static $id = null;
-        if ($id === null) {
-            $role = Role::findBySlug('sales');
-            $id = $role ? (int) $role['id'] : 0;
-        }
-
-        return $id;
     }
 
     private function buildTimeline(int $proposalId): array

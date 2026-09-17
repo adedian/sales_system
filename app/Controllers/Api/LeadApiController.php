@@ -188,7 +188,7 @@ class LeadApiController extends Controller
 
         if ($salesId !== null) {
             $user = User::find($salesId);
-            if ($user === null || (int) $user['is_active'] !== 1) {
+            if ($user === null || (int) $user['is_active'] !== 1 || (int) $user['is_sales'] !== 1) {
                 $this->json(['error' => 'Sales tidak valid atau tidak aktif.'], 422);
 
                 return;

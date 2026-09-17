@@ -247,4 +247,31 @@ class SalesQueue extends Model
             return $id;
         });
     }
+
+    /**
+     * Dashboard "Beban Kerja Tim — Surveyor" — same pattern as
+     * EngineerAssignment::workloadByEngineer(): every active is_surveyor
+     * user appears even with zero active items, so a Manager can see who's
+     * idle too.
+     */
+    public static function workloadBySurveyor(): array
+    {
+        $rows = Database::fetchAll(
+            "SELECT u.id, u.name,
+                    SUM(CASE WHEN sq.status NOT IN ('done','cancelled') THEN 1 ELSE 0 END) AS active_count,
+                    SUM(CASE WHEN sq.status = 'done' THEN 1 ELSE 0 END) AS completed_count
+             FROM users u
+             LEFT JOIN sales_queue sq ON sq.surveyor_id = u.id
+             WHERE u.is_active = 1 AND u.is_surveyor = 1
+             GROUP BY u.id, u.name
+             ORDER BY active_count DESC"
+        );
+
+        foreach ($rows as &$row) {
+            $row['active_count'] = (int) $row['active_count'];
+            $row['completed_count'] = (int) $row['completed_count'];
+        }
+
+        return $rows;
+    }
 }

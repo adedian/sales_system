@@ -97,7 +97,7 @@ class UserController extends Controller
 
         $actor = Auth::user();
 
-        $newUserId = User::insert([
+        $newUserId = User::insert(array_merge([
             'name' => trim((string) $request->input('name')),
             'username' => trim((string) $request->input('username')),
             'email' => trim((string) $request->input('email')),
@@ -109,7 +109,7 @@ class UserController extends Controller
             'created_by' => $actor['id'],
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
-        ]);
+        ], $this->capabilityFlags($request)));
 
         AuditLogger::log((int) $actor['id'], 'user_created', 'user', $newUserId, null, [
             'username' => $request->input('username'),
@@ -183,13 +183,13 @@ class UserController extends Controller
         $actor = Auth::user();
         $isSelf = (int) $targetUser['id'] === (int) $actor['id'];
 
-        $newData = [
+        $newData = array_merge([
             'name' => trim((string) $request->input('name')),
             'username' => trim((string) $request->input('username')),
             'email' => trim((string) $request->input('email')),
             'phone' => trim((string) $request->input('phone')) ?: null,
             'updated_by' => $actor['id'],
-        ];
+        ], $this->capabilityFlags($request));
 
         // Safety guard: an admin editing their own account can't change their
         // own role or active flag here — prevents an accidental self-lockout.
@@ -266,5 +266,23 @@ class UserController extends Controller
 
         Session::flash('success', 'Status pengguna berhasil diubah.');
         $this->redirect('/users');
+    }
+
+    /**
+     * Master Personnel — operational function flags (Estimator/Surveyor/
+     * Engineer/Sales Engineer/Direktur). Independent of RBAC role_id: a user
+     * keeps their normal login role and can additionally be flagged for one
+     * or more of these (see App\Models\User::activeByFlag).
+     *
+     * @return array<string,int>
+     */
+    private function capabilityFlags(Request $request): array
+    {
+        $flags = ['is_sales', 'is_estimator', 'is_surveyor', 'is_engineer', 'is_sales_engineer', 'is_director'];
+
+        return array_combine($flags, array_map(
+            fn ($flag) => $request->input($flag) ? 1 : 0,
+            $flags
+        ));
     }
 }
