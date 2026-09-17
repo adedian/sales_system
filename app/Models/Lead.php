@@ -719,7 +719,8 @@ class Lead extends Model
                     seng.purpose AS active_sales_engineer_purpose,
                     preq.id AS active_procurement_id,
                     pval.id AS pending_validation_id,
-                    prelim.id AS active_prelim_id
+                    prelim.id AS active_prelim_id,
+                    prelim.status AS active_prelim_status
              FROM leads
              LEFT JOIN users sales ON sales.id = leads.sales_id
              LEFT JOIN lead_types lead_type ON lead_type.id = leads.type_id
@@ -850,7 +851,12 @@ class Lead extends Model
 
             $daysIdle = (int) floor((time() - strtotime($r['updated_at'])) / 86400);
             $isPendingValidation = !empty($r['pending_validation_id']);
-            $isPendingPrelimClientResponse = !empty($r['active_prelim_id']);
+            // Only a Prelim actually awaiting the Client's response ('sent')
+            // belongs in Requires Attention — a fresh 'draft'/'ready_to_send'
+            // Prelim Sales hasn't even sent yet needs no attention, and
+            // 'client_revision' is already Sales' own turn to act (shown via
+            // its own "Prelim" position label, not an urgent flag).
+            $isPendingPrelimClientResponse = !empty($r['active_prelim_id']) && $r['active_prelim_status'] === 'sent';
             $isUrgent = $r['priority'] === 'urgent';
 
             if (!$isUrgent && !$isPendingValidation && !$isPendingPrelimClientResponse && $daysIdle < $slaDays) {
