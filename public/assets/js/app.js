@@ -199,6 +199,36 @@
     });
 
     /* ------------------------------------------------------------------
+     * Row-action "More" dropdowns inside a horizontally-scrolling table
+     * (.table-responsive) — Bootstrap's default Popper strategy positions
+     * the menu absolute relative to the scrolling ancestor, which then
+     * clips it to whatever is still visible in that scroll area (looks
+     * like the menu is "buried" a few pixels tall instead of showing its
+     * items). Pre-creating the Dropdown instance with strategy: 'fixed'
+     * makes Popper position it relative to the viewport instead, so it
+     * escapes the ancestor's overflow clipping.
+     *
+     * That alone still isn't enough on a .table-sticky table: the menu's
+     * fixed position can visually overlap into the row below, but that
+     * row's sticky "Aksi"/"Kode" cells share the same z-index and sit
+     * later in the DOM, so they paint over it. Toggling .dropdown-open on
+     * the row while it's showing (see app.css) lifts its sticky cells
+     * above the rest for that moment.
+     * ---------------------------------------------------------------- */
+    document.querySelectorAll('.table-responsive .dropdown-toggle[data-bs-toggle="dropdown"]').forEach((toggle) => {
+        if (window.bootstrap && window.bootstrap.Dropdown) {
+            window.bootstrap.Dropdown.getOrCreateInstance(toggle, {
+                popperConfig: (defaultConfig) => Object.assign({}, defaultConfig, { strategy: 'fixed' }),
+            });
+        }
+        const row = toggle.closest('tr');
+        if (row) {
+            toggle.addEventListener('show.bs.dropdown', () => row.classList.add('dropdown-open'));
+            toggle.addEventListener('hide.bs.dropdown', () => row.classList.remove('dropdown-open'));
+        }
+    });
+
+    /* ------------------------------------------------------------------
      * Dashboard live polling demo (foundation for Phase 2+ realtime UI)
      * ---------------------------------------------------------------- */
     const liveEl = document.querySelector('[data-live="active_users"]');

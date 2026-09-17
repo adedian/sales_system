@@ -649,6 +649,16 @@ h1, h2, h3, h4, h5, h6 { font-weight: 600; color: var(--color-text); margin: 0; 
 .table-sticky thead th:last-child { background: var(--color-surface-alt); z-index: 3; }
 .table-sticky tbody tr:hover td:last-child { background: var(--color-surface-alt); }
 
+/* Every row's sticky last cell shares z-index: 2, so with the "More" menu
+   open (fixed-positioned, see app.js), it visually overlaps into the row
+   below — but that row's own sticky cell paints later in DOM order and
+   covers it. Bump the open row's sticky cells above the rest while its
+   dropdown is showing (class toggled from app.js). */
+.table-sticky tbody tr.dropdown-open td:first-child,
+.table-sticky tbody tr.dropdown-open td:last-child {
+    z-index: 10;
+}
+
 .badge-pill {
     display: inline-block;
     background: var(--color-primary-soft);
