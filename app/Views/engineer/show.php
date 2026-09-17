@@ -11,6 +11,7 @@ $notes = array_values(array_filter($timeline, fn ($e) => $e['type'] === 'note'))
         <div class="lead-code-eyebrow">
             <?= e($assignment['assignment_code']) ?>
             <span class="badge-pill <?= $assignment['assignment_type'] === 'engineer' ? 'badge-pill-muted' : '' ?>"><?= $assignment['assignment_type'] === 'engineer' ? 'Engineer' : 'Sales Engineer' ?></span>
+            <span class="badge-pill <?= $assignment['purpose'] === 'survey' ? 'badge-pill-amber' : 'badge-pill-muted' ?>"><?= $assignment['purpose'] === 'survey' ? 'Survey (Data Awal)' : 'Proposal + BOQ' ?></span>
             <?php if ($isOverdue): ?><span class="overdue-badge"><i class="bi bi-exclamation-triangle-fill"></i> Overdue</span><?php endif; ?>
         </div>
         <h2><?= e($assignment['customer_name']) ?></h2>
@@ -73,7 +74,7 @@ $notes = array_values(array_filter($timeline, fn ($e) => $e['type'] === 'note'))
                     <?= csrf_field() ?>
                     <button type="submit" class="btn btn-success"><i class="bi bi-send-check me-1"></i>Kembalikan ke Sales</button>
                 </form>
-                <?php if ($assignment['assignment_type'] === 'sales_engineer' && count($procurementUsers)): ?>
+                <?php if ($assignment['assignment_type'] === 'sales_engineer' && $assignment['purpose'] === 'engineering' && count($procurementUsers)): ?>
                 <details class="mt-2">
                     <summary class="btn btn-outline-primary w-100">Kirim ke Procurement (butuh vendor/harga)</summary>
                     <form method="POST" action="<?= url('/engineer/' . $assignment['id'] . '/send-to-procurement') ?>" class="mt-2" data-confirm="Kirim assignment ini ke Procurement untuk pencarian vendor & pricing?">
