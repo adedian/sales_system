@@ -44,6 +44,18 @@ $tables = ['leads', 'lead_sales', 'lead_status_history', 'sales_queue', 'queue_s
     'procurement_price_validations', 'proposals', 'proposal_items', 'proposal_status_history',
     'proposal_notes', 'proposal_negotiations', 'followups'];
 
+// audit_logs is intentionally NOT in $tables (its own id sequence isn't
+// reset — nothing else references audit_logs.id as a foreign key) but its
+// ROWS for these modules must still be purged: AUTO_INCREMENT reset below
+// means a brand new engineer_assignments/proposals/etc. row will reuse the
+// exact same id (e.g. 1) as a deleted one, and AuditLog::forRecord()
+// (keyed only by module+record_id) would otherwise wrongly attach the old,
+// deleted record's audit trail to the new unrelated record — verified live
+// during QA: a freshly created EA-000001 showed "Dialihkan ke engineer
+// lain"/"Prioritas diubah" activity that actually belonged to the OLD,
+// deleted EA-000001.
+$auditModules = ['lead', 'queue', 'engineer_assignment', 'procurement_request', 'proposal', 'prelim'];
+
 echo "\n-- Jumlah baris SEBELUM reset --\n";
 $before = [];
 foreach ($tables as $table) {
@@ -64,6 +76,10 @@ foreach ($tables as $table) {
     Database::execute("ALTER TABLE {$table} AUTO_INCREMENT = 1");
 }
 echo "-- AUTO_INCREMENT direset ke 1 untuk seluruh tabel di atas --\n";
+
+$placeholders = implode(',', array_fill(0, count($auditModules), '?'));
+$deletedAuditRows = Database::execute("DELETE FROM audit_logs WHERE module IN ({$placeholders})", $auditModules);
+echo "-- Baris audit_logs untuk modul (" . implode(', ', $auditModules) . ") dihapus: {$deletedAuditRows} --\n";
 
 $uploadsRoot = dirname(__DIR__, 2) . '/storage/uploads/';
 $deletedFiles = 0;
