@@ -127,6 +127,14 @@ return [
         'has_color' => true,
         'icon' => 'bi-file-earmark-text',
     ],
+    'prelim-statuses' => [
+        'table' => 'prelim_statuses',
+        'label' => 'Status Prelim',
+        'singular' => 'Status Prelim',
+        'description' => 'Status dokumen prelim (penawaran awal). Code baris bawaan terkunci karena dipakai sebagai nilai tetap di modul Prelim.',
+        'has_color' => true,
+        'icon' => 'bi-file-earmark-richtext',
+    ],
     'units' => [
         'table' => 'units',
         'label' => 'Satuan',

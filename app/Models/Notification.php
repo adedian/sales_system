@@ -24,7 +24,7 @@ class Notification extends Model
     public static function create(int $userId, string $type, string $title, ?string $message = null, ?string $link = null): int
     {
         $module = explode('_', $type, 2)[0];
-        if (in_array($module, ['lead', 'proposal', 'engineer', 'procurement'], true) && !Setting::getBool("notify_{$module}", true)) {
+        if (in_array($module, ['lead', 'prelim', 'proposal', 'engineer', 'procurement'], true) && !Setting::getBool("notify_{$module}", true)) {
             return 0;
         }
 

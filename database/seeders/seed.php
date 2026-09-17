@@ -61,6 +61,7 @@ $rolesDefinition = [
                 || str_starts_with($slug, 'procurement.')
                 || str_starts_with($slug, 'vendor.')
                 || str_starts_with($slug, 'product.')
+                || str_starts_with($slug, 'prelim.')
                 || str_starts_with($slug, 'proposal.')
                 || str_starts_with($slug, 'followup.')
                 || $slug === 'report.view'
@@ -75,6 +76,7 @@ $rolesDefinition = [
         'permissions' => [
             'dashboard.view', 'lead.view', 'lead.create', 'lead.edit', 'queue.view',
             'engineer.view', 'procurement.view',
+            'prelim.view', 'prelim.create', 'prelim.edit', 'prelim.send',
             'proposal.view', 'proposal.create', 'proposal.edit', 'proposal.send',
             'followup.view', 'followup.create', 'followup.edit',
         ],
@@ -349,6 +351,13 @@ $masterDataSeed = [
         ['code' => 'rejected', 'name' => 'Ditolak', 'color' => 'danger', 'is_system' => 1],
         ['code' => 'expired', 'name' => 'Kadaluarsa', 'color' => 'muted', 'is_system' => 1],
     ],
+    'prelim_statuses' => [
+        ['code' => 'draft', 'name' => 'Draft', 'color' => 'muted', 'is_system' => 1],
+        ['code' => 'ready_to_send', 'name' => 'Siap Dikirim', 'color' => 'primary', 'is_system' => 1],
+        ['code' => 'sent', 'name' => 'Terkirim ke Client', 'color' => 'indigo', 'is_system' => 1],
+        ['code' => 'client_revision', 'name' => 'Client Minta Revisi', 'color' => 'danger', 'is_system' => 1],
+        ['code' => 'approved', 'name' => 'Disetujui Client (ACC)', 'color' => 'emerald', 'is_system' => 1],
+    ],
     'units' => [
         ['code' => 'pcs', 'name' => 'Pcs', 'color' => null, 'is_system' => 0],
         ['code' => 'unit', 'name' => 'Unit', 'color' => null, 'is_system' => 0],
@@ -400,6 +409,7 @@ $settingsSeed = [
     'numbering_proposal_prefix' => 'PRO',
     'sla_lead_aging_days' => '7',
     'notify_lead' => '1',
+    'notify_prelim' => '1',
     'notify_proposal' => '1',
     'notify_engineer' => '1',
     'notify_procurement' => '1',

@@ -389,6 +389,24 @@ CREATE TABLE IF NOT EXISTS `proposal_statuses` (
     UNIQUE KEY `uq_proposal_statuses_code` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Revisi Alur Bisnis (Prelim) — same generic Master Data shape as
+-- proposal_statuses above, backing `prelims.status`'s label/color lookup.
+CREATE TABLE IF NOT EXISTS `prelim_statuses` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `code` VARCHAR(50) NOT NULL,
+    `name` VARCHAR(150) NOT NULL,
+    `description` VARCHAR(255) NULL,
+    `color` VARCHAR(20) NULL,
+    `sort_order` INT NOT NULL DEFAULT 0,
+    `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+    `is_system` TINYINT(1) NOT NULL DEFAULT 0,
+    `created_by` INT UNSIGNED NULL,
+    `updated_by` INT UNSIGNED NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY `uq_prelim_statuses_code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- -----------------------------------------------------------------------------
 -- Lead pipeline (dipakai mulai Phase 2)
 -- -----------------------------------------------------------------------------
@@ -465,6 +483,16 @@ ALTER TABLE `leads`
     ADD CONSTRAINT `fk_leads_system` FOREIGN KEY (`system_id`) REFERENCES `lead_systems` (`id`) ON DELETE SET NULL,
     ADD CONSTRAINT `fk_leads_funding` FOREIGN KEY (`funding_id`) REFERENCES `funding_sources` (`id`) ON DELETE SET NULL;
 
+-- Revisi Alur Bisnis (Prelim/Data Awal) — "Model System" dan "Lokasi" sudah
+-- diwakili `system_id`/`site_location` di atas (dipakai ulang, tidak
+-- diduplikasi). Hanya dua data wajib yang benar-benar baru: ID PLN dan
+-- Tagihan Listrik (nominal Rupiah/bulan) — keduanya, bersama system_id dan
+-- site_location, adalah 4 syarat wajib sebelum Prelim boleh dibuat (lihat
+-- Lead::missingPrelimFields()).
+ALTER TABLE `leads`
+    ADD COLUMN IF NOT EXISTS `pln_id` VARCHAR(50) NULL AFTER `site_location`,
+    ADD COLUMN IF NOT EXISTS `electricity_bill` DECIMAL(18,2) NULL AFTER `pln_id`;
+
 CREATE TABLE IF NOT EXISTS `lead_sales` (
     `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     `lead_id` INT UNSIGNED NOT NULL,
@@ -488,6 +516,87 @@ CREATE TABLE IF NOT EXISTS `lead_status_history` (
     KEY `idx_lead_status_history_lead` (`lead_id`),
     CONSTRAINT `fk_lead_status_history_lead` FOREIGN KEY (`lead_id`) REFERENCES `leads` (`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_lead_status_history_user` FOREIGN KEY (`changed_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------------------
+-- Prelim (Revisi Alur Bisnis) — penawaran awal ke Client SEBELUM Proposal+BOQ.
+-- Header (prelims) sengaja TIDAK punya tabel item/BOQ (Prelim BUKAN BOQ, lihat
+-- definisi bisnis di prompt): hanya deskripsi/isi penawaran + estimasi nilai
+-- kasar + dokumen lampiran. Struktur (header + status_history + notes +
+-- documents) mirror persis proposals/proposal_status_history/proposal_notes/
+-- engineer_documents. Revisi loop mengikuti pola Proposal
+-- (ProposalController::reviseFromNegotiation): baris yang sama dibuka kembali
+-- ke status sebelumnya, riwayat lengkap dijaga lewat prelim_status_history —
+-- bukan baris/versi baru per revisi. `version` hanya label tampilan ramah
+-- ("Prelim v2") yang naik tiap kali client_revision -> sent lagi.
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `prelims` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `prelim_code` VARCHAR(30) NOT NULL,
+    `lead_id` INT UNSIGNED NOT NULL,
+    `sales_id` INT UNSIGNED NOT NULL,
+    `version` INT UNSIGNED NOT NULL DEFAULT 1,
+    `status` ENUM('draft','ready_to_send','sent','client_revision','approved') NOT NULL DEFAULT 'draft',
+    `content` TEXT NULL,
+    `estimated_value` DECIMAL(18,2) NULL,
+    `valid_until` DATE NULL,
+    `client_revision_reason` TEXT NULL,
+    `sent_at` DATETIME NULL,
+    `responded_at` DATETIME NULL,
+    `approved_at` DATETIME NULL,
+    `created_by` INT UNSIGNED NULL,
+    `updated_by` INT UNSIGNED NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` DATETIME NULL,
+    UNIQUE KEY `uq_prelims_code` (`prelim_code`),
+    KEY `idx_prelims_lead` (`lead_id`),
+    KEY `idx_prelims_sales` (`sales_id`),
+    KEY `idx_prelims_status` (`status`),
+    KEY `idx_prelims_deleted_at` (`deleted_at`),
+    CONSTRAINT `fk_prelims_lead` FOREIGN KEY (`lead_id`) REFERENCES `leads` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_prelims_sales` FOREIGN KEY (`sales_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT,
+    CONSTRAINT `fk_prelims_created_by` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `prelim_status_history` (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `prelim_id` INT UNSIGNED NOT NULL,
+    `from_status` VARCHAR(30) NULL,
+    `to_status` VARCHAR(30) NOT NULL,
+    `changed_by` INT UNSIGNED NULL,
+    `notes` VARCHAR(255) NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY `idx_prelim_status_history_prelim` (`prelim_id`),
+    CONSTRAINT `fk_prelim_status_history_prelim` FOREIGN KEY (`prelim_id`) REFERENCES `prelims` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_prelim_status_history_user` FOREIGN KEY (`changed_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `prelim_notes` (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `prelim_id` INT UNSIGNED NOT NULL,
+    `user_id` INT UNSIGNED NULL,
+    `note` TEXT NOT NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY `idx_prelim_notes_prelim` (`prelim_id`),
+    CONSTRAINT `fk_prelim_notes_prelim` FOREIGN KEY (`prelim_id`) REFERENCES `prelims` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_prelim_notes_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `prelim_documents` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `prelim_id` INT UNSIGNED NOT NULL,
+    `uploaded_by` INT UNSIGNED NULL,
+    `file_name` VARCHAR(255) NOT NULL,
+    `stored_filename` VARCHAR(255) NOT NULL,
+    `file_path` VARCHAR(255) NOT NULL,
+    `file_size` INT UNSIGNED NOT NULL,
+    `mime_type` VARCHAR(100) NOT NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY `idx_prelim_documents_prelim` (`prelim_id`),
+    CONSTRAINT `fk_prelim_documents_prelim` FOREIGN KEY (`prelim_id`) REFERENCES `prelims` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_prelim_documents_uploaded_by` FOREIGN KEY (`uploaded_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `sales_queue` (
@@ -687,6 +796,20 @@ ALTER TABLE `engineer_assignments`
 
 ALTER TABLE `engineer_assignments`
     ADD KEY IF NOT EXISTS `idx_engineer_assignments_type` (`assignment_type`);
+
+-- Revisi Alur Bisnis (Prelim) — reuse engineer_assignments for BOTH the
+-- pre-Prelim "Survey" step (Sales + Sales Engineer/Engineer melengkapi Data
+-- Awal) and the existing post-ACC "Proposal+BOQ" engineering step, instead of
+-- a parallel table (dokumen requirement §44 melarang duplikasi). `purpose`
+-- only tags WHICH stage the assignment belongs to; `assignment_type`
+-- (engineer/sales_engineer) keeps meaning who's eligible, unchanged. Default
+-- 'engineering' preserves every pre-existing and future non-Prelim-flow call
+-- site's exact current meaning with zero data migration.
+ALTER TABLE `engineer_assignments`
+    ADD COLUMN IF NOT EXISTS `purpose` ENUM('survey','engineering') NOT NULL DEFAULT 'engineering' AFTER `assignment_type`;
+
+ALTER TABLE `engineer_assignments`
+    ADD KEY IF NOT EXISTS `idx_engineer_assignments_purpose` (`purpose`);
 
 -- -----------------------------------------------------------------------------
 -- Procurement (Phase 7) — dedicated `vendors` table (bukan generic master

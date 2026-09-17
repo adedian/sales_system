@@ -35,6 +35,12 @@ return [
     'product' => [
         'product.manage' => 'Mengelola katalog produk',
     ],
+    'prelim' => [
+        'prelim.view' => 'Melihat prelim',
+        'prelim.create' => 'Membuat prelim',
+        'prelim.edit' => 'Mengubah prelim',
+        'prelim.send' => 'Mengirim prelim ke customer',
+    ],
     'proposal' => [
         'proposal.view' => 'Melihat proposal',
         'proposal.create' => 'Membuat proposal',
