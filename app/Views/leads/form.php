@@ -111,10 +111,25 @@ $val = fn (string $field, $default = '') => $isEdit ? ($lead[$field] ?? $default
     </div>
 
     <div class="detail-section">
+        <h3 class="detail-section-title">Data Awal (syarat Prelim)</h3>
+        <p class="text-muted small mb-2">4 data ini wajib lengkap sebelum Prelim dapat dibuat: ID PLN, Tagihan Listrik, Model System (di atas), dan Lokasi (di bawah).</p>
+        <div class="row g-3">
+            <div class="col-12 col-md-6">
+                <label class="form-label" for="pln_id">ID PLN</label>
+                <input type="text" class="form-control" id="pln_id" name="pln_id" value="<?= e($val('pln_id')) ?>" placeholder="Nomor ID Pelanggan PLN">
+            </div>
+            <div class="col-12 col-md-6">
+                <label class="form-label" for="electricity_bill">Tagihan Listrik (Rp/bulan)</label>
+                <input type="number" step="0.01" min="0" class="form-control" id="electricity_bill" name="electricity_bill" value="<?= e($val('electricity_bill')) ?>">
+            </div>
+        </div>
+    </div>
+
+    <div class="detail-section">
         <h3 class="detail-section-title">Instalasi</h3>
         <div class="row g-3">
             <div class="col-12">
-                <label class="form-label" for="site_location">Site Location</label>
+                <label class="form-label" for="site_location">Site Location (Lokasi)</label>
                 <input type="text" class="form-control" id="site_location" name="site_location" value="<?= e($val('site_location')) ?>" placeholder="Contoh: Sidoarjo">
             </div>
             <div class="col-12">

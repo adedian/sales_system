@@ -142,7 +142,7 @@ class LeadController extends Controller
 
         if ($validator->fails()) {
             Session::flash('error', collect_first_error($validator->errors()));
-            Session::flashOld($request->only(['customer_name', 'company_name', 'phone', 'email', 'address', 'site_location', 'source_id', 'category_id', 'type_id', 'system_id', 'funding_id', 'need_type_id', 'needs_description', 'estimated_value', 'size_kwp', 'notes', 'note2', 'priority', 'sales_ids', 'follow_up_date']));
+            Session::flashOld($request->only(['customer_name', 'company_name', 'phone', 'email', 'address', 'site_location', 'pln_id', 'electricity_bill', 'source_id', 'category_id', 'type_id', 'system_id', 'funding_id', 'need_type_id', 'needs_description', 'estimated_value', 'size_kwp', 'notes', 'note2', 'priority', 'sales_ids', 'follow_up_date']));
             $this->redirect('/leads/create');
 
             return;
@@ -167,6 +167,8 @@ class LeadController extends Controller
             'email' => trim((string) $request->input('email', '')) ?: null,
             'address' => trim((string) $request->input('address', '')) ?: null,
             'site_location' => trim((string) $request->input('site_location', '')) ?: null,
+            'pln_id' => trim((string) $request->input('pln_id', '')) ?: null,
+            'electricity_bill' => $request->input('electricity_bill') !== '' && $request->input('electricity_bill') !== null ? (float) $request->input('electricity_bill') : null,
             'source_id' => $this->nullableInt($request->input('source_id')),
             'category_id' => $this->nullableInt($request->input('category_id')),
             'type_id' => $this->nullableInt($request->input('type_id')),
@@ -355,6 +357,8 @@ class LeadController extends Controller
             'email' => trim((string) $request->input('email', '')) ?: null,
             'address' => trim((string) $request->input('address', '')) ?: null,
             'site_location' => trim((string) $request->input('site_location', '')) ?: null,
+            'pln_id' => trim((string) $request->input('pln_id', '')) ?: null,
+            'electricity_bill' => $request->input('electricity_bill') !== '' && $request->input('electricity_bill') !== null ? (float) $request->input('electricity_bill') : null,
             'source_id' => $this->nullableInt($request->input('source_id')),
             'category_id' => $this->nullableInt($request->input('category_id')),
             'type_id' => $this->nullableInt($request->input('type_id')),
