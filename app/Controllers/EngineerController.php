@@ -781,7 +781,7 @@ class EngineerController extends Controller
         );
 
         Session::flash('success', "Request procurement {$pr['request_code']} berhasil dikirim.");
-        $this->redirect('/procurement/' . $pr['id']);
+        $this->redirect('/engineer/' . $assignment['id']);
     }
 
     // ------------------------------------------------------------------
