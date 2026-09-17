@@ -481,6 +481,7 @@ h1, h2, h3, h4, h5, h6 { font-weight: 600; color: var(--color-text); margin: 0; 
 .stat-value { font-size: 22px; font-weight: 700; }
 
 .stat-grid-6 { grid-template-columns: repeat(6, 1fr); }
+.stat-grid-5 { grid-template-columns: repeat(5, 1fr); }
 .stat-card-compact { padding: 12px 14px; gap: 10px; }
 .stat-card-compact .stat-icon { width: 34px; height: 34px; font-size: 15px; }
 .stat-card-compact .stat-value { font-size: 18px; }
@@ -537,7 +538,7 @@ h1, h2, h3, h4, h5, h6 { font-weight: 600; color: var(--color-text); margin: 0; 
 }
 @media (max-width: 767.98px) {
     .lead-detail-grid { grid-template-columns: 1fr; }
-    .stat-grid-6 { grid-template-columns: repeat(2, 1fr); }
+    .stat-grid-6, .stat-grid-5 { grid-template-columns: repeat(2, 1fr); }
     .lead-dl { grid-template-columns: 1fr; row-gap: 2px; }
     .lead-dl dt { margin-top: 8px; }
 }

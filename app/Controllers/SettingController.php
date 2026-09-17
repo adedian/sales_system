@@ -21,9 +21,9 @@ class SettingController extends Controller
 {
     private const KEYS = [
         'company_name', 'company_address', 'company_phone', 'company_email',
-        'numbering_lead_prefix', 'numbering_engineer_prefix', 'numbering_procurement_prefix', 'numbering_proposal_prefix',
+        'numbering_lead_prefix', 'numbering_engineer_prefix', 'numbering_procurement_prefix', 'numbering_prelim_prefix', 'numbering_proposal_prefix',
         'sla_lead_aging_days',
-        'notify_lead', 'notify_proposal', 'notify_engineer', 'notify_procurement',
+        'notify_lead', 'notify_prelim', 'notify_proposal', 'notify_engineer', 'notify_procurement',
     ];
 
     public function index(): void

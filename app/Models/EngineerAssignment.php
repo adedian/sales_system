@@ -53,21 +53,31 @@ class EngineerAssignment extends Model
      * have an open 'engineer' assignment AND an open 'sales_engineer'
      * assignment at the same time without blocking each other — pass null
      * to check across both types (e.g. for a generic "any open assignment"
-     * check).
+     * check). Revisi Alur Bisnis (Prelim): also optionally scoped by
+     * `$purpose` ('survey'|'engineering') so a closed-out pre-Prelim Survey
+     * assignment never blocks a later post-ACC Engineering one of the same
+     * type, and vice versa — null (default) matches either purpose, exactly
+     * preserving every pre-existing call site's behavior.
      */
-    public static function activeForLead(int $leadId, ?string $type = null): ?array
+    public static function activeForLead(int $leadId, ?string $type = null, ?string $purpose = null): ?array
     {
         $placeholders = implode(',', array_fill(0, count(self::OPEN_STATUSES), '?'));
         $params = array_merge([$leadId], self::OPEN_STATUSES);
         $typeSql = '';
+        $purposeSql = '';
 
         if ($type !== null) {
             $typeSql = ' AND engineer_assignments.assignment_type = ?';
             $params[] = $type;
         }
 
+        if ($purpose !== null) {
+            $purposeSql = ' AND engineer_assignments.purpose = ?';
+            $params[] = $purpose;
+        }
+
         return Database::fetch(
-            self::baseSelect() . " WHERE engineer_assignments.lead_id = ? AND engineer_assignments.status IN ({$placeholders}){$typeSql}
+            self::baseSelect() . " WHERE engineer_assignments.lead_id = ? AND engineer_assignments.status IN ({$placeholders}){$typeSql}{$purposeSql}
              ORDER BY engineer_assignments.id DESC LIMIT 1",
             $params
         );
@@ -77,20 +87,27 @@ class EngineerAssignment extends Model
      * Most recent assignment for a lead regardless of status — used to show
      * a closed/returned result on the Lead page. `$type` scopes it to just
      * one of the two assignment types (Revisi Sub-Fase 2), null = latest
-     * regardless of type.
+     * regardless of type. `$purpose` scopes it the same way (Revisi Alur
+     * Bisnis/Prelim), null = latest regardless of purpose.
      */
-    public static function latestForLead(int $leadId, ?string $type = null): ?array
+    public static function latestForLead(int $leadId, ?string $type = null, ?string $purpose = null): ?array
     {
         $params = [$leadId];
         $typeSql = '';
+        $purposeSql = '';
 
         if ($type !== null) {
             $typeSql = ' AND engineer_assignments.assignment_type = ?';
             $params[] = $type;
         }
 
+        if ($purpose !== null) {
+            $purposeSql = ' AND engineer_assignments.purpose = ?';
+            $params[] = $purpose;
+        }
+
         return Database::fetch(
-            self::baseSelect() . " WHERE engineer_assignments.lead_id = ?{$typeSql} ORDER BY engineer_assignments.id DESC LIMIT 1",
+            self::baseSelect() . " WHERE engineer_assignments.lead_id = ?{$typeSql}{$purposeSql} ORDER BY engineer_assignments.id DESC LIMIT 1",
             $params
         );
     }

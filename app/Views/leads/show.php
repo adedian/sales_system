@@ -25,7 +25,7 @@ $tagParts = array_values(array_filter([$lead['type_name'] ?? null, $lead['system
 $otherSales = array_filter($assignedSales, fn ($r) => (int) $r['id'] !== (int) $lead['sales_id']);
 
 /*
- * Process Workflow — the 8 stages below mirror the exact precedence already
+ * Process Workflow — the 9 stages below mirror the exact precedence already
  * coded in App\Models\Lead::currentPosition() (see that method's docblock),
  * just reversed into chronological order. This view does not invent new
  * business logic: $currentPosition['label'] is the same value already
@@ -34,6 +34,11 @@ $otherSales = array_filter($assignedSales, fn ($r) => (int) $r['id'] !== (int) $
  * disambiguating the two "Sales" stops (initial ownership vs. closing after
  * price approval) — done via lead.status === 'pricing_ready', an existing
  * column, not a new rule.
+ *
+ * Revisi Alur Bisnis (Prelim): a "Prelim" stop was inserted between Data
+ * Antrian and Sales Engineer/Engineer — Client must ACC the Prelim before
+ * the post-ACC Proposal+BOQ engineering stage can start (see
+ * EngineerController::requestAssignment()'s gate).
  *
  * Known simplification: currentPosition() also cannot distinguish
  * "Procurement" before Direktur validation from "Procurement" finalizing
@@ -46,6 +51,7 @@ $steps = [
     ['label' => 'Sales'],
     ['label' => 'Survey'],
     ['label' => 'Data Antrian'],
+    ['label' => 'Prelim'],
     ['label' => $posLabel === 'Engineer' ? 'Engineer' : 'Sales Engineer'],
     ['label' => 'Procurement'],
     ['label' => 'Approval Harga'],
@@ -55,16 +61,17 @@ $steps = [
 $stepIndexByLabel = [
     'Survey' => 1,
     'Data Antrian' => 2,
-    'Sales Engineer' => 3,
-    'Engineer' => 3,
-    'Procurement' => 4,
-    'Approval Harga' => 5,
-    'Proposal' => 7,
+    'Prelim' => 3,
+    'Sales Engineer' => 4,
+    'Engineer' => 4,
+    'Procurement' => 5,
+    'Approval Harga' => 6,
+    'Proposal' => 8,
 ];
 if (in_array($lead['status'], ['won', 'lost'], true)) {
     $currentStepIndex = count($steps);
 } elseif ($posLabel === 'Sales') {
-    $currentStepIndex = $lead['status'] === 'pricing_ready' ? 6 : 0;
+    $currentStepIndex = $lead['status'] === 'pricing_ready' ? 7 : 0;
 } else {
     $currentStepIndex = $stepIndexByLabel[$posLabel] ?? 0;
 }
@@ -89,9 +96,19 @@ if ($posLabel === 'Approval Harga') {
 } elseif ($posLabel === 'Engineer') {
     $picValue = $activeEngineerAssignment['engineer_name'] ?? '-';
     $sinceAt = $activeEngineerAssignment['assigned_at'] ?? $sinceAt;
+} elseif ($posLabel === 'Survey' && $activeQueue === null) {
+    // Revisi Alur Bisnis (Prelim) — "Survey" reached via a Sales
+    // Engineer/Engineer assignment (purpose='survey'), not the Antrian
+    // queue (which doesn't exist yet for this lead).
+    $surveyAssignment = $surveySalesEngineerAssignment ?? $surveyEngineerAssignment;
+    $picValue = $surveyAssignment['engineer_name'] ?? '-';
+    $sinceAt = $surveyAssignment['assigned_at'] ?? $sinceAt;
 } elseif ($posLabel === 'Data Antrian' || $posLabel === 'Survey') {
     $picValue = $activeQueue['current_pic_name'] ?? ($activeQueue['surveyor_name'] ?? '-');
     $sinceAt = $activeQueue['entered_at'] ?? $sinceAt;
+} elseif ($posLabel === 'Prelim') {
+    $picValue = $lead['sales_name'] ?? '-';
+    $sinceAt = $prelim['sent_at'] ?? ($prelim['created_at'] ?? $sinceAt);
 } elseif ($posLabel === 'Proposal') {
     $picValue = $lead['sales_name'] ?? '-';
     $sinceAt = !empty($proposals) ? $proposals[0]['created_at'] : $sinceAt;
@@ -145,6 +162,16 @@ $latestPriceValidation = $priceValidations[0] ?? null;
                         <button type="submit" class="dropdown-item"><i class="bi bi-list-ol me-2"></i>Masukkan ke Antrian</button>
                     </form>
                 </li>
+                <?php endif; ?>
+                <?php if ($prelim): ?>
+                <li><a class="dropdown-item" href="<?= url('/prelims/' . $prelim['id']) ?>"><i class="bi bi-file-earmark-richtext me-2"></i>Lihat Prelim</a></li>
+                <?php elseif ($canCreatePrelim && empty($missingPrelimFields)): ?>
+                <li><a class="dropdown-item" href="#prelim-survey-section"><i class="bi bi-file-earmark-plus me-2"></i>Buat Prelim</a></li>
+                <?php endif; ?>
+                <?php if ($surveyEngineerAssignment || $surveySalesEngineerAssignment): ?>
+                <li><a class="dropdown-item" href="<?= url('/engineer/' . ($surveySalesEngineerAssignment['id'] ?? $surveyEngineerAssignment['id'])) ?>"><i class="bi bi-geo-alt me-2"></i>Lihat Assignment Survey</a></li>
+                <?php elseif ($canRequestSurvey && !$prelim && !$lead['deleted_at']): ?>
+                <li><a class="dropdown-item" href="#prelim-survey-section"><i class="bi bi-geo-alt me-2"></i>Ajukan Survey</a></li>
                 <?php endif; ?>
                 <?php if ($latestEngineerAssignment): ?>
                 <li><a class="dropdown-item" href="<?= url('/engineer/' . $latestEngineerAssignment['id']) ?>"><i class="bi bi-tools me-2"></i>Lihat Assignment Engineer</a></li>
@@ -203,6 +230,16 @@ $latestPriceValidation = $priceValidations[0] ?? null;
             <div class="info-item"><span class="info-item-label">Email</span><span class="info-item-value"><?= $lead['email'] ? '<a href="mailto:' . e($lead['email']) . '">' . e($lead['email']) . '</a>' : '-' ?></span></div>
             <div class="info-item"><span class="info-item-label">Lokasi</span><span class="info-item-value"><?= e($lead['site_location'] ?: '-') ?></span></div>
             <div class="info-item info-item-full"><span class="info-item-label">Alamat</span><span class="info-item-value"><?= $lead['address'] ? nl2br(e($lead['address'])) : '-' ?></span></div>
+        </div>
+
+        <hr class="detail-divider">
+
+        <h3 class="detail-section-title">Data Awal (syarat Prelim)</h3>
+        <div class="info-grid">
+            <div class="info-item"><span class="info-item-label">ID PLN</span><span class="info-item-value"><?= e($lead['pln_id'] ?: '-') ?></span></div>
+            <div class="info-item"><span class="info-item-label">Tagihan Listrik</span><span class="info-item-value"><?= $lead['electricity_bill'] !== null ? 'Rp ' . e(number_format((float) $lead['electricity_bill'], 0, ',', '.')) . '/bulan' : '-' ?></span></div>
+            <div class="info-item"><span class="info-item-label">Model System</span><span class="info-item-value"><?= e($lead['system_name'] ?? '-') ?></span></div>
+            <div class="info-item"><span class="info-item-label">Lokasi</span><span class="info-item-value"><?= e($lead['site_location'] ?: '-') ?></span></div>
         </div>
 
         <hr class="detail-divider">
@@ -380,8 +417,108 @@ $latestPriceValidation = $priceValidations[0] ?? null;
     <?php endif; ?>
 </div>
 
+<div class="detail-section" id="prelim-survey-section">
+    <h3 class="detail-section-title">Prelim (Penawaran Awal)</h3>
+
+    <?php if ($prelim): ?>
+        <?php $prelimStatusRow = $prelimStatusMap[$prelim['status']] ?? ['name' => $prelim['status'], 'color' => 'muted']; ?>
+        <div class="info-grid mb-3">
+            <div class="info-item"><span class="info-item-label">Kode Prelim</span><span class="info-item-value"><a href="<?= url('/prelims/' . $prelim['id']) ?>" class="mono"><?= e($prelim['prelim_code']) ?></a> <span class="text-muted">v<?= (int) $prelim['version'] ?></span></span></div>
+            <div class="info-item"><span class="info-item-label">Status</span><span class="info-item-value"><span class="color-swatch color-swatch-<?= e($prelimStatusRow['color']) ?>"><?= e($prelimStatusRow['name']) ?></span></span></div>
+        </div>
+        <a href="<?= url('/prelims/' . $prelim['id']) ?>" class="btn btn-sm btn-light">Lihat Detail Prelim</a>
+    <?php else: ?>
+        <?php if (!empty($missingPrelimFields)): ?>
+        <div class="alert alert-warning py-2 px-3 mb-3" role="alert">
+            <strong>Prelim belum dapat dibuat.</strong> Data yang belum lengkap:
+            <ul class="mb-0 ps-3">
+                <?php foreach ($missingPrelimFields as $label): ?><li><?= e($label) ?></li><?php endforeach; ?>
+            </ul>
+            <p class="mb-0 mt-1 small">Lengkapi lewat <a href="<?= url('/leads/' . $lead['id'] . '/edit') ?>">Edit Lead</a>, atau lakukan Survey bersama Sales Engineer/Engineer terlebih dahulu.</p>
+        </div>
+        <?php elseif ($canCreatePrelim): ?>
+        <p class="text-muted small mb-2">Data Awal lengkap — Prelim dapat langsung dibuat.</p>
+        <form method="POST" action="<?= url('/leads/' . $lead['id'] . '/prelims') ?>" class="mb-3" data-confirm="Buat Prelim baru untuk lead ini?">
+            <?= csrf_field() ?>
+            <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-file-earmark-plus me-1"></i>Buat Prelim</button>
+        </form>
+        <?php endif; ?>
+
+        <hr class="detail-divider">
+
+        <h4 class="text-muted small text-uppercase mb-2">Survey (lengkapi Data Awal)</h4>
+        <?php $surveyAssignment = $surveySalesEngineerAssignment ?? $surveyEngineerAssignment; ?>
+        <?php if ($surveyAssignment): ?>
+            <?php $svStatus = $engineerStatusMap[$surveyAssignment['status']] ?? ['name' => $surveyAssignment['status'], 'color' => 'muted']; ?>
+            <div class="info-grid mb-3">
+                <div class="info-item"><span class="info-item-label">Kode Assignment</span><span class="info-item-value"><a href="<?= url('/engineer/' . $surveyAssignment['id']) ?>" class="mono"><?= e($surveyAssignment['assignment_code']) ?></a></span></div>
+                <div class="info-item"><span class="info-item-label">Partner Survey</span><span class="info-item-value"><?= e($surveyAssignment['engineer_name'] ?? '-') ?> (<?= $surveyAssignment['assignment_type'] === 'engineer' ? 'Engineer' : 'Sales Engineer' ?>)</span></div>
+                <div class="info-item"><span class="info-item-label">Status</span><span class="info-item-value"><span class="color-swatch color-swatch-<?= e($svStatus['color']) ?>"><?= e($svStatus['name']) ?></span></span></div>
+            </div>
+            <a href="<?= url('/engineer/' . $surveyAssignment['id']) ?>" class="btn btn-sm btn-light">Lihat Detail Assignment Survey</a>
+        <?php elseif ($canRequestSurvey && (!empty($engineerFieldUsers) || !empty($salesEngineerUsers))): ?>
+        <p class="text-muted small mb-2">Pilih Sales Engineer atau Engineer sebagai partner Survey untuk melengkapi Data Awal.</p>
+        <form method="POST" action="<?= url('/leads/' . $lead['id'] . '/request-engineer') ?>" class="row g-2">
+            <?= csrf_field() ?>
+            <input type="hidden" name="purpose" value="survey">
+            <div class="col-12 col-md-4">
+                <label class="form-label">Tipe Partner</label>
+                <select name="assignment_type" class="form-select" id="surveyAssignmentType" required>
+                    <option value="sales_engineer">Sales Engineer</option>
+                    <option value="engineer">Engineer</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-5">
+                <label class="form-label">Partner Survey</label>
+                <select name="engineer_id" class="form-select" id="surveyEngineerPicker" required>
+                    <option value="">Pilih...</option>
+                    <?php foreach ($salesEngineerUsers as $row): ?>
+                        <option value="<?= (int) $row['id'] ?>" data-type="sales_engineer"><?= e($row['name']) ?></option>
+                    <?php endforeach; ?>
+                    <?php foreach ($engineerFieldUsers as $row): ?>
+                        <option value="<?= (int) $row['id'] ?>" data-type="engineer" hidden><?= e($row['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label">Prioritas</label>
+                <select name="priority" class="form-select">
+                    <?php foreach ($priorityMap as $code => $row): ?>
+                        <option value="<?= e($code) ?>" <?= $lead['priority'] === $code ? 'selected' : '' ?>><?= e($row['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-send me-1"></i>Ajukan Survey</button>
+            </div>
+        </form>
+        <script>
+        (function () {
+            var typeSel = document.getElementById('surveyAssignmentType');
+            var partnerSel = document.getElementById('surveyEngineerPicker');
+            if (!typeSel || !partnerSel) return;
+            function sync() {
+                Array.prototype.forEach.call(partnerSel.options, function (opt) {
+                    if (!opt.value) return;
+                    opt.hidden = opt.getAttribute('data-type') !== typeSel.value;
+                });
+                partnerSel.value = '';
+            }
+            typeSel.addEventListener('change', sync);
+            sync();
+        })();
+        </script>
+        <?php elseif (empty($engineerFieldUsers) && empty($salesEngineerUsers)): ?>
+            <p class="text-muted small mb-0">Belum ada akun Sales Engineer/Engineer yang aktif.</p>
+        <?php endif; ?>
+    <?php endif; ?>
+</div>
+
 <div class="detail-section" id="request-engineer-section">
-    <h3 class="detail-section-title">Engineering</h3>
+    <h3 class="detail-section-title">Engineering (Proposal + BOQ)</h3>
+    <?php if (empty($prelim) || $prelim['status'] !== 'approved'): ?>
+    <p class="text-muted small">Belum bisa dimulai — menunggu Prelim di-ACC oleh Client terlebih dahulu.</p>
+    <?php endif; ?>
     <div class="detail-row">
         <div>
             <h4 class="text-muted small text-uppercase mb-2">Engineer (Survey Teknis &amp; Desain)</h4>

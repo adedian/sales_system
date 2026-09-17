@@ -140,6 +140,7 @@ $pipelineColors = array_map(fn ($row) => $statusColorHex[$statusMap[$row['code']
                             <span class="attention-item-meta">
                                 <?= e($a['lead_code']) ?> &middot; <?= e($a['position_label']) ?>
                                 <?= $a['is_pending_validation'] ? ' &middot; Menunggu validasi Direktur' : '' ?>
+                                <?= $a['is_pending_prelim'] ? ' &middot; Menunggu ACC Prelim' : '' ?>
                                 <?= $a['days_idle'] > 0 ? ' &middot; ' . (int) $a['days_idle'] . ' hari tanpa update' : '' ?>
                             </span>
                         </div>

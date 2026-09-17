@@ -15,6 +15,7 @@ use App\Models\Lead;
 use App\Models\LeadStatusHistory;
 use App\Models\MasterData;
 use App\Models\Notification;
+use App\Models\Prelim;
 use App\Models\ProcurementItem;
 use App\Models\ProcurementPriceValidation;
 use App\Models\ProcurementRequest;
@@ -121,6 +122,17 @@ class ProcurementController extends Controller
 
         if ($lead['deleted_at']) {
             $this->abort(404);
+
+            return;
+        }
+
+        // Revisi Alur Bisnis (Prelim) — this is the skip-Engineering
+        // shortcut straight to Procurement; Procurement is further
+        // downstream than Engineering in the mandated flow, so it needs the
+        // same Prelim-ACC gate as EngineerController::requestAssignment().
+        if (!Prelim::hasApprovedForLead((int) $lead['id'])) {
+            Session::flash('error', 'Request procurement belum bisa dibuat karena Prelim belum di-ACC oleh Client.');
+            $this->redirect('/leads/' . $lead['id']);
 
             return;
         }

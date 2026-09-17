@@ -62,6 +62,14 @@ $isActive = fn (string $needle) => str_ends_with($currentPath, $needle);
                 </a>
             </li>
             <?php endif; ?>
+            <?php if (can('prelim.view')): ?>
+            <li>
+                <a href="<?= url('/prelims') ?>" class="sidebar-link <?= str_contains($currentPath, '/prelims') ? 'active' : '' ?>" title="Prelim">
+                    <i class="bi bi-file-earmark-richtext"></i>
+                    <span>Prelim</span>
+                </a>
+            </li>
+            <?php endif; ?>
             <?php if (can('proposal.view')): ?>
             <li>
                 <a href="<?= url('/proposals') ?>" class="sidebar-link <?= str_contains($currentPath, '/proposals') ? 'active' : '' ?>" title="Proposal">

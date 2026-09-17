@@ -19,6 +19,7 @@ use App\Models\Lead;
 use App\Models\LeadStatusHistory;
 use App\Models\MasterData;
 use App\Models\Notification;
+use App\Models\Prelim;
 use App\Models\ProcurementRequest;
 use App\Models\ProcurementStatusHistory;
 use App\Models\Role;
@@ -125,9 +126,28 @@ class EngineerController extends Controller
             $type = 'sales_engineer';
         }
 
-        if (EngineerAssignment::activeForLead((int) $lead['id'], $type) !== null) {
+        // Revisi Alur Bisnis (Prelim) — the SAME assignment mechanism now
+        // serves two different stages: 'survey' (Sales + SE/Engineer
+        // melengkapi Data Awal SEBELUM Prelim ada) and 'engineering' (BOQ
+        // work AFTER Client ACC Prelim, the pre-existing meaning of this
+        // action). Default 'engineering' preserves every existing call
+        // site's exact behavior.
+        $purpose = $request->input('purpose', 'engineering');
+        if (!in_array($purpose, ['survey', 'engineering'], true)) {
+            $purpose = 'engineering';
+        }
+
+        if ($purpose === 'engineering' && !Prelim::hasApprovedForLead((int) $lead['id'])) {
+            Session::flash('error', 'Assignment Sales Engineer/Engineer untuk Proposal+BOQ belum bisa dibuat karena Prelim belum di-ACC oleh Client.');
+            $this->redirect('/leads/' . $lead['id']);
+
+            return;
+        }
+
+        if (EngineerAssignment::activeForLead((int) $lead['id'], $type, $purpose) !== null) {
             $label = $type === 'engineer' ? 'Engineer' : 'Sales Engineer';
-            Session::flash('error', "Lead ini sudah memiliki assignment {$label} yang masih berjalan.");
+            $purposeLabel = $purpose === 'survey' ? 'Survey' : 'Proposal+BOQ';
+            Session::flash('error', "Lead ini sudah memiliki assignment {$label} ({$purposeLabel}) yang masih berjalan.");
             $this->redirect('/leads/' . $lead['id']);
 
             return;
@@ -168,6 +188,7 @@ class EngineerController extends Controller
         $assignment = EngineerAssignment::createForLead([
             'lead_id' => (int) $lead['id'],
             'assignment_type' => $type,
+            'purpose' => $purpose,
             'engineer_id' => $engineerId,
             'assigned_by' => (int) $actor['id'],
             'status' => 'pending',
@@ -187,19 +208,29 @@ class EngineerController extends Controller
             'engineer_name' => $engineer['name'],
         ]);
 
-        $oldLeadStatus = $lead['status'];
-        if ($oldLeadStatus !== 'engineering') {
-            Lead::update((int) $lead['id'], ['status' => 'engineering', 'updated_by' => $actor['id'], 'updated_at' => $now]);
-            LeadStatusHistory::record((int) $lead['id'], $oldLeadStatus, 'engineering', (int) $actor['id'], 'Menunggu analisa teknis engineer.');
+        // Revisi Alur Bisnis (Prelim) — a 'survey' assignment happens BEFORE
+        // Prelim exists, entirely within Sales' own early stage (new/in_queue/
+        // follow_up); leads.status only advances to 'engineering' for the
+        // real post-ACC BOQ work, matching how Current Process already
+        // derives "Survey" purely from the assignment's own active state
+        // (Lead::currentPosition()), not from leads.status.
+        if ($purpose === 'engineering') {
+            $oldLeadStatus = $lead['status'];
+            if ($oldLeadStatus !== 'engineering') {
+                Lead::update((int) $lead['id'], ['status' => 'engineering', 'updated_by' => $actor['id'], 'updated_at' => $now]);
+                LeadStatusHistory::record((int) $lead['id'], $oldLeadStatus, 'engineering', (int) $actor['id'], 'Menunggu analisa teknis engineer.');
+            }
         }
 
         Notification::create(
             $engineerId,
             'engineer_assignment_new',
             'Assignment Baru',
-            $type === 'engineer'
-                ? "Lead {$lead['lead_code']} ({$lead['customer_name']}) menunggu survey teknis/desain Anda."
-                : "Lead {$lead['lead_code']} ({$lead['customer_name']}) menunggu analisa teknis Anda.",
+            $purpose === 'survey'
+                ? "Lead {$lead['lead_code']} ({$lead['customer_name']}) menunggu Survey (lengkapi Data Awal) bersama Anda."
+                : ($type === 'engineer'
+                    ? "Lead {$lead['lead_code']} ({$lead['customer_name']}) menunggu survey teknis/desain Anda."
+                    : "Lead {$lead['lead_code']} ({$lead['customer_name']}) menunggu analisa teknis Anda."),
             '/engineer/' . $assignment['id']
         );
 
@@ -667,6 +698,17 @@ class EngineerController extends Controller
         // dulu sesuai flow dokumen.
         if ($assignment['assignment_type'] === 'engineer') {
             Session::flash('error', 'Hasil Engineer harus diteruskan ke Sales Engineer terlebih dahulu, belum bisa langsung ke Procurement.');
+            $this->redirect('/engineer/' . $assignment['id']);
+
+            return;
+        }
+
+        // Revisi Alur Bisnis (Prelim) — a 'survey' assignment exists only to
+        // complete Data Awal before Prelim; it can never legitimately reach
+        // Procurement (BOQ pricing) — that must come from an 'engineering'
+        // (post-ACC) assignment, and only once Prelim has been ACC'd.
+        if ($assignment['purpose'] !== 'engineering' || !Prelim::hasApprovedForLead((int) $assignment['lead_id'])) {
+            Session::flash('error', 'Belum bisa mengirim ke Procurement karena Prelim belum di-ACC oleh Client.');
             $this->redirect('/engineer/' . $assignment['id']);
 
             return;

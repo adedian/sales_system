@@ -66,21 +66,30 @@ class LeadController extends Controller
                 'validation' => !empty($row['pending_validation_id']),
                 'procurement' => !empty($row['active_procurement_id']),
                 'salesEngineer' => !empty($row['active_sales_engineer_id']),
+                'salesEngineerPurpose' => $row['active_sales_engineer_purpose'] ?? null,
                 'engineer' => !empty($row['active_engineer_id']),
+                'engineerPurpose' => $row['active_engineer_purpose'] ?? null,
+                'prelim' => !empty($row['active_prelim_id']),
             ]);
 
             // current_pic_name is only ever joined from the queue row (Survey/
             // Data Antrian) — showing it for any other resolved stage would be
             // stale/wrong (e.g. an old queue PIC left over from before the
             // lead moved on). Only trust it when that's genuinely the current
-            // stage; fall back to the lead's own Sales for the Sales/Proposal
-            // stages, and '-' where the list query has no assignee name
-            // (Engineer/Sales Engineer/Procurement/Approval Harga) — the
-            // Detail Lead page resolves the correct name for those instead.
+            // stage; fall back to the lead's own Sales for the Sales/Proposal/
+            // Prelim stages, and '-' where the list query has no assignee name
+            // (Engineer/Sales Engineer/Procurement/Approval Harga, or a
+            // Survey run via a Sales Engineer/Engineer assignment rather than
+            // the Antrian queue) — the Detail Lead page resolves the correct
+            // name for those instead.
             $positionLabel = $row['current_position']['label'];
-            if (in_array($positionLabel, ['Survey', 'Data Antrian'], true)) {
+            $surveyViaAssignment = $positionLabel === 'Survey' && (
+                (!empty($row['active_sales_engineer_id']) && ($row['active_sales_engineer_purpose'] ?? 'engineering') === 'survey')
+                || (!empty($row['active_engineer_id']) && ($row['active_engineer_purpose'] ?? 'engineering') === 'survey')
+            );
+            if (!$surveyViaAssignment && in_array($positionLabel, ['Survey', 'Data Antrian'], true)) {
                 $row['current_pic_display'] = $row['current_pic_name'] ?? '-';
-            } elseif (in_array($positionLabel, ['Sales', 'Proposal'], true)) {
+            } elseif (in_array($positionLabel, ['Sales', 'Proposal', 'Prelim'], true)) {
                 $row['current_pic_display'] = $row['sales_name'] ?? '-';
             } else {
                 $row['current_pic_display'] = '-';
@@ -210,12 +219,29 @@ class LeadController extends Controller
 
         // Revisi Sub-Fase 2/4: computed once, reused both for the page's own
         // sections AND to derive Current Process below (Lead::currentPosition()).
+        // Revisi Alur Bisnis (Prelim): unfiltered by purpose here (any active
+        // assignment of that type, survey OR engineering) — correct for
+        // Current Process/top-panel PIC since only one can realistically be
+        // open at a time per the mandated flow ordering.
         $activeEngineerAssignment = EngineerAssignment::activeForLead((int) $lead['id'], 'engineer');
         $activeSalesEngineerAssignment = EngineerAssignment::activeForLead((int) $lead['id'], 'sales_engineer');
         $activeProcurementRequest = ProcurementRequest::activeForLead((int) $lead['id']);
         $pendingValidation = $activeProcurementRequest !== null
             ? ProcurementPriceValidation::pendingForRequest((int) $activeProcurementRequest['id'])
             : null;
+
+        // Revisi Alur Bisnis (Prelim): purpose-scoped lookups for the page's
+        // two distinct sections — "Survey" (pra-Prelim, lengkapi Data Awal)
+        // and "Engineering" (pasca-ACC, Proposal+BOQ) — so each section only
+        // ever shows assignments that actually belong to that stage.
+        $surveyEngineerAssignment = EngineerAssignment::activeForLead((int) $lead['id'], 'engineer', 'survey');
+        $surveySalesEngineerAssignment = EngineerAssignment::activeForLead((int) $lead['id'], 'sales_engineer', 'survey');
+        $engineeringEngineerAssignment = EngineerAssignment::activeForLead((int) $lead['id'], 'engineer', 'engineering');
+        $engineeringSalesEngineerAssignment = EngineerAssignment::activeForLead((int) $lead['id'], 'sales_engineer', 'engineering');
+
+        $latestPrelim = Prelim::latestForLead((int) $lead['id']);
+        $activePrelim = ($latestPrelim !== null && $latestPrelim['status'] !== 'approved') ? $latestPrelim : null;
+        $missingPrelimFields = Lead::missingPrelimFields($lead);
 
         $this->view('leads/show', [
             'pageTitle' => $lead['lead_code'],
@@ -227,7 +253,10 @@ class LeadController extends Controller
                 'validation' => $pendingValidation,
                 'procurement' => $activeProcurementRequest,
                 'salesEngineer' => $activeSalesEngineerAssignment,
+                'salesEngineerPurpose' => $activeSalesEngineerAssignment['purpose'] ?? null,
                 'engineer' => $activeEngineerAssignment,
+                'engineerPurpose' => $activeEngineerAssignment['purpose'] ?? null,
+                'prelim' => $activePrelim,
             ]),
             'statusMap' => $statusMap,
             'queueStatusMap' => $queueStatusMap,
@@ -238,18 +267,30 @@ class LeadController extends Controller
             'canDelete' => Acl::can('lead.delete'),
             'activeQueue' => $activeQueue,
             'canEnqueue' => Acl::can('lead.edit') && !$this->isReadOnlyForSales($lead),
+            // Revisi Alur Bisnis (Prelim) — Data Awal completeness + Prelim itself.
+            'missingPrelimFields' => $missingPrelimFields,
+            'prelim' => $latestPrelim,
+            'prelimStatusMap' => MasterData::allAsMap('prelim_statuses'),
+            'canCreatePrelim' => Acl::can('prelim.create') && !$this->isReadOnlyForSales($lead) && !$lead['deleted_at'],
+            // Revisi Alur Bisnis (Prelim) — Survey partner: Sales Engineer atau
+            // Engineer, dipilih Sales sebelum Prelim dibuat (data belum lengkap).
+            'surveyEngineerAssignment' => $surveyEngineerAssignment,
+            'surveySalesEngineerAssignment' => $surveySalesEngineerAssignment,
+            'canRequestSurvey' => Acl::can('lead.edit') && Acl::can('engineer.view') && !$this->isReadOnlyForSales($lead) && !$lead['deleted_at'],
             // Revisi Sub-Fase 2: Engineer (survey lapangan lanjutan/desain) dan
             // Sales Engineer (analisa teknis, modul engineer_assignments yang
             // sudah ada) dibedakan lewat assignment_type, sehingga satu lead
-            // bisa punya assignment aktif untuk masing-masing tipe.
-            'activeEngineerAssignment' => $activeEngineerAssignment,
-            'latestEngineerAssignment' => EngineerAssignment::latestForLead((int) $lead['id'], 'engineer'),
-            'activeSalesEngineerAssignment' => $activeSalesEngineerAssignment,
-            'latestSalesEngineerAssignment' => EngineerAssignment::latestForLead((int) $lead['id'], 'sales_engineer'),
+            // bisa punya assignment aktif untuk masing-masing tipe. Revisi Alur
+            // Bisnis (Prelim): sekarang juga dipisah oleh purpose='engineering'
+            // — section ini murni untuk tahap pasca-ACC Prelim.
+            'activeEngineerAssignment' => $engineeringEngineerAssignment,
+            'latestEngineerAssignment' => EngineerAssignment::latestForLead((int) $lead['id'], 'engineer', 'engineering'),
+            'activeSalesEngineerAssignment' => $engineeringSalesEngineerAssignment,
+            'latestSalesEngineerAssignment' => EngineerAssignment::latestForLead((int) $lead['id'], 'sales_engineer', 'engineering'),
             'engineerStatusMap' => MasterData::allAsMap('engineer_statuses'),
             'engineerFieldUsers' => User::activeEngineers(),
             'salesEngineerUsers' => User::activeSalesEngineers(),
-            'canRequestEngineer' => Acl::can('lead.edit') && Acl::can('engineer.view') && !$this->isReadOnlyForSales($lead),
+            'canRequestEngineer' => Acl::can('lead.edit') && Acl::can('engineer.view') && !$this->isReadOnlyForSales($lead) && Prelim::hasApprovedForLead((int) $lead['id']),
             'activeProcurementRequest' => $activeProcurementRequest,
             'latestProcurementRequest' => ProcurementRequest::latestForLead((int) $lead['id']),
             'procurementStatusMap' => MasterData::allAsMap('procurement_statuses'),

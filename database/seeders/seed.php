@@ -404,6 +404,7 @@ $settingsSeed = [
     'company_phone' => '',
     'company_email' => '',
     'numbering_lead_prefix' => 'LD',
+    'numbering_prelim_prefix' => 'PRE',
     'numbering_engineer_prefix' => 'EA',
     'numbering_procurement_prefix' => 'PR',
     'numbering_proposal_prefix' => 'PRO',

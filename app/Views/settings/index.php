@@ -42,6 +42,10 @@
                     <input type="text" class="form-control" id="numbering_lead" name="numbering_lead_prefix" value="<?= e($values['numbering_lead_prefix']) ?>" maxlength="10">
                 </div>
                 <div class="col-6 col-md-3">
+                    <label class="form-label" for="numbering_prelim">Prelim</label>
+                    <input type="text" class="form-control" id="numbering_prelim" name="numbering_prelim_prefix" value="<?= e($values['numbering_prelim_prefix']) ?>" maxlength="10">
+                </div>
+                <div class="col-6 col-md-3">
                     <label class="form-label" for="numbering_engineer">Engineer Assignment</label>
                     <input type="text" class="form-control" id="numbering_engineer" name="numbering_engineer_prefix" value="<?= e($values['numbering_engineer_prefix']) ?>" maxlength="10">
                 </div>
@@ -77,6 +81,10 @@
             <div class="form-check form-switch mb-2">
                 <input class="form-check-input" type="checkbox" role="switch" id="notify_lead" name="notify_lead" value="1" <?= $values['notify_lead'] === '1' ? 'checked' : '' ?>>
                 <label class="form-check-label" for="notify_lead">Lead (assignment, Won, Lost)</label>
+            </div>
+            <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" role="switch" id="notify_prelim" name="notify_prelim" value="1" <?= $values['notify_prelim'] === '1' ? 'checked' : '' ?>>
+                <label class="form-check-label" for="notify_prelim">Prelim (terkirim, ACC/revisi client)</label>
             </div>
             <div class="form-check form-switch mb-2">
                 <input class="form-check-input" type="checkbox" role="switch" id="notify_proposal" name="notify_proposal" value="1" <?= $values['notify_proposal'] === '1' ? 'checked' : '' ?>>

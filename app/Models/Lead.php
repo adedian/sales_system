@@ -95,6 +95,40 @@ class Lead extends Model
     }
 
     /**
+     * Revisi Alur Bisnis — the 4 Data Awal fields that must ALL be filled
+     * before a Prelim can be created (business rule §5). `system_id`
+     * ("Model System") and `site_location` ("Lokasi") already existed on
+     * this table before this revision and are reused as-is; `pln_id`
+     * ("ID PLN") and `electricity_bill` ("Tagihan Listrik") are the only
+     * genuinely new columns. Returns the list of missing field LABELS (not
+     * column names) so the caller can build the exact
+     * "Prelim belum dapat dibuat. Data yang belum lengkap: - X - Y" message
+     * the business spec requires — never a generic "data belum lengkap".
+     *
+     * @param array $lead the leads.* row (needs pln_id/electricity_bill/system_id/site_location)
+     * @return string[] empty when all 4 fields are complete
+     */
+    public static function missingPrelimFields(array $lead): array
+    {
+        $required = [
+            'pln_id' => 'ID PLN',
+            'electricity_bill' => 'Tagihan Listrik',
+            'system_id' => 'Model System',
+            'site_location' => 'Lokasi',
+        ];
+
+        $missing = [];
+        foreach ($required as $column => $label) {
+            $value = $lead[$column] ?? null;
+            if ($value === null || $value === '') {
+                $missing[] = $label;
+            }
+        }
+
+        return $missing;
+    }
+
+    /**
      * Non-destructive presentation-layer simplification of the 9-stage
      * pipeline status into the reference sheet's Proses/Deal/Cancel — the
      * underlying `status` column and its business logic (markWon/markLost/
@@ -139,8 +173,12 @@ class Lead extends Model
      * @param array|null $activeQueue shape: ['survey_status_code','status'] or null
      * @param array $leadStatusMap MasterData::allAsMap('lead_statuses') (unused fallback labels, kept for signature compatibility)
      * @param array $queueStatusMap MasterData::allAsMap('queue_statuses') (unused fallback labels, kept for signature compatibility)
-     * @param array $extra optional: ['validation' => ?array, 'procurement' => ?array, 'salesEngineer' => ?array, 'engineer' => ?array]
+     * @param array $extra optional: ['validation' => ?array, 'procurement' => ?array,
+     *              'salesEngineer' => ?array, 'salesEngineerPurpose' => ?string,
+     *              'engineer' => ?array, 'engineerPurpose' => ?string, 'prelim' => ?array]
      *              each an active/open row from its own module, or null/absent if none.
+     *              'prelim' is the lead's own non-approved Prelim row (or null);
+     *              *Purpose is that assignment's `purpose` column ('survey'|'engineering').
      * @return array{label:string,color:string}
      */
     public static function currentPosition(array $lead, ?array $activeQueue, array $leadStatusMap, array $queueStatusMap, array $extra = []): array
@@ -169,12 +207,28 @@ class Lead extends Model
         // as stuck on "Engineer" forever.
         $pastEngineeringStage = (self::STATUS_RANK[$lead['status']] ?? 0) > self::STATUS_RANK['engineering'];
 
+        // Revisi Alur Bisnis (Prelim) — an active Sales Engineer/Engineer
+        // assignment now serves TWO different stages of the flow (see
+        // engineer_assignments.purpose): a pre-Prelim "Survey" partner
+        // completing Data Awal, or the post-ACC "Proposal+BOQ" engineering
+        // work. Same assignment mechanism, different reported label.
         if (!$pastEngineeringStage && !empty($extra['salesEngineer'])) {
-            return ['label' => 'Sales Engineer', 'color' => 'indigo'];
+            return ($extra['salesEngineerPurpose'] ?? 'engineering') === 'survey'
+                ? ['label' => 'Survey', 'color' => 'amber']
+                : ['label' => 'Sales Engineer', 'color' => 'indigo'];
         }
 
         if (!$pastEngineeringStage && !empty($extra['engineer'])) {
-            return ['label' => 'Engineer', 'color' => 'indigo'];
+            return ($extra['engineerPurpose'] ?? 'engineering') === 'survey'
+                ? ['label' => 'Survey', 'color' => 'amber']
+                : ['label' => 'Engineer', 'color' => 'indigo'];
+        }
+
+        // Revisi Alur Bisnis (Prelim) — an active (not-yet-approved) Prelim
+        // is its own stage, between Survey/Data Antrian and Sales
+        // Engineer/Engineer (BOQ), same staleness guard as those stages.
+        if (!$pastEngineeringStage && !empty($extra['prelim'])) {
+            return ['label' => 'Prelim', 'color' => 'amber'];
         }
 
         // Same staleness guard as Engineer/Sales Engineer above: a queue row
@@ -226,9 +280,9 @@ class Lead extends Model
             // tiap token sendiri di-OR-kan lintas kolom.
             $tokens = preg_split('/\s+/', trim((string) $filters['q']), -1, PREG_SPLIT_NO_EMPTY);
             foreach ($tokens as $token) {
-                $where[] = '(leads.lead_code LIKE ? OR leads.customer_name LIKE ? OR leads.company_name LIKE ? OR leads.phone LIKE ? OR leads.email LIKE ?)';
+                $where[] = '(leads.lead_code LIKE ? OR leads.customer_name LIKE ? OR leads.company_name LIKE ? OR leads.phone LIKE ? OR leads.email LIKE ? OR leads.pln_id LIKE ?)';
                 $like = '%' . $token . '%';
-                array_push($params, $like, $like, $like, $like, $like);
+                array_push($params, $like, $like, $like, $like, $like, $like);
             }
         }
 
@@ -335,9 +389,12 @@ class Lead extends Model
                        survey_status.code AS survey_status_code,
                        current_pic.name AS current_pic_name,
                        eng.id AS active_engineer_id,
+                       eng.purpose AS active_engineer_purpose,
                        seng.id AS active_sales_engineer_id,
+                       seng.purpose AS active_sales_engineer_purpose,
                        preq.id AS active_procurement_id,
-                       pval.id AS pending_validation_id
+                       pval.id AS pending_validation_id,
+                       prelim.id AS active_prelim_id
                 FROM leads
                 LEFT JOIN users sales ON sales.id = leads.sales_id
                 LEFT JOIN lead_types lead_type ON lead_type.id = leads.type_id
@@ -369,7 +426,12 @@ class Lead extends Model
                     SELECT pv.*, ROW_NUMBER() OVER (PARTITION BY pv.procurement_request_id ORDER BY pv.id DESC) AS rn
                     FROM procurement_price_validations pv
                     WHERE pv.status = 'pending'
-                ) pval ON pval.procurement_request_id = preq.id AND pval.rn = 1";
+                ) pval ON pval.procurement_request_id = preq.id AND pval.rn = 1
+                LEFT JOIN (
+                    SELECT p.*, ROW_NUMBER() OVER (PARTITION BY p.lead_id ORDER BY p.id DESC) AS rn
+                    FROM prelims p
+                    WHERE p.status <> 'approved' AND p.deleted_at IS NULL
+                ) prelim ON prelim.lead_id = leads.id AND prelim.rn = 1";
     }
 
     public static function countByStatus(?int $scopeSalesId = null): array
@@ -597,9 +659,9 @@ class Lead extends Model
             // Revisi Sub-Fase 5 — same token/partial search as Lead::search().
             $tokens = preg_split('/\s+/', trim((string) $filters['q']), -1, PREG_SPLIT_NO_EMPTY);
             foreach ($tokens as $token) {
-                $where[] = '(leads.lead_code LIKE ? OR leads.customer_name LIKE ? OR leads.company_name LIKE ?)';
+                $where[] = '(leads.lead_code LIKE ? OR leads.customer_name LIKE ? OR leads.company_name LIKE ? OR leads.pln_id LIKE ?)';
                 $like = '%' . $token . '%';
-                array_push($params, $like, $like, $like);
+                array_push($params, $like, $like, $like, $like);
             }
         }
 
@@ -652,9 +714,12 @@ class Lead extends Model
                     surveyor.name AS surveyor_name,
                     current_pic.name AS current_pic_name,
                     eng.id AS active_engineer_id,
+                    eng.purpose AS active_engineer_purpose,
                     seng.id AS active_sales_engineer_id,
+                    seng.purpose AS active_sales_engineer_purpose,
                     preq.id AS active_procurement_id,
-                    pval.id AS pending_validation_id
+                    pval.id AS pending_validation_id,
+                    prelim.id AS active_prelim_id
              FROM leads
              LEFT JOIN users sales ON sales.id = leads.sales_id
              LEFT JOIN lead_types lead_type ON lead_type.id = leads.type_id
@@ -690,6 +755,11 @@ class Lead extends Model
                  FROM procurement_price_validations pv
                  WHERE pv.status = 'pending'
              ) pval ON pval.procurement_request_id = preq.id AND pval.rn = 1
+             LEFT JOIN (
+                 SELECT p.*, ROW_NUMBER() OVER (PARTITION BY p.lead_id ORDER BY p.id DESC) AS rn
+                 FROM prelims p
+                 WHERE p.status <> 'approved' AND p.deleted_at IS NULL
+             ) prelim ON prelim.lead_id = leads.id AND prelim.rn = 1
              WHERE {$w['where']}
              ORDER BY leads.created_at DESC",
             $w['params']
@@ -780,9 +850,10 @@ class Lead extends Model
 
             $daysIdle = (int) floor((time() - strtotime($r['updated_at'])) / 86400);
             $isPendingValidation = !empty($r['pending_validation_id']);
+            $isPendingPrelimClientResponse = !empty($r['active_prelim_id']);
             $isUrgent = $r['priority'] === 'urgent';
 
-            if (!$isUrgent && !$isPendingValidation && $daysIdle < $slaDays) {
+            if (!$isUrgent && !$isPendingValidation && !$isPendingPrelimClientResponse && $daysIdle < $slaDays) {
                 continue;
             }
 
@@ -797,6 +868,7 @@ class Lead extends Model
                 'priority' => $r['priority'],
                 'days_idle' => $daysIdle,
                 'is_pending_validation' => $isPendingValidation,
+                'is_pending_prelim' => $isPendingPrelimClientResponse,
             ];
         }
 
@@ -820,7 +892,10 @@ class Lead extends Model
             'validation' => !empty($r['pending_validation_id']),
             'procurement' => !empty($r['active_procurement_id']),
             'salesEngineer' => !empty($r['active_sales_engineer_id']),
+            'salesEngineerPurpose' => $r['active_sales_engineer_purpose'] ?? null,
             'engineer' => !empty($r['active_engineer_id']),
+            'engineerPurpose' => $r['active_engineer_purpose'] ?? null,
+            'prelim' => !empty($r['active_prelim_id']),
         ]);
     }
 
@@ -834,10 +909,15 @@ class Lead extends Model
      */
     public static function picFromReportRow(array $r, string $positionLabel): string
     {
-        if (in_array($positionLabel, ['Survey', 'Data Antrian'], true)) {
+        $surveyViaAssignment = $positionLabel === 'Survey' && (
+            (!empty($r['active_sales_engineer_id']) && ($r['active_sales_engineer_purpose'] ?? 'engineering') === 'survey')
+            || (!empty($r['active_engineer_id']) && ($r['active_engineer_purpose'] ?? 'engineering') === 'survey')
+        );
+
+        if (!$surveyViaAssignment && in_array($positionLabel, ['Survey', 'Data Antrian'], true)) {
             return $r['current_pic_name'] ?? '-';
         }
-        if (in_array($positionLabel, ['Sales', 'Proposal'], true)) {
+        if (in_array($positionLabel, ['Sales', 'Proposal', 'Prelim'], true)) {
             return $r['sales_name'] ?? '-';
         }
 

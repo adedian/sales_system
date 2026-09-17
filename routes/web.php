@@ -14,6 +14,7 @@ use App\Controllers\FollowUpController;
 use App\Controllers\LeadController;
 use App\Controllers\MasterDataController;
 use App\Controllers\NotificationController;
+use App\Controllers\PrelimController;
 use App\Controllers\ProcurementController;
 use App\Controllers\ProductController;
 use App\Controllers\ProfileController;
@@ -73,6 +74,7 @@ $router->post('/leads/{id}/restore', [LeadController::class, 'restore'], ['auth'
 $router->post('/leads/{id}/enqueue', [LeadController::class, 'enqueue'], ['auth', 'permission:lead.edit']);
 $router->post('/leads/{id}/request-engineer', [EngineerController::class, 'requestAssignment'], ['auth', 'permission:lead.edit']);
 $router->post('/leads/{id}/request-procurement', [ProcurementController::class, 'requestFromLead'], ['auth', 'permission:lead.edit']);
+$router->post('/leads/{id}/prelims', [PrelimController::class, 'createFromLead'], ['auth', 'permission:prelim.create']);
 $router->post('/leads/{id}/proposals', [ProposalController::class, 'createFromLead'], ['auth', 'permission:lead.edit']);
 $router->post('/leads/{id}/follow-ups', [FollowUpController::class, 'store'], ['auth', 'permission:followup.create']);
 $router->post('/leads/{id}/mark-won', [LeadController::class, 'markWon'], ['auth', 'permission:lead.edit']);
@@ -134,6 +136,18 @@ $router->post('/procurement/{id}/validate/approve', [ProcurementController::clas
 $router->post('/procurement/{id}/validate/revision', [ProcurementController::class, 'requestValidationRevision'], ['auth', 'permission:procurement.view']);
 $router->post('/procurement/{id}/create-proposal', [ProposalController::class, 'createFromProcurement'], ['auth', 'permission:procurement.view']);
 $router->get('/procurement/{id}', [ProcurementController::class, 'show'], ['auth', 'permission:procurement.view']);
+
+$router->get('/prelims', [PrelimController::class, 'index'], ['auth', 'permission:prelim.view']);
+$router->post('/prelims/{id}/ready', [PrelimController::class, 'markReady'], ['auth', 'permission:prelim.edit']);
+$router->post('/prelims/{id}/send', [PrelimController::class, 'send'], ['auth', 'permission:prelim.send']);
+$router->post('/prelims/{id}/client-response', [PrelimController::class, 'clientResponse'], ['auth', 'permission:prelim.edit']);
+$router->post('/prelims/{id}/notes', [PrelimController::class, 'addNote'], ['auth', 'permission:prelim.view']);
+$router->post('/prelims/{id}/documents', [PrelimController::class, 'uploadDocument'], ['auth', 'permission:prelim.edit']);
+$router->get('/prelims/{id}/documents/{docId}', [PrelimController::class, 'downloadDocument'], ['auth', 'permission:prelim.view']);
+$router->post('/prelims/{id}/documents/{docId}/delete', [PrelimController::class, 'deleteDocument'], ['auth', 'permission:prelim.edit']);
+$router->post('/prelims/{id}/delete', [PrelimController::class, 'destroy'], ['auth', 'permission:prelim.edit']);
+$router->post('/prelims/{id}', [PrelimController::class, 'update'], ['auth', 'permission:prelim.edit']);
+$router->get('/prelims/{id}', [PrelimController::class, 'show'], ['auth', 'permission:prelim.view']);
 
 $router->get('/proposals', [ProposalController::class, 'index'], ['auth', 'permission:proposal.view']);
 $router->post('/proposals/{id}/items', [ProposalController::class, 'addItem'], ['auth', 'permission:proposal.view']);
