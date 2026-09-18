@@ -177,7 +177,10 @@ class ReportController extends Controller
                     'validation' => !empty($r['pending_validation_id']),
                     'procurement' => !empty($r['active_procurement_id']),
                     'salesEngineer' => !empty($r['active_sales_engineer_id']),
+                    'salesEngineerPurpose' => $r['active_sales_engineer_purpose'] ?? null,
                     'engineer' => !empty($r['active_engineer_id']),
+                    'engineerPurpose' => $r['active_engineer_purpose'] ?? null,
+                    'prelim' => !empty($r['active_prelim_id']),
                 ]);
 
                 $r['type_name'] = $r['type_name'] ?? '-';

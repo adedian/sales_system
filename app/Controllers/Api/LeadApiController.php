@@ -13,6 +13,7 @@ use App\Models\LeadSales;
 use App\Models\LeadStatusHistory;
 use App\Models\MasterData;
 use App\Models\Notification;
+use App\Models\Prelim;
 use App\Models\User;
 
 class LeadApiController extends Controller
@@ -80,6 +81,15 @@ class LeadApiController extends Controller
         $newStatus = (string) $request->input('status');
         if (!in_array($newStatus, self::STATUSES, true)) {
             $this->json(['error' => 'Status tidak valid.'], 422);
+
+            return;
+        }
+
+        // Revisi Alur Bisnis (Prelim) — sama seperti gate di EngineerController/
+        // ProcurementController/ProposalController: lead tidak boleh dianggap
+        // masuk stage Engineering lewat quick-status ini sebelum Prelim di-ACC.
+        if ($newStatus === 'engineering' && !Prelim::hasApprovedForLead((int) $lead['id'])) {
+            $this->json(['error' => 'Prelim belum di-ACC oleh Client.'], 422);
 
             return;
         }
@@ -294,7 +304,7 @@ class LeadApiController extends Controller
             return null;
         }
 
-        if (Acl::hasRole('sales') && (int) $lead['sales_id'] !== Auth::id()) {
+        if (Acl::hasRole('sales') && (int) $lead['sales_id'] !== Auth::id() && !LeadSales::isAssigned($id, Auth::id())) {
             $this->json(['error' => 'forbidden'], 403);
 
             return null;

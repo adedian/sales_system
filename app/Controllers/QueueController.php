@@ -14,6 +14,7 @@ use App\Models\AuditLog;
 use App\Models\EngineerAssignment;
 use App\Models\Lead;
 use App\Models\MasterData;
+use App\Models\Prelim;
 use App\Models\ProcurementPriceValidation;
 use App\Models\ProcurementRequest;
 use App\Models\QueueNote;
@@ -78,6 +79,8 @@ class QueueController extends Controller
         $pendingValidation = $activeProcurementRequest !== null
             ? ProcurementPriceValidation::pendingForRequest((int) $activeProcurementRequest['id'])
             : null;
+        $latestPrelim = Prelim::latestForLead((int) $queue['lead_id']);
+        $activePrelim = ($latestPrelim !== null && $latestPrelim['status'] !== 'approved') ? $latestPrelim : null;
         $leadStatusMap = MasterData::allAsMap('lead_statuses');
         $queueStatusMap = MasterData::allAsMap('queue_statuses');
 
@@ -100,7 +103,10 @@ class QueueController extends Controller
                 'validation' => $pendingValidation,
                 'procurement' => $activeProcurementRequest,
                 'salesEngineer' => $activeSalesEngineerAssignment,
+                'salesEngineerPurpose' => $activeSalesEngineerAssignment['purpose'] ?? null,
                 'engineer' => $activeEngineerAssignment,
+                'engineerPurpose' => $activeEngineerAssignment['purpose'] ?? null,
+                'prelim' => $activePrelim,
             ]) : null,
         ]);
     }

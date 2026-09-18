@@ -89,16 +89,21 @@ class ProposalController extends Controller
             return;
         }
 
-        if (Acl::hasRole('procurement') && (int) $pr['assigned_to'] !== Auth::id()) {
-            $this->abort(403);
+        // Direktur (Pak Ronny, role tetap 'sales') butuh akses ke request siapa
+        // pun, sama seperti bypass di ProcurementController::findAuthorized() —
+        // tanpa ini dia bisa buka request orang lain tapi 403 saat convert ke Proposal.
+        if (!$this->isDirector()) {
+            if (Acl::hasRole('procurement') && (int) $pr['assigned_to'] !== Auth::id()) {
+                $this->abort(403);
 
-            return;
-        }
+                return;
+            }
 
-        if (Acl::hasRole('sales') && (int) $pr['lead_sales_id'] !== Auth::id()) {
-            $this->abort(403);
+            if (Acl::hasRole('sales') && (int) $pr['lead_sales_id'] !== Auth::id()) {
+                $this->abort(403);
 
-            return;
+                return;
+            }
         }
 
         if (!Csrf::verifyRequest()) {
@@ -132,6 +137,12 @@ class ProposalController extends Controller
         }
 
         $lead = Lead::find((int) $pr['lead_id']);
+        if ($lead === null) {
+            $this->abort(404);
+
+            return;
+        }
+
         $actor = Auth::user();
         $now = date('Y-m-d H:i:s');
         $salesId = (int) ($lead['sales_id'] ?? $actor['id']);
@@ -1006,6 +1017,13 @@ HTML;
         }
 
         return $proposal;
+    }
+
+    private function isDirector(): bool
+    {
+        $actor = Auth::user();
+
+        return $actor && (int) ($actor['is_director'] ?? 0) === 1;
     }
 
     private function findAuthorizedLead(int $id): array
