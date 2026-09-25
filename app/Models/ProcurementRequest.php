@@ -70,6 +70,30 @@ class ProcurementRequest extends Model
     }
 
     /**
+     * Closes out every request for this lead still sitting in a non-terminal
+     * status when the deal is won — nothing further will happen on it once the
+     * lead itself is closed.
+     */
+    public static function closeAllForLead(int $leadId, int $actorId, string $note): void
+    {
+        $placeholders = implode(',', array_fill(0, count(self::CLOSED_STATUSES), '?'));
+        $rows = Database::fetchAll(
+            "SELECT id, status FROM procurement_requests WHERE lead_id = ? AND status NOT IN ({$placeholders})",
+            array_merge([$leadId], self::CLOSED_STATUSES)
+        );
+
+        $now = date('Y-m-d H:i:s');
+        foreach ($rows as $row) {
+            static::update((int) $row['id'], [
+                'status' => 'pricing_completed',
+                'completed_at' => $now,
+                'updated_at' => $now,
+            ]);
+            ProcurementStatusHistory::record((int) $row['id'], $row['status'], 'pricing_completed', $actorId, $note);
+        }
+    }
+
+    /**
      * @return array{rows:array,total:int,page:int,perPage:int,totalPages:int}
      */
     public static function search(array $filters): array

@@ -32,6 +32,7 @@ class EngineerAssignment extends Model
                        leads.phone AS lead_phone, leads.address AS lead_address,
                        leads.needs_description AS lead_needs_description,
                        leads.sales_id AS lead_sales_id,
+                       leads.status AS lead_status,
                        sales.name AS sales_name,
                        engineer.name AS engineer_name,
                        requester.name AS assigned_by_name
@@ -110,6 +111,30 @@ class EngineerAssignment extends Model
             self::baseSelect() . " WHERE engineer_assignments.lead_id = ?{$typeSql}{$purposeSql} ORDER BY engineer_assignments.id DESC LIMIT 1",
             $params
         );
+    }
+
+    /**
+     * Closes out every assignment for this lead still sitting in a non-terminal
+     * status when the deal is won — otherwise a 'returned' assignment (work
+     * already handed back to sales) stays invisible forever, counted in neither
+     * the open-work nor the Completed dashboard buckets.
+     */
+    public static function closeAllForLead(int $leadId, int $actorId, string $note): void
+    {
+        $rows = Database::fetchAll(
+            "SELECT id, status FROM engineer_assignments WHERE lead_id = ? AND status NOT IN ('completed', 'rejected')",
+            [$leadId]
+        );
+
+        $now = date('Y-m-d H:i:s');
+        foreach ($rows as $row) {
+            static::update((int) $row['id'], [
+                'status' => 'completed',
+                'completed_at' => $now,
+                'updated_at' => $now,
+            ]);
+            EngineerAssignmentStatusHistory::record((int) $row['id'], $row['status'], 'completed', $actorId, $note);
+        }
     }
 
     /**

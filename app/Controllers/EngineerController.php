@@ -642,6 +642,13 @@ class EngineerController extends Controller
             return;
         }
 
+        if (in_array($assignment['lead_status'] ?? '', ['won', 'lost'], true)) {
+            Session::flash('error', 'Lead untuk assignment ini sudah ditutup (Won/Lost).');
+            $this->redirect('/engineer/' . $assignment['id']);
+
+            return;
+        }
+
         $now = date('Y-m-d H:i:s');
         EngineerAssignment::update((int) $assignment['id'], ['status' => 'returned', 'updated_at' => $now]);
         EngineerAssignmentStatusHistory::record((int) $assignment['id'], 'completed', 'returned', Auth::id(), 'Dikembalikan ke sales.');
@@ -688,6 +695,13 @@ class EngineerController extends Controller
 
         if ($assignment['status'] !== 'completed') {
             Session::flash('error', 'Isi hasil analisa terlebih dahulu sebelum mengirim ke procurement.');
+            $this->redirect('/engineer/' . $assignment['id']);
+
+            return;
+        }
+
+        if (in_array($assignment['lead_status'] ?? '', ['won', 'lost'], true)) {
+            Session::flash('error', 'Lead untuk assignment ini sudah ditutup (Won/Lost).');
             $this->redirect('/engineer/' . $assignment['id']);
 
             return;

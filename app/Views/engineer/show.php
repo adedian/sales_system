@@ -3,6 +3,7 @@ $pageTitle = $assignment['assignment_code'];
 $statusRow = $statusMap[$assignment['status']] ?? ['name' => $assignment['status'], 'color' => 'muted'];
 $priorityRow = $priorityMap[$assignment['priority']] ?? ['name' => $assignment['priority'], 'color' => 'muted'];
 $isOverdue = !empty($assignment['deadline']) && $assignment['deadline'] < date('Y-m-d') && !in_array($assignment['status'], ['completed', 'rejected', 'returned'], true);
+$leadClosed = in_array($assignment['lead_status'] ?? '', ['won', 'lost'], true);
 $workStatuses = ['accepted', 'in_progress', 'waiting'];
 $notes = array_values(array_filter($timeline, fn ($e) => $e['type'] === 'note'));
 ?>
@@ -66,7 +67,7 @@ $notes = array_values(array_filter($timeline, fn ($e) => $e['type'] === 'note'))
                     <p class="text-muted small mb-0">Belum ada hasil analisa. Terima assignment terlebih dahulu.</p>
                 <?php endif; ?>
 
-                <?php if ($canOperate && $assignment['status'] === 'completed'): ?>
+                <?php if ($canOperate && $assignment['status'] === 'completed' && !$leadClosed): ?>
                 <?php if ($activeProcurementRequest): ?>
                     <a href="<?= url('/procurement/' . $activeProcurementRequest['id']) ?>" class="btn btn-light mt-3"><i class="bi bi-truck me-1"></i>Lihat Request Procurement <?= e($activeProcurementRequest['request_code']) ?></a>
                 <?php else: ?>
@@ -92,6 +93,8 @@ $notes = array_values(array_filter($timeline, fn ($e) => $e['type'] === 'note'))
                 </details>
                 <?php endif; ?>
                 <?php endif; ?>
+                <?php elseif ($assignment['status'] === 'completed' && $leadClosed): ?>
+                    <div class="badge-pill badge-pill-emerald mt-3"><i class="bi bi-check2-circle me-1"></i>Selesai &mdash; lead sudah ditutup (<?= $assignment['lead_status'] === 'won' ? 'Won' : 'Lost' ?>)</div>
                 <?php elseif ($assignment['status'] === 'returned'): ?>
                     <?php if ($activeProcurementRequest): ?>
                         <a href="<?= url('/procurement/' . $activeProcurementRequest['id']) ?>" class="btn btn-light mt-2"><i class="bi bi-truck me-1"></i>Lihat Request Procurement <?= e($activeProcurementRequest['request_code']) ?></a>

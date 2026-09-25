@@ -591,6 +591,11 @@ class LeadController extends Controller
         LeadStatusHistory::record((int) $lead['id'], $oldStatus, 'won', (int) $actor['id'], 'Deal closing: Rp ' . number_format((float) $request->input('deal_value'), 0, ',', '.'));
         AuditLogger::log((int) $actor['id'], 'lead_marked_won', 'lead', (int) $lead['id'], ['status' => $oldStatus], ['status' => 'won', 'deal_value' => $request->input('deal_value')]);
 
+        $closingNote = 'Lead ditandai Won — ditutup otomatis karena deal sudah closing.';
+        EngineerAssignment::closeAllForLead((int) $lead['id'], (int) $actor['id'], $closingNote);
+        ProcurementRequest::closeAllForLead((int) $lead['id'], (int) $actor['id'], $closingNote);
+        SalesQueue::closeAllForLead((int) $lead['id'], (int) $actor['id'], $closingNote);
+
         $managerRole = Role::findBySlug('manager');
         if ($managerRole !== null) {
             foreach (User::activeByRole((int) $managerRole['id']) as $manager) {

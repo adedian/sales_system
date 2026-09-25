@@ -82,6 +82,27 @@ class SalesQueue extends Model
     }
 
     /**
+     * Closes out every antrian entry for this lead still open when the deal
+     * is won — nothing further will happen on it once the lead itself is closed.
+     */
+    public static function closeAllForLead(int $leadId, int $actorId, string $note): void
+    {
+        $rows = Database::fetchAll(
+            "SELECT id, status FROM sales_queue WHERE lead_id = ? AND status NOT IN ('done', 'cancelled')",
+            [$leadId]
+        );
+
+        $now = date('Y-m-d H:i:s');
+        foreach ($rows as $row) {
+            static::update((int) $row['id'], [
+                'status' => 'done',
+                'updated_at' => $now,
+            ]);
+            QueueStatusHistory::record((int) $row['id'], $row['status'], 'done', $actorId, $note);
+        }
+    }
+
+    /**
      * @return array{rows:array,total:int,page:int,perPage:int,totalPages:int}
      */
     public static function search(array $filters): array
