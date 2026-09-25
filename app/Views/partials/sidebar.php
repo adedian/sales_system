@@ -4,10 +4,10 @@ $isActive = fn (string $needle) => str_ends_with($currentPath, $needle);
 ?>
 <aside class="app-sidebar" id="appSidebar">
     <div class="sidebar-brand">
-        <span class="sidebar-brand-mark"><i class="bi bi-hexagon-fill"></i></span>
+        <span class="sidebar-brand-mark"><img src="<?= asset('img/logo.png') ?>" alt="HME Sales"></span>
         <span class="sidebar-brand-text">
-            <strong>Sistem Internal</strong>
-            <small>Sales Platform</small>
+            <strong>HME Sales</strong>
+            <small>Sistem Internal</small>
         </span>
     </div>
 

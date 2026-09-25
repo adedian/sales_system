@@ -1,7 +1,7 @@
 <div class="auth-wrapper">
     <div class="auth-split">
         <div class="auth-brand-panel">
-            <div class="auth-brand-mark"><i class="bi bi-hexagon-fill"></i></div>
+            <div class="auth-brand-mark"><img src="<?= asset('img/logo.png') ?>" alt="HME Sales"></div>
             <h1>Sistem Internal Sales</h1>
             <p>Platform manajemen sales internal &mdash; dari lead masuk hingga ditangani tim Engineer Sales.</p>
             <ul class="auth-feature-list">
@@ -14,7 +14,7 @@
         <div class="auth-form-panel">
             <div class="auth-form-inner">
                 <div class="auth-brand-mobile">
-                    <span class="auth-brand-mark"><i class="bi bi-hexagon-fill"></i></span>
+                    <span class="auth-brand-mark"><img src="<?= asset('img/logo.png') ?>" alt="HME Sales"></span>
                     <div>
                         <strong>Sistem Internal Sales</strong>
                         <small>Masuk ke akun Anda</small>
