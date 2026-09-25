@@ -68,18 +68,26 @@
                             <?php endif; ?>
                         </td>
                         <td class="text-end">
-                            <div class="row-actions">
-                                <a href="<?= url('/vendors/' . $v['id'] . '/edit') ?>" class="btn btn-sm btn-light" title="Ubah"><i class="bi bi-pencil"></i></a>
-                                <form method="POST" action="<?= url('/vendors/' . $v['id'] . '/toggle-status') ?>" data-confirm="<?= (int) $v['is_active'] === 1 ? 'Nonaktifkan' : 'Aktifkan' ?> vendor <?= e($v['name']) ?>?">
-                                    <?= csrf_field() ?>
-                                    <button type="submit" class="btn btn-sm btn-light" title="<?= (int) $v['is_active'] === 1 ? 'Nonaktifkan' : 'Aktifkan' ?>">
-                                        <i class="bi <?= (int) $v['is_active'] === 1 ? 'bi-toggle2-off' : 'bi-toggle2-on' ?>"></i>
-                                    </button>
-                                </form>
-                                <form method="POST" action="<?= url('/vendors/' . $v['id'] . '/delete') ?>" data-confirm="Hapus vendor <?= e($v['name']) ?>?">
-                                    <?= csrf_field() ?>
-                                    <button type="submit" class="btn btn-sm btn-light text-danger" title="Hapus"><i class="bi bi-trash"></i></button>
-                                </form>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="More"><i class="bi bi-three-dots"></i></button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                    <li><a href="<?= url('/vendors/' . $v['id'] . '/edit') ?>" class="dropdown-item"><i class="bi bi-pencil me-2"></i>Ubah</a></li>
+                                    <li>
+                                        <form method="POST" action="<?= url('/vendors/' . $v['id'] . '/toggle-status') ?>" data-confirm="<?= (int) $v['is_active'] === 1 ? 'Nonaktifkan' : 'Aktifkan' ?> vendor <?= e($v['name']) ?>?">
+                                            <?= csrf_field() ?>
+                                            <button type="submit" class="dropdown-item">
+                                                <i class="bi <?= (int) $v['is_active'] === 1 ? 'bi-toggle2-off' : 'bi-toggle2-on' ?> me-2"></i><?= (int) $v['is_active'] === 1 ? 'Nonaktifkan' : 'Aktifkan' ?>
+                                            </button>
+                                        </form>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <form method="POST" action="<?= url('/vendors/' . $v['id'] . '/delete') ?>" data-confirm="Hapus vendor <?= e($v['name']) ?>?">
+                                            <?= csrf_field() ?>
+                                            <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash me-2"></i>Hapus</button>
+                                        </form>
+                                    </li>
+                                </ul>
                             </div>
                         </td>
                     </tr>

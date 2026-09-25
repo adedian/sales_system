@@ -34,14 +34,20 @@
                         <td class="text-center mono"><?= (int) $role['permission_count'] ?></td>
                         <td class="text-center mono"><?= (int) $role['user_count'] ?></td>
                         <td class="text-end">
-                            <div class="row-actions">
-                                <a href="<?= url('/roles/' . $role['id'] . '/edit') ?>" class="btn btn-sm btn-light" title="Ubah"><i class="bi bi-pencil"></i></a>
-                                <?php if ((int) $role['is_system'] === 0 && (int) $role['user_count'] === 0): ?>
-                                <form method="POST" action="<?= url('/roles/' . $role['id'] . '/delete') ?>" data-confirm="Hapus role <?= e($role['name']) ?>? Tindakan ini tidak dapat dibatalkan.">
-                                    <?= csrf_field() ?>
-                                    <button type="submit" class="btn btn-sm btn-light text-danger" title="Hapus"><i class="bi bi-trash"></i></button>
-                                </form>
-                                <?php endif; ?>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="More"><i class="bi bi-three-dots"></i></button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                    <li><a href="<?= url('/roles/' . $role['id'] . '/edit') ?>" class="dropdown-item"><i class="bi bi-pencil me-2"></i>Ubah</a></li>
+                                    <?php if ((int) $role['is_system'] === 0 && (int) $role['user_count'] === 0): ?>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <form method="POST" action="<?= url('/roles/' . $role['id'] . '/delete') ?>" data-confirm="Hapus role <?= e($role['name']) ?>? Tindakan ini tidak dapat dibatalkan.">
+                                            <?= csrf_field() ?>
+                                            <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash me-2"></i>Hapus</button>
+                                        </form>
+                                    </li>
+                                    <?php endif; ?>
+                                </ul>
                             </div>
                         </td>
                     </tr>

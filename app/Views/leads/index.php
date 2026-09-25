@@ -273,23 +273,24 @@ $resetUrl = url('/leads') . (!empty($filters['trashed']) ? '?trashed=1' : '');
                                         <button type="submit" class="btn btn-sm btn-light" title="Pulihkan"><i class="bi bi-arrow-counterclockwise"></i></button>
                                     </form>
                                 <?php else: ?>
-                                    <a href="<?= url('/leads/' . $lead['id']) ?>" class="btn btn-sm btn-light" title="Detail"><i class="bi bi-eye"></i></a>
-                                    <?php if ($canManage): ?>
-                                    <a href="<?= url('/leads/' . $lead['id'] . '/edit') ?>" class="btn btn-sm btn-light" title="Ubah"><i class="bi bi-pencil"></i></a>
-                                    <?php endif; ?>
-                                    <?php if ($canDelete): ?>
                                     <div class="dropdown">
                                         <button class="btn btn-sm btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="More"><i class="bi bi-three-dots"></i></button>
                                         <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                            <li><a href="<?= url('/leads/' . $lead['id']) ?>" class="dropdown-item"><i class="bi bi-eye me-2"></i>Detail</a></li>
+                                            <?php if ($canManage): ?>
+                                            <li><a href="<?= url('/leads/' . $lead['id'] . '/edit') ?>" class="dropdown-item"><i class="bi bi-pencil me-2"></i>Ubah</a></li>
+                                            <?php endif; ?>
+                                            <?php if ($canDelete): ?>
+                                            <li><hr class="dropdown-divider"></li>
                                             <li>
                                                 <form method="POST" action="<?= url('/leads/' . $lead['id'] . '/delete') ?>" data-confirm="Pindahkan lead <?= e($lead['lead_code']) ?> ke sampah?">
                                                     <?= csrf_field() ?>
                                                     <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash me-2"></i>Hapus</button>
                                                 </form>
                                             </li>
+                                            <?php endif; ?>
                                         </ul>
                                     </div>
-                                    <?php endif; ?>
                                 <?php endif; ?>
                             </div>
                         </td>

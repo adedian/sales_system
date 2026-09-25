@@ -105,16 +105,21 @@
                         </td>
                         <td class="text-muted"><?= e(format_datetime($u['last_login_at'])) ?></td>
                         <td class="text-end">
-                            <div class="row-actions">
-                                <a href="<?= url('/users/' . $u['id'] . '/edit') ?>" class="btn btn-sm btn-light" title="Ubah"><i class="bi bi-pencil"></i></a>
-                                <?php if ((int) $u['id'] !== auth_user()['id']): ?>
-                                <form method="POST" action="<?= url('/users/' . $u['id'] . '/toggle-status') ?>" data-confirm="<?= (int) $u['is_active'] === 1 ? 'Nonaktifkan' : 'Aktifkan' ?> pengguna <?= e($u['name']) ?>?">
-                                    <?= csrf_field() ?>
-                                    <button type="submit" class="btn btn-sm btn-light" title="<?= (int) $u['is_active'] === 1 ? 'Nonaktifkan' : 'Aktifkan' ?>">
-                                        <i class="bi <?= (int) $u['is_active'] === 1 ? 'bi-toggle2-off' : 'bi-toggle2-on' ?>"></i>
-                                    </button>
-                                </form>
-                                <?php endif; ?>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="More"><i class="bi bi-three-dots"></i></button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                    <li><a href="<?= url('/users/' . $u['id'] . '/edit') ?>" class="dropdown-item"><i class="bi bi-pencil me-2"></i>Ubah</a></li>
+                                    <?php if ((int) $u['id'] !== auth_user()['id']): ?>
+                                    <li>
+                                        <form method="POST" action="<?= url('/users/' . $u['id'] . '/toggle-status') ?>" data-confirm="<?= (int) $u['is_active'] === 1 ? 'Nonaktifkan' : 'Aktifkan' ?> pengguna <?= e($u['name']) ?>?">
+                                            <?= csrf_field() ?>
+                                            <button type="submit" class="dropdown-item">
+                                                <i class="bi <?= (int) $u['is_active'] === 1 ? 'bi-toggle2-off' : 'bi-toggle2-on' ?> me-2"></i><?= (int) $u['is_active'] === 1 ? 'Nonaktifkan' : 'Aktifkan' ?>
+                                            </button>
+                                        </form>
+                                    </li>
+                                    <?php endif; ?>
+                                </ul>
                             </div>
                         </td>
                     </tr>

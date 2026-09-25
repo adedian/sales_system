@@ -74,20 +74,28 @@ $colorOptions = ['primary' => 'Biru', 'indigo' => 'Indigo', 'emerald' => 'Hijau'
                             <?php endif; ?>
                         </td>
                         <td class="text-end">
-                            <div class="row-actions">
-                                <button type="button" class="btn btn-sm btn-light" title="Ubah" data-bs-toggle="modal" data-bs-target="#editModal<?= (int) $row['id'] ?>"><i class="bi bi-pencil"></i></button>
-                                <form method="POST" action="<?= url('/master-data/' . $typeSlug . '/' . $row['id'] . '/toggle-status') ?>" data-confirm="<?= (int) $row['is_active'] === 1 ? 'Nonaktifkan' : 'Aktifkan' ?> &quot;<?= e($row['name']) ?>&quot;?">
-                                    <?= csrf_field() ?>
-                                    <button type="submit" class="btn btn-sm btn-light" title="<?= (int) $row['is_active'] === 1 ? 'Nonaktifkan' : 'Aktifkan' ?>">
-                                        <i class="bi <?= (int) $row['is_active'] === 1 ? 'bi-toggle2-off' : 'bi-toggle2-on' ?>"></i>
-                                    </button>
-                                </form>
-                                <?php if ((int) $row['is_system'] === 0): ?>
-                                <form method="POST" action="<?= url('/master-data/' . $typeSlug . '/' . $row['id'] . '/delete') ?>" data-confirm="Hapus &quot;<?= e($row['name']) ?>&quot;? Tindakan ini tidak dapat dibatalkan.">
-                                    <?= csrf_field() ?>
-                                    <button type="submit" class="btn btn-sm btn-light text-danger" title="Hapus"><i class="bi bi-trash"></i></button>
-                                </form>
-                                <?php endif; ?>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="More"><i class="bi bi-three-dots"></i></button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                    <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#editModal<?= (int) $row['id'] ?>"><i class="bi bi-pencil me-2"></i>Ubah</button></li>
+                                    <li>
+                                        <form method="POST" action="<?= url('/master-data/' . $typeSlug . '/' . $row['id'] . '/toggle-status') ?>" data-confirm="<?= (int) $row['is_active'] === 1 ? 'Nonaktifkan' : 'Aktifkan' ?> &quot;<?= e($row['name']) ?>&quot;?">
+                                            <?= csrf_field() ?>
+                                            <button type="submit" class="dropdown-item">
+                                                <i class="bi <?= (int) $row['is_active'] === 1 ? 'bi-toggle2-off' : 'bi-toggle2-on' ?> me-2"></i><?= (int) $row['is_active'] === 1 ? 'Nonaktifkan' : 'Aktifkan' ?>
+                                            </button>
+                                        </form>
+                                    </li>
+                                    <?php if ((int) $row['is_system'] === 0): ?>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <form method="POST" action="<?= url('/master-data/' . $typeSlug . '/' . $row['id'] . '/delete') ?>" data-confirm="Hapus &quot;<?= e($row['name']) ?>&quot;? Tindakan ini tidak dapat dibatalkan.">
+                                            <?= csrf_field() ?>
+                                            <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash me-2"></i>Hapus</button>
+                                        </form>
+                                    </li>
+                                    <?php endif; ?>
+                                </ul>
                             </div>
                         </td>
                     </tr>
