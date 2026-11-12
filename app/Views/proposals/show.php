@@ -50,8 +50,23 @@ $notes = array_values(array_filter($timeline, fn ($e) => $e['type'] === 'note'))
             <div class="card-header"><h3>Detail Proposal</h3></div>
             <div class="card-body">
                 <?php if ($canOperate && $isEditable): ?>
-                <form method="POST" action="<?= url('/proposals/' . $proposal['id']) ?>" class="row g-3">
+                <?php $aiReady = \App\Services\ProposalAiGenerator::isConfigured(); ?>
+                <form method="POST" action="<?= url('/proposals/' . $proposal['id']) ?>" class="row g-3" id="proposalDetailForm">
                     <?= csrf_field() ?>
+                    <div class="col-12">
+                        <div class="d-flex flex-wrap align-items-center gap-3 p-3 rounded-4" style="background:var(--color-primary-soft)">
+                            <button type="button" class="btn btn-primary btn-sm" id="aiGenerateBtn" data-url="<?= e(url('/proposals/' . $proposal['id'] . '/generate-ai')) ?>" <?= $aiReady ? '' : 'disabled' ?>>
+                                <i class="bi bi-stars me-1"></i>Generate dengan AI
+                            </button>
+                            <span class="small text-muted" id="aiHint">
+                                <?php if ($aiReady): ?>
+                                    AI menyusun draft ruang lingkup, timeline, pembayaran, garansi, dan S&amp;K dari data lead &amp; item. Hasilnya belum tersimpan — tinjau dulu, lalu klik <strong>Simpan Detail</strong>.
+                                <?php else: ?>
+                                    Belum aktif: isi <code>ANTHROPIC_API_KEY</code> di file <code>.env</code> server.
+                                <?php endif; ?>
+                            </span>
+                        </div>
+                    </div>
                     <div class="col-12 col-md-6">
                         <label class="form-label">Nama Project</label>
                         <input type="text" name="project_name" class="form-control" value="<?= e($proposal['project_name'] ?? '') ?>">
@@ -537,6 +552,61 @@ $notes = array_values(array_filter($timeline, fn ($e) => $e['type'] === 'note'))
         form.querySelector('[name="specification"]').value = opt.getAttribute('data-spec') || '';
         var price = opt.getAttribute('data-price');
         if (price) form.querySelector('[name="unit_price"]').value = price;
+    });
+})();
+
+// Generate draft teks proposal dengan AI — mengisi form saja, tidak menyimpan.
+(function () {
+    var btn = document.getElementById('aiGenerateBtn');
+    var form = document.getElementById('proposalDetailForm');
+    var hint = document.getElementById('aiHint');
+    if (!btn || !form) return;
+
+    var fields = ['scope_description', 'timeline_text', 'payment_terms', 'warranty', 'terms_conditions'];
+    var rows = { scope_description: 7, payment_terms: 4, warranty: 2, terms_conditions: 7 };
+
+    function hasContent() {
+        return fields.some(function (n) { return (form.querySelector('[name="' + n + '"]').value || '').trim() !== ''; });
+    }
+
+    function run() {
+        var original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>AI sedang menyusun…';
+        var token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        fetch(btn.getAttribute('data-url'), {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' },
+        }).then(function (res) {
+            return res.json().catch(function () { return {}; }).then(function (data) { return { ok: res.ok, data: data }; });
+        }).then(function (r) {
+            if (!r.ok || !r.data.draft) {
+                Toast.show((r.data && r.data.error) || 'Gagal membuat draft AI.', 'danger', 7000);
+                return;
+            }
+            fields.forEach(function (n) {
+                var el = form.querySelector('[name="' + n + '"]');
+                if (!el || !r.data.draft[n]) return;
+                el.value = r.data.draft[n];
+                if (el.tagName === 'TEXTAREA' && rows[n]) el.rows = rows[n];
+            });
+            hint.innerHTML = '<strong class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Draft AI sudah diisi ke form.</strong> Tinjau dan sesuaikan, lalu klik <strong>Simpan Detail</strong> — belum tersimpan.';
+            Toast.show('Draft AI terisi. Tinjau lalu simpan.', 'success');
+            form.querySelector('[name="scope_description"]').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }).catch(function () {
+            Toast.show('Tidak dapat menghubungi server.', 'danger');
+        }).finally(function () {
+            btn.disabled = false;
+            btn.innerHTML = original;
+        });
+    }
+
+    btn.addEventListener('click', function () {
+        if (!hasContent()) { run(); return; }
+        confirmDialog('Isian ruang lingkup, timeline, pembayaran, garansi, dan S&K yang ada di form akan diganti draft AI (belum tersimpan sampai Anda klik Simpan Detail). Lanjutkan?', {
+            title: 'Ganti isian dengan draft AI?', confirmText: 'Ya, Generate', confirmClass: 'btn-primary',
+        }).then(function (ok) { if (ok) run(); });
     });
 })();
 </script>

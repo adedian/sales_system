@@ -162,6 +162,7 @@ $router->post('/proposals/{id}/negotiations', [ProposalController::class, 'addNe
 $router->post('/proposals/{id}/revise-negotiation', [ProposalController::class, 'reviseFromNegotiation'], ['auth', 'permission:proposal.edit']);
 $router->post('/proposals/{id}/notes', [ProposalController::class, 'addNote'], ['auth', 'permission:proposal.view']);
 $router->post('/proposals/{id}/delete', [ProposalController::class, 'destroy'], ['auth', 'permission:proposal.view']);
+$router->post('/proposals/{id}/generate-ai', [ProposalController::class, 'generateAi'], ['auth', 'permission:proposal.view']);
 $router->get('/proposals/{id}/pdf', [ProposalController::class, 'pdf'], ['auth', 'permission:proposal.view']);
 $router->post('/proposals/{id}', [ProposalController::class, 'update'], ['auth', 'permission:proposal.view']);
 $router->get('/proposals/{id}', [ProposalController::class, 'show'], ['auth', 'permission:proposal.view']);

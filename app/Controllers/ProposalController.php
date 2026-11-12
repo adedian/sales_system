@@ -26,6 +26,7 @@ use App\Models\ProposalStatusHistory;
 use App\Models\Setting;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\ProposalAiGenerator;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
@@ -289,6 +290,37 @@ class ProposalController extends Controller
 
         Session::flash('success', 'Detail proposal tersimpan.');
         $this->redirect('/proposals/' . $proposal['id']);
+    }
+
+    /**
+     * Draft teks proposal dengan AI. TIDAK menyimpan apa pun — hanya mengembalikan
+     * JSON agar form terisi dan Sales meninjau sebelum menekan "Simpan Detail".
+     */
+    public function generateAi(Request $request, array $params): void
+    {
+        $proposal = $this->findAuthorized((int) $params['id']);
+
+        if (!Csrf::verifyRequest()) {
+            $this->json(['error' => 'Sesi telah kedaluwarsa, muat ulang halaman.'], 419);
+
+            return;
+        }
+        if (!$this->canOperate($proposal) || !in_array($proposal['status'], ['draft', 'revision'], true)) {
+            $this->json(['error' => 'Proposal ini tidak dapat diubah.'], 403);
+
+            return;
+        }
+
+        try {
+            $draft = ProposalAiGenerator::generate($proposal);
+        } catch (\RuntimeException $e) {
+            $this->json(['error' => $e->getMessage()], 422);
+
+            return;
+        }
+
+        AuditLogger::log((int) Auth::id(), 'proposal_ai_draft_generated', 'proposal', (int) $proposal['id']);
+        $this->json(['draft' => $draft]);
     }
 
     public function destroy(Request $request, array $params): void
