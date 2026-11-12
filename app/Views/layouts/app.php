@@ -14,12 +14,24 @@
 </head>
 <body>
     <div class="app-shell">
-        <?php include __DIR__ . '/../partials/sidebar.php'; ?>
-
         <div class="app-main">
             <?php include __DIR__ . '/../partials/topbar.php'; ?>
 
             <main class="app-content">
+                <?php if (!empty($breadcrumb ?? [])): ?>
+                <nav class="page-crumbs" aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="<?= url('/dashboard') ?>"><i class="bi bi-house-door"></i></a></li>
+                        <?php foreach ($breadcrumb as $label => $link): ?>
+                            <?php if (is_string($label)): ?>
+                                <li class="breadcrumb-item"><a href="<?= e($link) ?>"><?= e($label) ?></a></li>
+                            <?php else: ?>
+                                <li class="breadcrumb-item active" aria-current="page"><?= e($link) ?></li>
+                            <?php endif; ?>
+                        <?php endforeach; ?>
+                    </ol>
+                </nav>
+                <?php endif; ?>
                 <?php include __DIR__ . '/../partials/flash.php'; ?>
                 <?= $content ?>
             </main>

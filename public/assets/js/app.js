@@ -127,22 +127,30 @@
     window.Api = Api;
 
     /* ------------------------------------------------------------------
-     * Sidebar toggle (mobile / tablet off-canvas)
+     * Tabel dengan kolom terkunci (.table-sticky): bayangan hanya muncul
+     * setelah tabel benar-benar digeser ke samping.
      * ---------------------------------------------------------------- */
-    const sidebar = document.getElementById('appSidebar');
-    const backdrop = document.getElementById('sidebarBackdrop');
-    const toggleBtn = document.getElementById('sidebarToggle');
-
-    function closeSidebar() {
-        sidebar?.classList.remove('open');
-        backdrop?.classList.remove('show');
-    }
-
-    toggleBtn?.addEventListener('click', () => {
-        sidebar?.classList.toggle('open');
-        backdrop?.classList.toggle('show');
+    document.querySelectorAll('.table-responsive').forEach((wrap) => {
+        const table = wrap.querySelector('.table-sticky');
+        if (!table) return;
+        const sync = () => table.classList.toggle('is-scrolled', wrap.scrollLeft > 4);
+        wrap.addEventListener('scroll', sync, { passive: true });
+        sync();
     });
-    backdrop?.addEventListener('click', closeSidebar);
+
+    /* ------------------------------------------------------------------
+     * Tab kartu (pill tabs): <button data-tab-group="g" data-tab-target="id">
+     * mengaktifkan <div id="id" class="tab-pane-x"> dalam grup yang sama.
+     * ---------------------------------------------------------------- */
+    document.querySelectorAll('[data-tab-group]').forEach((tab) => {
+        tab.addEventListener('click', () => {
+            const group = tab.getAttribute('data-tab-group');
+            document.querySelectorAll('[data-tab-group="' + group + '"]').forEach((t) => t.classList.toggle('active', t === tab));
+            document.querySelectorAll('[data-tab-pane="' + group + '"]').forEach((p) => {
+                p.classList.toggle('active', p.id === tab.getAttribute('data-tab-target'));
+            });
+        });
+    });
 
     /* ------------------------------------------------------------------
      * Password visibility toggle

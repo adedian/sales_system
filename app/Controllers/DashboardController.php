@@ -7,6 +7,7 @@ use App\Core\Auth;
 use App\Core\Controller;
 use App\Models\AuditLog;
 use App\Models\EngineerAssignment;
+use App\Models\FollowUp;
 use App\Models\Lead;
 use App\Models\MasterData;
 use App\Models\ProcurementRequest;
@@ -71,8 +72,75 @@ class DashboardController extends Controller
         }
 
         $slaDays = Setting::getInt('sla_lead_aging_days', 7);
+        $positionCounts = Lead::currentProcessDistribution();
+
+        // % perubahan; null = sebelumnya 0 dan sekarang ada (tidak bisa dihitung persen).
+        $pct = function (float $cur, float $prev): ?int {
+            if ($prev > 0) {
+                return (int) round((($cur - $prev) / $prev) * 100);
+            }
+
+            return $cur > 0 ? null : 0;
+        };
+
+        // Kartu "Pertumbuhan Lead": lead baru per periode vs periode sebelumnya yang sama panjang.
+        $growth = [];
+        foreach ([7 => '7 Hari', 30 => '30 Hari', 90 => '90 Hari'] as $days => $label) {
+            $cur = Lead::createdCountInWindow($days - 1, 0);
+            $prev = Lead::createdCountInWindow(($days * 2) - 1, $days);
+            $growth[$days] = ['label' => $label, 'count' => $cur, 'delta' => $pct($cur, $prev)];
+        }
+
+        // Grafik mingguan: 14 hari terakhir -> 7 hari ini + 7 hari sebelumnya (untuk pembanding).
+        $series = [
+            'leads' => ['label' => 'Lead Masuk', 'noun' => 'lead baru', 'data' => Lead::createdPerDay(14)],
+            'won' => ['label' => 'Deal Won', 'noun' => 'deal won', 'data' => Lead::wonPerDay(14)],
+            'followup' => ['label' => 'Follow Up', 'noun' => 'follow up', 'data' => FollowUp::loggedPerDay(14)],
+        ];
+        $week = ['days' => [], 'metrics' => []];
+        foreach ($series as $key => $s) {
+            $values = array_values($s['data']);
+            $dates = array_keys($s['data']);
+            $thisWeek = array_slice($values, 7);
+            $lastWeek = array_slice($values, 0, 7);
+            $week['days'] = array_slice($dates, 7);
+            $week['metrics'][$key] = [
+                'label' => $s['label'],
+                'noun' => $s['noun'],
+                'values' => $thisWeek,
+                'total' => array_sum($thisWeek),
+                'prev_total' => array_sum($lastWeek),
+                'delta' => $pct(array_sum($thisWeek), array_sum($lastWeek)),
+            ];
+        }
+        $dayNames = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+        $week['day_labels'] = array_map(fn ($d) => $dayNames[(int) date('w', strtotime($d))], $week['days']);
+
+        $wonThisMonth = Lead::wonValueInMonth(0);
+        $wonLastMonth = Lead::wonValueInMonth(1);
+
+        // Alur proses: tahap berurutan seperti urutan kerja di lapangan.
+        $tally = array_column($positionCounts, 'total', 'label');
+        $sum = fn (array $labels) => array_sum(array_map(fn ($l) => (int) ($tally[$l] ?? 0), $labels));
+        $isDirector = (int) (auth_user()['is_director'] ?? 0) === 1;
+        $flowStages = [
+            ['label' => 'Di Sales', 'hint' => 'Belum masuk antrian', 'total' => $sum(['Sales']), 'url' => '/leads', 'can' => true],
+            ['label' => 'Survey & Data', 'hint' => 'Kelengkapan data awal', 'total' => $sum(['Survey', 'Data Antrian']), 'url' => '/queue', 'can' => can('queue.view')],
+            ['label' => 'Prelim', 'hint' => 'Penawaran awal ke client', 'total' => $sum(['Prelim']), 'url' => '/prelims', 'can' => can('prelim.view')],
+            ['label' => 'Engineering', 'hint' => 'Analisa teknis & BOQ', 'total' => $sum(['Sales Engineer', 'Engineer']), 'url' => '/engineer', 'can' => can('engineer.view')],
+            ['label' => 'Procurement', 'hint' => 'Harga vendor', 'total' => $sum(['Procurement']), 'url' => '/procurement', 'can' => can('procurement.view')],
+            ['label' => 'Approval Harga', 'hint' => 'Validasi Direktur', 'total' => $sum(['Approval Harga']), 'url' => $isDirector ? '/procurement/validation' : '/procurement', 'can' => can('procurement.view') || $isDirector],
+            ['label' => 'Proposal', 'hint' => 'Penawaran final', 'total' => $sum(['Proposal']), 'url' => '/proposals', 'can' => can('proposal.view')],
+        ];
+        $flowMax = max(1, ...array_column($flowStages, 'total'));
 
         $this->view('dashboard/index', [
+            'growth' => $growth,
+            'week' => $week,
+            'wonMonth' => ['this' => $wonThisMonth, 'last' => $wonLastMonth, 'delta' => $pct($wonThisMonth, $wonLastMonth)],
+            'newToday' => Lead::createdCountInWindow(0, 0),
+            'flowStages' => $flowStages,
+            'flowMax' => $flowMax,
             'pageTitle' => 'Dashboard',
             'stats' => [
                 'active_users' => User::countActive(),
@@ -112,7 +180,7 @@ class DashboardController extends Controller
                 'procurement' => ProcurementRequest::workloadByAssignee(),
             ],
             'recentActivity' => AuditLog::recent(8),
-            'positionCounts' => Lead::currentProcessDistribution(),
+            'positionCounts' => $positionCounts,
             'notYetQueuedCount' => Lead::countNotYetQueued(),
         ]);
     }

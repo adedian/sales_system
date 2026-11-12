@@ -8,15 +8,12 @@ $daysLate = function (string $date): int {
 ?>
 <div class="page-header page-header-row">
     <div>
-        <h2>Selamat datang, <?= e($firstName) ?> 👋</h2>
+        <h2>Selamat datang, <?= e($firstName) ?></h2>
         <p class="text-muted">Ringkasan pekerjaan Anda hari ini.</p>
     </div>
-    <div class="row-actions">
+    <div class="page-actions">
         <a href="<?= url('/leads/create') ?>" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Tambah Lead</a>
-        <a href="<?= url('/leads') ?>" class="btn btn-light">Lead Saya</a>
-        <a href="<?= url('/queue') ?>" class="btn btn-light">Antrian Saya</a>
-        <a href="<?= url('/proposals') ?>" class="btn btn-light">Proposal Saya</a>
-        <a href="<?= url('/follow-ups') ?>" class="btn btn-light">Follow Up Calendar</a>
+        <a href="<?= url('/follow-ups') ?>" class="btn btn-light"><i class="bi bi-calendar-event me-1"></i>Kalender Follow Up</a>
     </div>
 </div>
 

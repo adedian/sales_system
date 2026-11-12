@@ -18,6 +18,33 @@ class FollowUp extends Model
 
     public const METHODS = ['call', 'whatsapp', 'email', 'visit', 'other'];
 
+    /**
+     * Jumlah follow up yang dicatat per hari untuk $days hari terakhir
+     * (dipakai grafik mingguan di Dashboard). Hari kosong bernilai 0.
+     *
+     * @return array<string,int>
+     */
+    public static function loggedPerDay(int $days): array
+    {
+        $rows = Database::fetchAll(
+            "SELECT DATE(followup_date) AS d, COUNT(*) AS total FROM followups
+             WHERE followup_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY) AND followup_date < DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+             GROUP BY DATE(followup_date)",
+            [$days - 1]
+        );
+        $byDate = [];
+        foreach ($rows as $r) {
+            $byDate[$r['d']] = (int) $r['total'];
+        }
+        $out = [];
+        for ($i = $days - 1; $i >= 0; $i--) {
+            $d = date('Y-m-d', strtotime("-{$i} day"));
+            $out[$d] = $byDate[$d] ?? 0;
+        }
+
+        return $out;
+    }
+
     public const CUSTOMER_RESPONSES = ['interested', 'negotiating', 'need_info', 'not_interested', 'no_answer'];
 
     public static function record(array $data): int

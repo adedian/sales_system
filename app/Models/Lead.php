@@ -548,6 +548,76 @@ class Lead extends Model
         )['total'] ?? 0);
     }
 
+    /**
+     * Jumlah lead baru (created_at) per hari untuk $days hari terakhir
+     * (termasuk hari ini). Hari tanpa lead tetap muncul dengan nilai 0.
+     *
+     * @return array<string,int> ['2026-11-12' => 3, ...] urut dari terlama
+     */
+    public static function createdPerDay(int $days): array
+    {
+        $rows = Database::fetchAll(
+            "SELECT DATE(created_at) AS d, COUNT(*) AS total FROM leads
+             WHERE deleted_at IS NULL AND created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+             GROUP BY DATE(created_at)",
+            [$days - 1]
+        );
+
+        return self::fillDays($rows, $days);
+    }
+
+    /** Jumlah lead Won per hari (berdasarkan closing_date) untuk $days hari terakhir. */
+    public static function wonPerDay(int $days): array
+    {
+        $rows = Database::fetchAll(
+            "SELECT COALESCE(closing_date, DATE(updated_at)) AS d, COUNT(*) AS total FROM leads
+             WHERE deleted_at IS NULL AND status = 'won'
+               AND COALESCE(closing_date, DATE(updated_at)) >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+             GROUP BY COALESCE(closing_date, DATE(updated_at))",
+            [$days - 1]
+        );
+
+        return self::fillDays($rows, $days);
+    }
+
+    /** Lead baru dalam rentang [dari hari-ke-$fromDaysAgo, hingga hari-ke-$toDaysAgo] (0 = hari ini). */
+    public static function createdCountInWindow(int $fromDaysAgo, int $toDaysAgo): int
+    {
+        return (int) (Database::fetch(
+            "SELECT COUNT(*) AS total FROM leads
+             WHERE deleted_at IS NULL
+               AND DATE(created_at) BETWEEN DATE_SUB(CURDATE(), INTERVAL ? DAY) AND DATE_SUB(CURDATE(), INTERVAL ? DAY)",
+            [$fromDaysAgo, $toDaysAgo]
+        )['total'] ?? 0);
+    }
+
+    /** Nilai Won (deal_value) bulan kalender $monthsAgo yang lalu (0 = bulan ini). */
+    public static function wonValueInMonth(int $monthsAgo): float
+    {
+        return (float) (Database::fetch(
+            "SELECT COALESCE(SUM(deal_value), 0) AS total FROM leads
+             WHERE deleted_at IS NULL AND status = 'won'
+               AND DATE_FORMAT(COALESCE(closing_date, DATE(updated_at)), '%Y-%m') = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL ? MONTH), '%Y-%m')",
+            [$monthsAgo]
+        )['total'] ?? 0);
+    }
+
+    /** Isi hari kosong agar grafik selalu punya $days titik berurutan. */
+    private static function fillDays(array $rows, int $days): array
+    {
+        $byDate = [];
+        foreach ($rows as $r) {
+            $byDate[$r['d']] = (int) $r['total'];
+        }
+        $out = [];
+        for ($i = $days - 1; $i >= 0; $i--) {
+            $d = date('Y-m-d', strtotime("-{$i} day"));
+            $out[$d] = $byDate[$d] ?? 0;
+        }
+
+        return $out;
+    }
+
     /** Won / (Won + Lost) as a percentage — 0 when nothing has closed yet. */
     public static function conversionRate(): float
     {

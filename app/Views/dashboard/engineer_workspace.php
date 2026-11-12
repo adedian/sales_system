@@ -4,10 +4,10 @@ $firstName = explode(' ', auth_user()['name'] ?? '')[0] ?? '';
 ?>
 <div class="page-header page-header-row">
     <div>
-        <h2>Selamat datang, <?= e($firstName) ?> 👋</h2>
+        <h2>Selamat datang, <?= e($firstName) ?></h2>
         <p class="text-muted">Ringkasan assignment engineer Anda hari ini.</p>
     </div>
-    <div class="row-actions">
+    <div class="page-actions">
         <a href="<?= url('/engineer') ?>" class="btn btn-primary"><i class="bi bi-tools me-1"></i>Lihat Semua Assignment</a>
     </div>
 </div>
