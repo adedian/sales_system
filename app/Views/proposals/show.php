@@ -132,6 +132,8 @@ $notes = array_values(array_filter($timeline, fn ($e) => $e['type'] === 'note'))
             </div>
         </div>
 
+        <?php include __DIR__ . '/_plts.php'; ?>
+
         <div class="card card-elevated mt-3">
             <div class="card-header d-flex align-items-center justify-content-between">
                 <h3>Item Penawaran</h3>

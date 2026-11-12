@@ -1,0 +1,4 @@
+pymupdf
+jinja2
+openpyxl
+pillow

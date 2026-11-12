@@ -8,3 +8,8 @@
 /database/backups/
 .DS_Store
 Thumbs.db
+
+# Generator PLTS: datasheet (berat), hasil PDF, dan data proyek klien tidak ikut git
+/tools/hme-proposal-plts/datasheet/
+/tools/hme-proposal-plts/proposal-generator/output/
+/tools/hme-proposal-plts/proposal-generator/projects/pro-*/

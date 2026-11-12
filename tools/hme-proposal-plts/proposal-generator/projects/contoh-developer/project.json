@@ -1,0 +1,734 @@
+{
+  "company": {
+    "installed_mwp": 10,
+    "since": "November 2022",
+    "industrial_mwp": 10.26
+  },
+  "financial": {
+    "pln_tariff_rp_kwh": 1066.85,
+    "tariff_note": "",
+    "peak_sun_hours": 4.5,
+    "operating_days": 365,
+    "performance_ratio": 0.8,
+    "degradation_first_year_pct": 1,
+    "degradation_pct": 0.4,
+    "tariff_escalation_pct": 2,
+    "om_pct_of_capex": 1,
+    "inverter_replacement_years": [
+      12
+    ],
+    "battery_replacement_years": [
+      10,
+      20
+    ],
+    "years": 25,
+    "grid_emission_factor_t_mwh": 0.87,
+    "sensitivity_escalation_pct": [
+      0,
+      2,
+      3,
+      5
+    ],
+    "discount_rate_pct": 10
+  },
+  "terms": [
+    "Price validity: 14 days.",
+    "Franco Pasuruan.",
+    "Price is based on the design proposed by HME. Any design change will change the price.",
+    "Maximum cable distance from inverter to the interconnection point is 20 meters.",
+    "Price excludes structural reinforcement if the existing building is found not strong enough.",
+    "Size and price are subject to change after structural analysis.",
+    "HME reserves the right to substitute equipment brand and model with one of equivalent or better performance and quality (Tier-1).",
+    "HME assumes storage space is available on the client's site for warehousing."
+  ],
+  "warranty": [
+    {
+      "item": "PV module",
+      "value": "12 years",
+      "detail": "Manufacturer product warranty, plus linear power output warranty per datasheet."
+    },
+    {
+      "item": "Inverter",
+      "value": "5 years",
+      "detail": "Manufacturer product warranty."
+    },
+    {
+      "item": "Mounting structure",
+      "value": "10 years",
+      "detail": "Product warranty for the mounting structure."
+    },
+    {
+      "item": "Installation",
+      "value": "12 months",
+      "detail": "HME warrants the installation against defects. Extendable upon request."
+    }
+  ],
+  "schedule": [
+    {
+      "task": "EPC agreement",
+      "start": 0,
+      "end": 0.5
+    },
+    {
+      "task": "Detailed engineering design",
+      "start": 0.25,
+      "end": 1
+    },
+    {
+      "task": "Procurement",
+      "start": 0.75,
+      "end": 2
+    },
+    {
+      "task": "Construction",
+      "start": 1.5,
+      "end": 3
+    },
+    {
+      "task": "Testing & commissioning",
+      "start": 2.75,
+      "end": 3.25
+    },
+    {
+      "task": "SLO & operation permit",
+      "start": 3,
+      "end": 3.5
+    }
+  ],
+  "scope": {
+    "services": [
+      [
+        "1",
+        "Site survey",
+        true,
+        false
+      ],
+      [
+        "2",
+        "Project management",
+        true,
+        false
+      ],
+      [
+        "2.1",
+        "Permits required for installation",
+        true,
+        false
+      ],
+      [
+        "2.2",
+        "Planning & project coordination",
+        true,
+        true
+      ],
+      [
+        "2.3",
+        "Project progress tracking & report",
+        true,
+        false
+      ],
+      [
+        "2.4",
+        "Site supervision",
+        true,
+        false
+      ],
+      [
+        "2.5",
+        "Implementation of HSE rules",
+        true,
+        false
+      ],
+      [
+        "2.6",
+        "QA/QC",
+        true,
+        false
+      ],
+      [
+        "3",
+        "Detailed engineering design",
+        true,
+        false
+      ],
+      [
+        "3.1",
+        "Engineering design & calculation",
+        true,
+        false
+      ],
+      [
+        "3.2",
+        "Shop drawing",
+        true,
+        false
+      ],
+      [
+        "3.3",
+        "As-built drawing",
+        true,
+        false
+      ],
+      [
+        "4",
+        "Procurement & supply",
+        true,
+        false
+      ],
+      [
+        "5",
+        "Construction of the plant",
+        true,
+        false
+      ],
+      [
+        "6",
+        "Commissioning",
+        true,
+        false
+      ],
+      [
+        "7",
+        "SLO & PV system operation permit",
+        true,
+        false
+      ],
+      [
+        "8",
+        "Additional scope of work",
+        true,
+        true
+      ]
+    ],
+    "supply": [
+      "Solar panel",
+      "Inverter",
+      "Cable tray",
+      "DC cable",
+      "Smart logger",
+      "Weather station",
+      "Mounting structure",
+      "Safety line",
+      "AC cable",
+      "Conduit and accessories",
+      "Grounding structure",
+      "Grounding cable",
+      "Walkway (HDG)",
+      "Water cleaning system",
+      "Inverter shelter",
+      "Communication cable",
+      "Switchgear",
+      "Safety equipment",
+      "Access ladder",
+      "Fire extinguisher"
+    ]
+  },
+  "id": {
+    "price_items": [
+      "Pekerjaan BOS PLTS On-Grid Rooftop",
+      "Material BOS kelas industri",
+      "Jasa instalasi"
+    ],
+    "terms": [
+      "Harga berlaku 14 hari.",
+      "Franco Pasuruan.",
+      "Modul surya dan inverter disuplai Contoh Energi dan tiba di lokasi sesuai jadwal proyek.",
+      "Harga berdasarkan desain yang diusulkan HME; perubahan desain, jumlah, atau tipe modul dan inverter akan mengubah harga.",
+      "Ukuran dan harga dapat berubah setelah analisis struktur.",
+      "HME berhak mengganti merek dan model material BOS dengan yang setara atau lebih baik.",
+      "Contoh Energi menyediakan ruang penyimpanan material di lokasi."
+    ],
+    "warranty": [
+      {
+        "item": "Struktur mounting",
+        "value": "10 tahun",
+        "detail": "Garansi produk struktur mounting."
+      },
+      {
+        "item": "Instalasi",
+        "value": "12 bulan",
+        "detail": "HME menjamin instalasi bebas cacat. Dapat diperpanjang atas permintaan."
+      },
+      {
+        "item": "Modul surya dan inverter",
+        "value": "Garansi pabrikan",
+        "detail": "Disuplai developer, sehingga di luar garansi HME."
+      }
+    ],
+    "schedule": [
+      {
+        "task": "Penandatanganan kontrak",
+        "start": 0,
+        "end": 0.5
+      },
+      {
+        "task": "Desain engineering detail",
+        "start": 0.25,
+        "end": 1
+      },
+      {
+        "task": "Pengadaan material BOS",
+        "start": 0.75,
+        "end": 2
+      },
+      {
+        "task": "Konstruksi",
+        "start": 1.5,
+        "end": 3
+      },
+      {
+        "task": "Pengujian & commissioning",
+        "start": 2.75,
+        "end": 3.25
+      },
+      {
+        "task": "SLO & izin operasi",
+        "start": 3,
+        "end": 3.5
+      }
+    ],
+    "scope": {
+      "services": [
+        [
+          "1",
+          "Survei lokasi",
+          true,
+          true
+        ],
+        [
+          "2",
+          "Manajemen proyek",
+          true,
+          true
+        ],
+        [
+          "2.1",
+          "Perizinan untuk instalasi",
+          true,
+          true
+        ],
+        [
+          "2.2",
+          "Perencanaan & koordinasi proyek",
+          true,
+          true
+        ],
+        [
+          "2.3",
+          "Pelacakan & laporan progres",
+          true,
+          false
+        ],
+        [
+          "2.4",
+          "Pengawasan lapangan",
+          true,
+          false
+        ],
+        [
+          "2.5",
+          "Penerapan aturan K3",
+          true,
+          true
+        ],
+        [
+          "2.6",
+          "QA/QC",
+          true,
+          true
+        ],
+        [
+          "3",
+          "Desain engineering detail",
+          true,
+          false
+        ],
+        [
+          "3.1",
+          "Desain & perhitungan engineering",
+          true,
+          false
+        ],
+        [
+          "3.2",
+          "Shop drawing",
+          true,
+          false
+        ],
+        [
+          "3.3",
+          "As-built drawing",
+          true,
+          false
+        ],
+        [
+          "4",
+          "Pengadaan & suplai",
+          true,
+          false
+        ],
+        [
+          "5",
+          "Konstruksi pembangkit",
+          true,
+          false
+        ],
+        [
+          "6",
+          "Commissioning",
+          true,
+          false
+        ],
+        [
+          "7",
+          "SLO & izin operasi PLTS",
+          true,
+          false
+        ],
+        [
+          "8",
+          "Pekerjaan tambahan",
+          true,
+          true
+        ]
+      ],
+      "supply": [
+        [
+          "Modul surya",
+          false,
+          true
+        ],
+        [
+          "Inverter",
+          false,
+          true
+        ],
+        [
+          "Cable tray",
+          true,
+          false
+        ],
+        [
+          "Kabel DC",
+          true,
+          false
+        ],
+        [
+          "Smart logger",
+          true,
+          false
+        ],
+        [
+          "Weather station",
+          true,
+          false
+        ],
+        [
+          "Struktur mounting",
+          true,
+          false
+        ],
+        [
+          "Safety line",
+          true,
+          false
+        ],
+        [
+          "Kabel AC",
+          true,
+          false
+        ],
+        [
+          "Conduit & aksesori",
+          true,
+          false
+        ],
+        [
+          "Struktur grounding",
+          true,
+          false
+        ],
+        [
+          "Kabel grounding",
+          true,
+          false
+        ],
+        [
+          "Walkway",
+          true,
+          false
+        ],
+        [
+          "Sistem pembersih air",
+          true,
+          false
+        ],
+        [
+          "Shelter inverter",
+          true,
+          false
+        ],
+        [
+          "Kabel komunikasi",
+          true,
+          false
+        ],
+        [
+          "Switchgear",
+          true,
+          false
+        ],
+        [
+          "Peralatan K3",
+          true,
+          false
+        ],
+        [
+          "Tangga akses",
+          true,
+          false
+        ],
+        [
+          "APAR",
+          true,
+          false
+        ]
+      ]
+    },
+    "tariff_note": "",
+    "quality": [
+      [
+        "Perizinan",
+        "SLO dan NIDI diurus HME",
+        "Termasuk dalam lingkup pekerjaan dan harga penawaran."
+      ],
+      [
+        "Pemantauan",
+        "Alarm gangguan real-time",
+        "Dikirim ke tim HME dan tim developer melalui sistem monitoring."
+      ]
+    ],
+    "production_guarantee": null,
+    "payment_terms": [
+      [
+        "Uang muka",
+        "30%",
+        "Saat kontrak ditandatangani"
+      ],
+      [
+        "Material di lokasi",
+        "45%",
+        "Material tiba di lokasi"
+      ],
+      [
+        "Pembayaran progres",
+        "20%",
+        "Sesuai progres pekerjaan"
+      ],
+      [
+        "Setelah instalasi",
+        "5%",
+        "Instalasi selesai"
+      ]
+    ],
+    "included": [
+      "Struktur mounting dan penetrasi atap",
+      "Kabel DC, AC, grounding, dan komunikasi",
+      "Panel AC, proteksi, dan metering",
+      "Monitoring dan sensor cuaca",
+      "Cable tray, walkway, safety line, dan tangga akses",
+      "Instalasi, commissioning, SLO, dan NIDI"
+    ],
+    "excluded": [
+      "Perkuatan struktur bila bangunan eksisting dinilai kurang kuat"
+    ],
+    "bos_specs": [
+      [
+        "Mounting",
+        "Kliplok",
+        ""
+      ],
+      [
+        "Panel AC",
+        "1 panel · ACB 1250 A",
+        "1 titik interkoneksi, zero export"
+      ]
+    ]
+  },
+  "meta": {
+    "number": "003/Q.PLTS/HME/X/2026",
+    "date": "30 October 2026",
+    "date_id": "30 Oktober 2026",
+    "revision": "00",
+    "prepared_by": "Tim Sales HME",
+    "language": "id"
+  },
+  "client": {
+    "name": "PT Contoh Energi Hijau",
+    "short_name": "Contoh Energi",
+    "location": "Pasuruan, East Java",
+    "location_id": "Pasuruan, Jawa Timur",
+    "city": "Pasuruan",
+    "segment": "Developer"
+  },
+  "site": {
+    "name": "PT Contoh Logam Indonesia",
+    "short_name": "Contoh Logam"
+  },
+  "system": {
+    "type": "On-Grid",
+    "mounting": "Rooftop",
+    "capacity_kwp": 1000,
+    "capacity_kva": 800,
+    "panel": {
+      "qty": 1600,
+      "spare": 16,
+      "brand": "Trina Solar",
+      "model": "",
+      "wp": 625
+    },
+    "inverter": {
+      "qty": 6,
+      "brand": "Huawei",
+      "model": "150KTL-MG0",
+      "kva": 150,
+      "mix": [
+        {
+          "qty": 5,
+          "model": "150KTL-MG0",
+          "kva": 150
+        },
+        {
+          "qty": 1,
+          "model": "50KTL-M0",
+          "kva": 50
+        }
+      ]
+    },
+    "battery": null,
+    "monitoring": "Smartlogger Huawei + sensor cuaca"
+  },
+  "price": {
+    "total": 4000000000,
+    "vat_pct": 11
+  },
+  "boq": [
+    {
+      "section": "Aksesori Monitoring",
+      "items": [
+        [
+          "Monitoring",
+          1,
+          "pcs",
+          "Smartlogger Huawei"
+        ],
+        [
+          "Sensor cuaca",
+          1,
+          "pcs",
+          "Pyranometer"
+        ]
+      ]
+    },
+    {
+      "section": "Mounting & Penetrasi Atap",
+      "items": [
+        [
+          "Mounting",
+          1000000,
+          "Wp",
+          "Kliplok"
+        ],
+        [
+          "Sealant hitam",
+          80,
+          "pcs",
+          ""
+        ]
+      ]
+    },
+    {
+      "section": "Kabel",
+      "items": [
+        [
+          "Kabel DC",
+          20000,
+          "m",
+          "Solar cable 6 mm²"
+        ],
+        [
+          "Kabel AC",
+          800,
+          "m",
+          "NYY 1×120 mm²"
+        ],
+        [
+          "Kabel grounding",
+          1000,
+          "m",
+          "NYA 1×10 mm²"
+        ]
+      ]
+    },
+    {
+      "section": "Panel Combiner DC/AC",
+      "items": [
+        [
+          "Box panel AC",
+          1,
+          "ls",
+          "Standing panel 180 × 80 × 80 cm"
+        ],
+        [
+          "Breaker utama",
+          1,
+          "pcs",
+          "ACB 1250 A 4P"
+        ],
+        [
+          "Zero export",
+          1,
+          "ls",
+          "1 titik interkoneksi"
+        ]
+      ]
+    },
+    {
+      "section": "Jasa, Pengiriman & Perizinan",
+      "items": [
+        [
+          "Jasa instalasi",
+          1000000,
+          "Wp",
+          ""
+        ],
+        [
+          "Pengiriman",
+          1,
+          "ls",
+          ""
+        ],
+        [
+          "SLO dan NIDI",
+          1,
+          "ls",
+          ""
+        ]
+      ]
+    }
+  ],
+  "datasheets": [
+    {
+      "title": "Modul Surya · Trina Solar TSM-NE19R",
+      "file": "../../../datasheet/Trina/Vertex_NE19R_5600-630 EN_2024_APAC_A_web.pdf"
+    },
+    {
+      "title": "Inverter · Huawei SUN2000-150KTL-MG0",
+      "file": "../../../datasheet/huawei/150.pdf"
+    },
+    {
+      "title": "Inverter · Huawei SUN2000-50KTL-M0",
+      "file": "../../../datasheet/huawei/SUN2000-50KTL-M0.pdf"
+    }
+  ]
+}

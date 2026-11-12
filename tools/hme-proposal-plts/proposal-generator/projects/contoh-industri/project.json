@@ -1,0 +1,1013 @@
+{
+  "company": {
+    "installed_mwp": 10,
+    "since": "November 2022",
+    "industrial_mwp": 10.26
+  },
+  "financial": {
+    "pln_tariff_rp_kwh": 1066.85,
+    "tariff_note": "LWBP Rp 1.035,78/kWh + PPJ 3%",
+    "peak_sun_hours": 5.74,
+    "operating_days": 365,
+    "performance_ratio": 0.8,
+    "degradation_first_year_pct": 1,
+    "degradation_pct": 0.4,
+    "tariff_escalation_pct": 2,
+    "om_pct_of_capex": 1,
+    "inverter_replacement_years": [
+      12
+    ],
+    "battery_replacement_years": [
+      10,
+      20
+    ],
+    "years": 25,
+    "grid_emission_factor_t_mwh": 0.87,
+    "sensitivity_escalation_pct": [
+      0,
+      2,
+      3,
+      5
+    ],
+    "discount_rate_pct": 10,
+    "escalation_range_pct": [
+      2,
+      5
+    ],
+    "irradiance_source": "Global Solar Atlas, Pasuruan"
+  },
+  "terms": [
+    "Price validity: 14 days.",
+    "Franco Pasuruan.",
+    "Price is based on the design proposed by HME. Any design change will change the price.",
+    "Maximum cable distance from inverter to the interconnection point is 20 meters.",
+    "Price excludes structural reinforcement if the existing building is found not strong enough.",
+    "Size and price are subject to change after structural analysis.",
+    "HME reserves the right to substitute equipment brand and model with one of equivalent or better performance and quality (Tier-1).",
+    "HME assumes storage space is available on the client's site for warehousing."
+  ],
+  "warranty": [
+    {
+      "item": "PV module",
+      "value": "12 years",
+      "detail": "Manufacturer product warranty, plus linear power output warranty per datasheet."
+    },
+    {
+      "item": "Inverter",
+      "value": "5 years",
+      "detail": "Manufacturer product warranty."
+    },
+    {
+      "item": "Mounting structure",
+      "value": "10 years",
+      "detail": "Product warranty for the mounting structure."
+    },
+    {
+      "item": "Installation",
+      "value": "12 months",
+      "detail": "HME warrants the installation against defects. Extendable upon request."
+    }
+  ],
+  "schedule": [
+    {
+      "task": "EPC agreement",
+      "start": 0,
+      "end": 0.5
+    },
+    {
+      "task": "Detailed engineering design",
+      "start": 0.25,
+      "end": 1
+    },
+    {
+      "task": "Procurement",
+      "start": 0.75,
+      "end": 2
+    },
+    {
+      "task": "Construction",
+      "start": 1.5,
+      "end": 3
+    },
+    {
+      "task": "Testing & commissioning",
+      "start": 2.75,
+      "end": 3.25
+    },
+    {
+      "task": "SLO & operation permit",
+      "start": 3,
+      "end": 3.5
+    }
+  ],
+  "scope": {
+    "services": [
+      [
+        "1",
+        "Site survey",
+        true,
+        false
+      ],
+      [
+        "2",
+        "Project management",
+        true,
+        false
+      ],
+      [
+        "2.1",
+        "Permits required for installation",
+        true,
+        false
+      ],
+      [
+        "2.2",
+        "Planning & project coordination",
+        true,
+        true
+      ],
+      [
+        "2.3",
+        "Project progress tracking & report",
+        true,
+        false
+      ],
+      [
+        "2.4",
+        "Site supervision",
+        true,
+        false
+      ],
+      [
+        "2.5",
+        "Implementation of HSE rules",
+        true,
+        false
+      ],
+      [
+        "2.6",
+        "QA/QC",
+        true,
+        false
+      ],
+      [
+        "3",
+        "Detailed engineering design",
+        true,
+        false
+      ],
+      [
+        "3.1",
+        "Engineering design & calculation",
+        true,
+        false
+      ],
+      [
+        "3.2",
+        "Shop drawing",
+        true,
+        false
+      ],
+      [
+        "3.3",
+        "As-built drawing",
+        true,
+        false
+      ],
+      [
+        "4",
+        "Procurement & supply",
+        true,
+        false
+      ],
+      [
+        "5",
+        "Construction of the plant",
+        true,
+        false
+      ],
+      [
+        "6",
+        "Commissioning",
+        true,
+        false
+      ],
+      [
+        "7",
+        "SLO & PV system operation permit",
+        true,
+        false
+      ],
+      [
+        "8",
+        "Additional scope of work",
+        true,
+        true
+      ]
+    ],
+    "supply": [
+      "Solar panel",
+      "Inverter",
+      "Cable tray",
+      "DC cable",
+      "Smart logger",
+      "Weather station",
+      "Mounting structure",
+      "Safety line",
+      "AC cable",
+      "Conduit and accessories",
+      "Grounding structure",
+      "Grounding cable",
+      "Walkway (HDG)",
+      "Water cleaning system",
+      "Inverter shelter",
+      "Communication cable",
+      "Switchgear",
+      "Safety equipment",
+      "Access ladder",
+      "Fire extinguisher"
+    ]
+  },
+  "id": {
+    "price_items": [
+      "EPC PLTS On-Grid Rooftop industri",
+      "Material PLTS on-grid kelas industri",
+      "Jasa instalasi"
+    ],
+    "terms": [
+      "Harga berlaku 14 hari.",
+      "Franco Pasuruan.",
+      "Harga berdasarkan desain yang diusulkan HME; perubahan desain akan mengubah harga.",
+      "Jarak kabel maksimum dari inverter ke titik interkoneksi 20 meter.",
+      "Harga belum termasuk perkuatan struktur bila bangunan eksisting dinilai kurang kuat.",
+      "Ukuran dan harga dapat berubah setelah analisis struktur.",
+      "HME berhak mengganti merek dan model peralatan dengan yang setara atau lebih baik (Tier-1).",
+      "Klien menyediakan ruang penyimpanan material di lokasi."
+    ],
+    "warranty": [
+      {
+        "item": "Modul surya",
+        "value": "12 tahun",
+        "detail": "Garansi produk pabrikan, ditambah garansi daya linier sesuai datasheet."
+      },
+      {
+        "item": "Inverter",
+        "value": "5 tahun",
+        "detail": "Garansi produk pabrikan."
+      },
+      {
+        "item": "Struktur mounting",
+        "value": "10 tahun",
+        "detail": "Garansi produk struktur mounting."
+      },
+      {
+        "item": "Instalasi",
+        "value": "12 bulan",
+        "detail": "HME menjamin instalasi bebas cacat. Dapat diperpanjang atas permintaan."
+      }
+    ],
+    "schedule": [
+      {
+        "task": "Perjanjian EPC",
+        "start": 0,
+        "end": 0.5
+      },
+      {
+        "task": "Desain engineering detail",
+        "start": 0.25,
+        "end": 1
+      },
+      {
+        "task": "Pengadaan",
+        "start": 0.75,
+        "end": 2
+      },
+      {
+        "task": "Konstruksi",
+        "start": 1.5,
+        "end": 3
+      },
+      {
+        "task": "Pengujian & commissioning",
+        "start": 2.75,
+        "end": 3.25
+      },
+      {
+        "task": "SLO & izin operasi",
+        "start": 3,
+        "end": 3.5
+      }
+    ],
+    "scope": {
+      "services": [
+        [
+          "1",
+          "Survei lokasi",
+          true,
+          false
+        ],
+        [
+          "2",
+          "Manajemen proyek",
+          true,
+          false
+        ],
+        [
+          "2.1",
+          "Perizinan untuk instalasi",
+          true,
+          false
+        ],
+        [
+          "2.2",
+          "Perencanaan & koordinasi proyek",
+          true,
+          true
+        ],
+        [
+          "2.3",
+          "Pelacakan & laporan progres",
+          true,
+          false
+        ],
+        [
+          "2.4",
+          "Pengawasan lapangan",
+          true,
+          false
+        ],
+        [
+          "2.5",
+          "Penerapan aturan K3",
+          true,
+          false
+        ],
+        [
+          "2.6",
+          "QA/QC",
+          true,
+          false
+        ],
+        [
+          "3",
+          "Desain engineering detail",
+          true,
+          false
+        ],
+        [
+          "3.1",
+          "Desain & perhitungan engineering",
+          true,
+          false
+        ],
+        [
+          "3.2",
+          "Shop drawing",
+          true,
+          false
+        ],
+        [
+          "3.3",
+          "As-built drawing",
+          true,
+          false
+        ],
+        [
+          "4",
+          "Pengadaan & suplai",
+          true,
+          false
+        ],
+        [
+          "5",
+          "Konstruksi pembangkit",
+          true,
+          false
+        ],
+        [
+          "6",
+          "Commissioning",
+          true,
+          false
+        ],
+        [
+          "7",
+          "SLO & izin operasi PLTS",
+          true,
+          false
+        ],
+        [
+          "8",
+          "Pekerjaan tambahan",
+          true,
+          true
+        ]
+      ],
+      "supply": [
+        "Panel surya",
+        "Inverter",
+        "Cable tray",
+        "Kabel DC",
+        "Smart logger",
+        "Weather station",
+        "Struktur mounting",
+        "Safety line",
+        "Kabel AC",
+        "Conduit & aksesori",
+        "Struktur grounding",
+        "Kabel grounding",
+        "Walkway (HDG)",
+        "Sistem pembersih air",
+        "Shelter inverter",
+        "Kabel komunikasi",
+        "Switchgear",
+        "Peralatan K3",
+        "Tangga akses",
+        "APAR"
+      ]
+    },
+    "tariff_note": "",
+    "quality": [
+      [
+        "Modul surya",
+        "IEC 61215 · IEC 61730 · UL 61215 · UL 61730",
+        "Pabrikan bersertifikat ISO 9001, ISO 14001 dan ISO 45001, sesuai datasheet."
+      ],
+      [
+        "Inverter",
+        "IEC 62109-1/-2 · IEC 61727 · IEC 62116",
+        "Standar keselamatan dan koneksi ke jaringan, sesuai datasheet."
+      ],
+      [
+        "Perizinan",
+        "SLO dan NIDI diurus HME",
+        "Termasuk dalam lingkup pekerjaan dan harga penawaran."
+      ],
+      [
+        "Pemantauan",
+        "Alarm gangguan real-time",
+        "Dikirim ke tim HME dan tim Anda melalui sistem monitoring."
+      ]
+    ],
+    "production_guarantee": null,
+    "payment_terms": [
+      [
+        "Uang muka",
+        "30%",
+        "Saat kontrak ditandatangani"
+      ],
+      [
+        "Material di lokasi",
+        "45%",
+        "Material tiba di lokasi"
+      ],
+      [
+        "Pembayaran progres",
+        "20%",
+        "Sesuai progres pekerjaan"
+      ],
+      [
+        "Setelah instalasi",
+        "5%",
+        "Instalasi selesai"
+      ]
+    ]
+  },
+  "meta": {
+    "number": "002/Q.PLTS/HME/X/2026",
+    "date": "22 October 2026",
+    "date_id": "22 Oktober 2026",
+    "revision": "01",
+    "prepared_by": "Tim Sales HME",
+    "language": "id"
+  },
+  "client": {
+    "name": "PT Contoh Tekstil Indonesia",
+    "short_name": "Contoh Tekstil",
+    "location": "Pasuruan, East Java",
+    "location_id": "Pasuruan, Jawa Timur",
+    "city": "Pasuruan",
+    "segment": "Industrial"
+  },
+  "system": {
+    "type": "On-Grid",
+    "mounting": "Rooftop",
+    "capacity_kwp": 1209.6,
+    "capacity_kva": 975,
+    "panel": {
+      "qty": 1680,
+      "brand": "Trina Solar",
+      "model": "TSM-NEG21C.20",
+      "wp": 720
+    },
+    "inverter": {
+      "qty": 7,
+      "brand": "SolaX",
+      "model": "X3-FTH-150K-P",
+      "kva": 150,
+      "mix": [
+        {
+          "qty": 4,
+          "model": "X3-FORTH X3-FTH-150K-P",
+          "kva": 150
+        },
+        {
+          "qty": 3,
+          "model": "X3-FORTH X3-FTH-125K",
+          "kva": 125
+        }
+      ]
+    },
+    "battery": null,
+    "monitoring": "SolaX EMS 1000 Pro + sensor iradiasi"
+  },
+  "price": {
+    "total": 9387698952,
+    "vat_pct": 11,
+    "items": [
+      "EPC Industrial On-Grid Solar PV System, Rooftop",
+      "On-grid industrial material",
+      "Installation service"
+    ]
+  },
+  "pln_bills": [
+    {
+      "period": "Maret 2026",
+      "days": 31,
+      "tariff_class": "I3",
+      "power_va": 2180000,
+      "meter_factor": 4000,
+      "stand": {
+        "lwbp": [
+          5594.035,
+          5805.233
+        ],
+        "wbp": [
+          1135.117,
+          1177.158
+        ]
+      },
+      "lwbp_kwh": 844792,
+      "wbp_kwh": 168164,
+      "kvarh": 0,
+      "lwbp_rp_kwh": 1035.78,
+      "wbp_rp_kwh": 1553.67,
+      "ttl_rp": 1136290020,
+      "ppj_rp": 34088701,
+      "total_rp": 1170378721
+    },
+    {
+      "period": "April 2026",
+      "days": 30,
+      "tariff_class": "I3",
+      "power_va": 2180000,
+      "meter_factor": 4000,
+      "stand": {
+        "lwbp": [
+          5805.233,
+          6036.169
+        ],
+        "wbp": [
+          1177.158,
+          1224.032
+        ]
+      },
+      "lwbp_kwh": 923744,
+      "wbp_kwh": 187496,
+      "kvarh": 0,
+      "lwbp_rp_kwh": 1035.78,
+      "wbp_rp_kwh": 1553.67,
+      "ttl_rp": 1248102470,
+      "ppj_rp": 37443074,
+      "total_rp": 1285545544
+    },
+    {
+      "period": "Mei 2026",
+      "days": 31,
+      "tariff_class": "I3",
+      "power_va": 2180000,
+      "meter_factor": 4000,
+      "stand": {
+        "lwbp": [
+          6036.169,
+          6273.109
+        ],
+        "wbp": [
+          1224.032,
+          1271.866
+        ]
+      },
+      "lwbp_kwh": 947760,
+      "wbp_kwh": 191336,
+      "kvarh": 0,
+      "lwbp_rp_kwh": 1035.78,
+      "wbp_rp_kwh": 1553.67,
+      "ttl_rp": 1278943856,
+      "ppj_rp": 38368316,
+      "total_rp": 1317312172
+    }
+  ],
+  "datasheets": [
+    {
+      "title": "Modul Surya · Trina Solar Vertex N TSM-NEG21C.20 720 Wp",
+      "file": "../../../datasheet/Trina/Vertex N_NEG21C.20_EN_2024_APAC_A_web.pdf"
+    },
+    {
+      "title": "Inverter · SolaX X3-FORTH",
+      "file": "../../../datasheet/solax/solax-x3-forth-datasheet-en.pdf"
+    }
+  ],
+  "boq": [
+    {
+      "section": "Material Utama",
+      "items": [
+        [
+          "Modul surya",
+          1680,
+          "pcs",
+          "Trina Solar Vertex N 720 Wp"
+        ],
+        [
+          "Inverter on-grid",
+          4,
+          "pcs",
+          "SolaX X3-FORTH X3-FTH-150K-P"
+        ],
+        [
+          "Inverter on-grid",
+          3,
+          "pcs",
+          "SolaX X3-FORTH X3-FTH-125K"
+        ]
+      ]
+    },
+    {
+      "section": "Monitoring",
+      "items": [
+        [
+          "EMS / data logger",
+          1,
+          "pcs",
+          "SolaX EMS 1000 Pro Box, 8 port"
+        ],
+        [
+          "Sensor suhu modul & iradiasi",
+          1,
+          "set",
+          "Seven Sensor 3S-2IS"
+        ],
+        [
+          "Panel sensor",
+          1,
+          "ls",
+          "Panel kontrol sensor"
+        ],
+        [
+          "UPS",
+          1,
+          "set",
+          "APC Smart-UPS 700 VA"
+        ],
+        [
+          "Router",
+          1,
+          "pcs",
+          "Teltonika RUT200"
+        ]
+      ]
+    },
+    {
+      "section": "Mounting & Penetrasi Atap",
+      "items": [
+        [
+          "Mounting",
+          1209600,
+          "Wp",
+          "L-feet"
+        ],
+        [
+          "Sealant",
+          81,
+          "pcs",
+          "Dextone waterproof"
+        ],
+        [
+          "Perbaikan & flashing",
+          1,
+          "ls",
+          ""
+        ]
+      ]
+    },
+    {
+      "section": "Kabel DC",
+      "items": [
+        [
+          "Kabel DC",
+          51900,
+          "m",
+          "Solar cable 6 mm²"
+        ],
+        [
+          "Kabel grounding",
+          1000,
+          "m",
+          "NYA 1×6 mm²"
+        ],
+        [
+          "Kabel grounding",
+          150,
+          "m",
+          "NYA 1×25 mm²"
+        ]
+      ]
+    },
+    {
+      "section": "Kabel AC",
+      "items": [
+        [
+          "Kabel AC inverter 150 kW",
+          286,
+          "m",
+          "NA2XY 1×185 mm² (RSTN)"
+        ],
+        [
+          "Kabel grounding inverter 150 kW",
+          107,
+          "m",
+          "NAYA 1×95 mm²"
+        ],
+        [
+          "Kabel AC inverter 125 kW",
+          232,
+          "m",
+          "NA2XY 1×150 mm² (RSTN)"
+        ],
+        [
+          "Kabel grounding inverter 125 kW",
+          93,
+          "m",
+          "NAYA 1×95 mm²"
+        ],
+        [
+          "Kabel AC ke titik interkoneksi",
+          309,
+          "m",
+          "NA2XY 1×300 mm² (RST)"
+        ],
+        [
+          "Kabel AC ke titik interkoneksi (netral)",
+          62,
+          "m",
+          "NA2XY 1×300 mm² (N)"
+        ],
+        [
+          "Kabel grounding AC",
+          200,
+          "m",
+          "NAYA 1×150 mm²"
+        ],
+        [
+          "Aksesori kabel",
+          1,
+          "ls",
+          "Terminal, skun, RS485, conduit, DIN rail, stopper, dll."
+        ]
+      ]
+    },
+    {
+      "section": "Kabel Komunikasi",
+      "items": [
+        [
+          "Kabel komunikasi RS485",
+          1,
+          "roll",
+          "Belden AWG18 1 pair shielded 9841"
+        ],
+        [
+          "Kabel LAN",
+          1,
+          "roll",
+          "Belden CAT6 7814A, RJ45"
+        ],
+        [
+          "Kabel daya sensor",
+          2,
+          "roll",
+          "NYYHY 3×2,5 mm²"
+        ],
+        [
+          "Kabel sensing genset",
+          1,
+          "roll",
+          "NYYHY 3×2,5 mm²"
+        ]
+      ]
+    },
+    {
+      "section": "Panel Combiner AC/DC",
+      "items": [
+        [
+          "Box panel AC",
+          1,
+          "ls",
+          "Panel berdiri 160×120×200 cm, 2 pintu, 2 mm, IP65"
+        ],
+        [
+          "Breaker utama (50 kA)",
+          1,
+          "pcs",
+          "MVS20 2000 A MVS20N3MF2A"
+        ],
+        [
+          "Breaker inverter 150 kW",
+          4,
+          "pcs",
+          "EasyPact CVS400F TM400D 400 A 36 kA"
+        ],
+        [
+          "Breaker inverter 125 kW",
+          3,
+          "pcs",
+          "EasyPact CVS250F TM250D 250 A 36 kA"
+        ],
+        [
+          "Motorized + relay buka/tutup",
+          1,
+          "ls",
+          ""
+        ],
+        [
+          "Power meter",
+          1,
+          "pcs",
+          "Schneider PM5350"
+        ],
+        [
+          "Current transformer",
+          3,
+          "pcs",
+          "CT 2000/5 A solid core, kelas 0,5s"
+        ],
+        [
+          "Pilot lamp",
+          17,
+          "pcs",
+          "XB4BVM3"
+        ],
+        [
+          "MCCB AC",
+          1,
+          "pcs",
+          "EZC100B 40 A"
+        ],
+        [
+          "SPD 3P+N",
+          1,
+          "pcs",
+          "PRD40 A9L40600"
+        ],
+        [
+          "Busbar",
+          1,
+          "ls",
+          ""
+        ],
+        [
+          "Zero export",
+          1,
+          "ls",
+          ""
+        ],
+        [
+          "Konektor QC4",
+          87,
+          "pair",
+          ""
+        ],
+        [
+          "Prewiring & komponen",
+          1,
+          "ls",
+          "Skun, gland stainless, terminal DIN rail, busbar, box sensor, box combiner DC, dll."
+        ]
+      ]
+    },
+    {
+      "section": "Conduit, Tray & Walkway",
+      "items": [
+        [
+          "Conduit",
+          1,
+          "ls",
+          ""
+        ],
+        [
+          "Cable tray",
+          1,
+          "ls",
+          "HDG min. 1,2 mm"
+        ],
+        [
+          "Walkway",
+          1,
+          "ls",
+          "HDG 2,4 × 0,4 m, 198 pcs"
+        ],
+        [
+          "Safety lifeline",
+          1,
+          "ls",
+          "Wire rope sling berlapis PVC 8–10 mm, 515 m"
+        ],
+        [
+          "Tangga akses",
+          1,
+          "ls",
+          "Tinggi 4 m, finishing cat"
+        ],
+        [
+          "Sistem grounding",
+          1,
+          "set",
+          ""
+        ],
+        [
+          "Shelter inverter",
+          1,
+          "ls",
+          ""
+        ]
+      ]
+    },
+    {
+      "section": "Peralatan Keselamatan",
+      "items": [
+        [
+          "APAR",
+          2,
+          "pcs",
+          "3 kg (shelter inverter)"
+        ],
+        [
+          "Safety suit kit",
+          1,
+          "ls",
+          ""
+        ]
+      ]
+    },
+    {
+      "section": "Jasa, Pengiriman & Perizinan",
+      "items": [
+        [
+          "Jasa instalasi",
+          1,
+          "ls",
+          ""
+        ],
+        [
+          "Alat berat & scaffolding",
+          1,
+          "ls",
+          ""
+        ],
+        [
+          "Engineering, pelatihan & commissioning",
+          1,
+          "ls",
+          ""
+        ],
+        [
+          "Akomodasi tenaga kerja",
+          1,
+          "ls",
+          ""
+        ],
+        [
+          "Pengiriman",
+          1,
+          "ls",
+          "Sampai lokasi, Pasuruan"
+        ],
+        [
+          "SLO dan NIDI",
+          1,
+          "ls",
+          "IUPTLS, NIDI, SLO, transportasi dan akomodasi"
+        ]
+      ]
+    }
+  ],
+  "load": {
+    "work_hours": [
+      0,
+      24
+    ],
+    "saturday": true,
+    "sunday": true,
+    "base_load_pct": 100,
+    "monthly_kwh": 1087764,
+    "monthly_bill_rp": 1257745479
+  }
+}

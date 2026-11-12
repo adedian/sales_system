@@ -26,6 +26,7 @@ use App\Models\ProposalStatusHistory;
 use App\Models\Setting;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\PltsProposalBuilder;
 use App\Services\ProposalAiGenerator;
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -290,6 +291,80 @@ class ProposalController extends Controller
 
         Session::flash('success', 'Detail proposal tersimpan.');
         $this->redirect('/proposals/' . $proposal['id']);
+    }
+
+    /**
+     * Buat PDF penawaran PLTS (generator HME, lokal tanpa API) dari data form.
+     * Isian disimpan di proposals.plts_data agar tidak perlu diketik ulang.
+     */
+    public function pltsBuild(Request $request, array $params): void
+    {
+        $proposal = $this->findAuthorized((int) $params['id']);
+        $back = '/proposals/' . $proposal['id'] . '#plts';
+
+        if (!Csrf::verifyRequest()) {
+            Session::flash('error', 'Sesi telah kedaluwarsa, silakan coba lagi.');
+            $this->redirect($back);
+
+            return;
+        }
+        if (!$this->canOperate($proposal)) {
+            $this->abort(403);
+
+            return;
+        }
+
+        $form = PltsProposalBuilder::sanitizeForm((array) $request->input('plts', []), PltsProposalBuilder::defaults($proposal));
+        $saved = PltsProposalBuilder::saved($proposal);
+        $saved['form'] = $form;
+
+        try {
+            $result = PltsProposalBuilder::build($proposal, $form);
+        } catch (\RuntimeException $e) {
+            Proposal::update((int) $proposal['id'], ['plts_data' => json_encode($saved, JSON_UNESCAPED_UNICODE)]);
+            Session::flash('error', $e->getMessage());
+            $this->redirect($back);
+
+            return;
+        }
+
+        if ($result['missing']) {
+            Proposal::update((int) $proposal['id'], ['plts_data' => json_encode($saved, JSON_UNESCAPED_UNICODE)]);
+            Session::flash('error', 'Data belum lengkap: ' . implode('; ', $result['missing']));
+            $this->redirect($back);
+
+            return;
+        }
+
+        $saved['built_at'] = date('Y-m-d H:i:s');
+        $saved['warnings'] = $result['warnings'];
+        $saved['derived'] = $result['derived'];
+        Proposal::update((int) $proposal['id'], ['plts_data' => json_encode($saved, JSON_UNESCAPED_UNICODE)]);
+        AuditLogger::log((int) Auth::id(), 'proposal_plts_pdf_generated', 'proposal', (int) $proposal['id']);
+
+        Session::flash('success', 'PDF penawaran PLTS berhasil dibuat.');
+        $this->redirect($back);
+    }
+
+    /** Tampilkan / unduh PDF penawaran PLTS yang terakhir dibuat. */
+    public function pltsPdf(Request $request, array $params): void
+    {
+        $proposal = $this->findAuthorized((int) $params['id']);
+        $path = PltsProposalBuilder::pdfPath($proposal);
+
+        if (!is_file($path)) {
+            $this->abort(404);
+
+            return;
+        }
+
+        $download = (bool) $request->input('download');
+        AuditLogger::log((int) Auth::id(), 'proposal_plts_pdf_viewed', 'proposal', (int) $proposal['id'], null, ['download' => $download]);
+
+        header('Content-Type: application/pdf');
+        header('Content-Length: ' . filesize($path));
+        header('Content-Disposition: ' . ($download ? 'attachment' : 'inline') . '; filename="' . $proposal['proposal_code'] . '-PLTS.pdf"');
+        readfile($path);
     }
 
     /**

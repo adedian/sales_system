@@ -1130,3 +1130,11 @@ CREATE TABLE IF NOT EXISTS `proposal_negotiations` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+
+-- -----------------------------------------------------------------------------
+-- Generator proposal PLTS (PDF) — data teknis per proposal, disimpan sebagai
+-- JSON: isian form terakhir + laporan build terakhir. Aman dijalankan ulang.
+-- -----------------------------------------------------------------------------
+ALTER TABLE `proposals`
+    ADD COLUMN IF NOT EXISTS `plts_data` LONGTEXT NULL AFTER `notes`;
