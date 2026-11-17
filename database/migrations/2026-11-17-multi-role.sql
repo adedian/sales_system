@@ -102,27 +102,31 @@ DELETE ur FROM `user_roles` ur
    AND (u.`is_surveyor` = 1 OR u.`is_engineer` = 1 OR u.`is_sales_engineer` = 1 OR u.`is_director` = 1);
 
 -- ---- Pemetaan awal sesuai daftar (menimpa hasil backfill untuk nama-nama ini) ----
-DROP TEMPORARY TABLE IF EXISTS `tmp_role_map`;
-CREATE TEMPORARY TABLE `tmp_role_map` (`username` VARCHAR(100) NOT NULL, `role_slug` VARCHAR(50) NOT NULL);
-INSERT INTO `tmp_role_map` (`username`, `role_slug`) VALUES
-    ('victor', 'sales'), ('charles', 'sales'), ('vicky', 'sales'), ('vega', 'sales'),
-    ('ronny', 'sales'), ('ronny', 'direktur'),
-    ('rika', 'sales-engineer'), ('fita', 'sales-engineer'),
-    ('ali', 'surveyor'), ('tio', 'surveyor'),
-    ('rian', 'surveyor'), ('rian', 'engineer'),
-    ('naufal', 'surveyor'), ('naufal', 'engineer'),
-    ('sandi', 'engineer'),
-    ('magang', 'sales');
-
+-- (tanpa tabel sementara: akun hosting bersama tidak punya hak CREATE TEMPORARY TABLES)
 DELETE ur FROM `user_roles` ur JOIN `users` u ON u.`id` = ur.`user_id`
- WHERE u.`username` IN (SELECT `username` FROM `tmp_role_map`);
+ WHERE u.`username` IN ('victor', 'charles', 'vicky', 'vega', 'ronny', 'rika', 'fita', 'ali', 'tio', 'rian', 'naufal', 'sandi', 'magang');
 
 INSERT IGNORE INTO `user_roles` (`user_id`, `role_id`)
-SELECT u.`id`, r.`id` FROM `tmp_role_map` m
+SELECT u.`id`, r.`id` FROM (
+    SELECT 'victor' AS `username`, 'sales' AS `role_slug`
+    UNION ALL SELECT 'charles', 'sales'
+    UNION ALL SELECT 'vicky', 'sales'
+    UNION ALL SELECT 'vega', 'sales'
+    UNION ALL SELECT 'ronny', 'sales'
+    UNION ALL SELECT 'ronny', 'direktur'
+    UNION ALL SELECT 'rika', 'sales-engineer'
+    UNION ALL SELECT 'fita', 'sales-engineer'
+    UNION ALL SELECT 'ali', 'surveyor'
+    UNION ALL SELECT 'tio', 'surveyor'
+    UNION ALL SELECT 'rian', 'surveyor'
+    UNION ALL SELECT 'rian', 'engineer'
+    UNION ALL SELECT 'naufal', 'surveyor'
+    UNION ALL SELECT 'naufal', 'engineer'
+    UNION ALL SELECT 'sandi', 'engineer'
+    UNION ALL SELECT 'magang', 'sales'
+) m
   JOIN `users` u ON u.`username` = m.`username` AND u.`deleted_at` IS NULL
   JOIN `roles` r ON r.`slug` = m.`role_slug`;
-
-DROP TEMPORARY TABLE IF EXISTS `tmp_role_map`;
 
 -- ---- Role utama (users.role_id) = role berprioritas tertinggi milik pengguna ----
 -- Prioritas: super-admin > admin-sales > manager > sales > sales-engineer > surveyor > engineer > procurement > direktur.
