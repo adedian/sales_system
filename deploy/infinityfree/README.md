@@ -25,3 +25,26 @@ Upload **isi** `deploy/_out/htdocs/` ke folder `htdocs` di hosting (FileZilla/FT
 - Generator PDF PLTS (Python + proc_open) **tidak jalan**; folder `tools/` tidak diupload.
 - Generate proposal AI & resolusi lokasi (cURL keluar) kemungkinan diblokir; `ANTHROPIC_API_KEY` dikosongkan.
 - Tidak ada cron/SSH; ada batas hit & ukuran file. Cocok untuk demo/uji, bukan produksi berat.
+
+## Update hosting yang SUDAH berjalan (bukan instalasi baru)
+
+Jangan impor `install.sql` lagi (menimpa data). Pakai paket update:
+
+```
+php deploy/infinityfree/build-update.php [--since=<commit yang sudah ter-deploy>]
+```
+
+Hasil di `deploy/_out/update/`:
+
+1. **`update.sql`** — phpMyAdmin → pilih database produksi → **Import**. Isinya hanya penambahan
+   (tabel/kolom baru, izin, role baru + pemetaan pengguna); aman diulang dan tidak menghapus data.
+   Pemetaan nama → role hanyalah konfigurasi awal sekali jalan; setelahnya kelola lewat menu Pengguna.
+2. **`sales-system-update.zip`** — Online File Manager → buka `htdocs` domain → Upload → Extract
+   (timpa `app/`, `routes/`, `public/`, `bootstrap.php`). Zip ini TIDAK berisi `.env`,
+   `storage/` dan `vendor/`, jadi konfigurasi server tidak tertimpa.
+3. Urutan: impor SQL dulu, lalu unggah kode (kode baru membutuhkan tabel baru).
+4. Cek: login → dashboard terbuka; menu Pengguna menampilkan checkbox role; `/surveys` terbuka.
+
+Skema yang diterapkan hanyalah baris yang ditambahkan di `database/schema.sql` sejak `--since`
+(bagian lama tidak idempotent). Bila ada baris lama yang diubah/dihapus, builder berhenti dan
+migrasi harus ditulis manual.
