@@ -44,7 +44,7 @@ if (!empty($filters['sales_id'])) {
     $chips[] = ['key' => 'sales_id', 'label' => 'Sales: ' . ($row['name'] ?? $filters['sales_id'])];
 }
 if (!empty($filters['overdue'])) {
-    $chips[] = ['key' => 'overdue', 'label' => 'Overdue saja'];
+    $chips[] = ['key' => 'overdue', 'label' => 'Hanya yang terlambat'];
 }
 $chipRemoveUrl = fn ($key) => url('/queue') . '?' . http_build_query(array_merge($filters, [$key => '', 'page' => 1]));
 ?>
@@ -66,7 +66,7 @@ $chipRemoveUrl = fn ($key) => url('/queue') . '?' . http_build_query(array_merge
     <div class="stat-card stat-card-compact stat-card-alert">
         <div class="stat-icon stat-icon-danger"><i class="bi bi-exclamation-triangle"></i></div>
         <div class="stat-body">
-            <span class="stat-label">Overdue</span>
+            <span class="stat-label">Terlambat</span>
             <span class="stat-value" data-queue-count="overdue"><?= (int) $dashboardCounts['overdue'] ?></span>
         </div>
     </div>
@@ -149,7 +149,7 @@ $chipRemoveUrl = fn ($key) => url('/queue') . '?' . http_build_query(array_merge
                     <?php endif; ?>
                     <div class="filter-offcanvas-field form-check">
                         <input class="form-check-input" type="checkbox" id="overdue" name="overdue" value="1" <?= $filters['overdue'] ? 'checked' : '' ?>>
-                        <label class="form-check-label" for="overdue">Overdue saja</label>
+                        <label class="form-check-label" for="overdue">Hanya yang terlambat</label>
                     </div>
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary flex-grow-1">Terapkan Filter</button>
@@ -177,7 +177,6 @@ $chipRemoveUrl = fn ($key) => url('/queue') . '?' . http_build_query(array_merge
                         <th>Catatan Tahap</th>
                         <th><?= $sortLink('priority', 'Urgensi') ?></th>
                         <th><?= $sortLink('sales_name', 'Sales') ?></th>
-                        <th>Estimator</th>
                         <th>Surveyor</th>
                         <th><?= $sortLink('status', 'Status') ?></th>
                         <th><?= $sortLink('deadline', 'Deadline') ?></th>
@@ -198,7 +197,6 @@ $chipRemoveUrl = fn ($key) => url('/queue') . '?' . http_build_query(array_merge
                         <td><?= $q['stage_name'] ? '<span class="color-swatch color-swatch-' . e($q['stage_color'] ?: 'muted') . '">' . e($q['stage_name']) . '</span>' : '-' ?></td>
                         <td><span class="color-swatch color-swatch-<?= e($priorityMap[$q['priority']]['color'] ?? 'muted') ?>"><?= e($priorityMap[$q['priority']]['name'] ?? $q['priority']) ?></span></td>
                         <td><?= e($q['sales_name'] ?? '—') ?></td>
-                        <td class="text-muted"><?= e($q['estimator_name'] ?? 'None') ?></td>
                         <td class="text-muted"><?= e($q['surveyor_name'] ?? 'None') ?></td>
                         <td>
                             <span class="color-swatch color-swatch-<?= e($statusMap[$q['status']]['color'] ?? 'muted') ?>"><?= e($statusMap[$q['status']]['name'] ?? $q['status']) ?></span>

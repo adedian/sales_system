@@ -66,6 +66,13 @@ return [
     'system' => [
         'system.manage' => 'Mengelola pengaturan sistem',
     ],
+    'survey' => [
+        'survey.view' => 'Melihat Survey dan Survey Report',
+        'survey.request' => 'Mengajukan penugasan Survey',
+        'survey.manage' => 'Mengelola Survey (menugaskan ulang, membatalkan, menjadwalkan)',
+        'survey.review' => 'Memeriksa dan menyelesaikan Survey Report',
+        'survey.override' => 'Override gerbang Survey wajib (khusus Super Admin, dengan alasan)',
+    ],
     'price' => [
         'price.validate' => 'Memvalidasi harga dari Procurement (Direktur)',
     ],

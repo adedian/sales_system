@@ -35,7 +35,7 @@ $tiles = [
     <div class="stat-card stat-card-compact stat-card-alert">
         <div class="stat-icon stat-icon-danger"><i class="bi bi-exclamation-triangle"></i></div>
         <div class="stat-body">
-            <span class="stat-label">Overdue</span>
+            <span class="stat-label">Terlambat</span>
             <span class="stat-value" data-procurement-count="overdue"><?= (int) $dashboardCounts['overdue'] ?></span>
         </div>
     </div>
@@ -80,7 +80,7 @@ $tiles = [
             <div class="filter-field filter-field-actions">
                 <div class="form-check form-check-inline pt-4">
                     <input class="form-check-input" type="checkbox" id="overdue" name="overdue" value="1" <?= $filters['overdue'] ? 'checked' : '' ?>>
-                    <label class="form-check-label" for="overdue">Overdue saja</label>
+                    <label class="form-check-label" for="overdue">Hanya yang terlambat</label>
                 </div>
             </div>
             <div class="filter-field filter-field-actions">

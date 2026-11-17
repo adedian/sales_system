@@ -82,7 +82,7 @@ $tiles = [
             <div class="filter-field filter-field-actions">
                 <div class="form-check form-check-inline pt-4">
                     <input class="form-check-input" type="checkbox" id="overdue" name="overdue" value="1" <?= $filters['overdue'] ? 'checked' : '' ?>>
-                    <label class="form-check-label" for="overdue">Overdue saja</label>
+                    <label class="form-check-label" for="overdue">Hanya yang terlambat</label>
                 </div>
             </div>
             <div class="filter-field filter-field-actions">

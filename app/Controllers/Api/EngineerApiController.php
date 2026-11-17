@@ -23,8 +23,8 @@ class EngineerApiController extends Controller
     {
         $actor = Auth::user();
         $inEngineerPool = $actor && ((int) ($actor['is_engineer'] ?? 0) === 1 || (int) ($actor['is_sales_engineer'] ?? 0) === 1);
-        $scopeEngineerId = (Acl::hasRole('engineer-sales') || $inEngineerPool) ? Auth::id() : null;
-        $scopeSalesId = (!$inEngineerPool && Acl::hasRole('sales')) ? Auth::id() : null;
+        $scopeEngineerId = (Acl::scoped('engineer') || $inEngineerPool) ? Auth::id() : null;
+        $scopeSalesId = (!$inEngineerPool && Acl::scoped('sales')) ? Auth::id() : null;
 
         $this->json([
             'counts' => EngineerAssignment::dashboardCounts($scopeEngineerId, $scopeSalesId),
@@ -220,7 +220,7 @@ class EngineerApiController extends Controller
 
         $isAssignee = (int) $assignment['engineer_id'] === Auth::id();
         $actor = Auth::user();
-        $inEngineerPool = $actor && ((int) ($actor['is_engineer'] ?? 0) === 1 || (int) ($actor['is_sales_engineer'] ?? 0) === 1 || Acl::hasRole('engineer-sales'));
+        $inEngineerPool = $actor && ((int) ($actor['is_engineer'] ?? 0) === 1 || (int) ($actor['is_sales_engineer'] ?? 0) === 1 || Acl::scoped('engineer'));
 
         if ($inEngineerPool && !$isAssignee && !Acl::can('engineer.manage')) {
             $this->json(['error' => 'forbidden'], 403);
@@ -228,7 +228,7 @@ class EngineerApiController extends Controller
             return null;
         }
 
-        if (Acl::hasRole('sales') && !$isAssignee && (int) $assignment['lead_sales_id'] !== Auth::id()) {
+        if (Acl::scoped('sales') && !$isAssignee && (int) $assignment['lead_sales_id'] !== Auth::id()) {
             $this->json(['error' => 'forbidden'], 403);
 
             return null;

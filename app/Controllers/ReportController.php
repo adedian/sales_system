@@ -161,7 +161,7 @@ class ReportController extends Controller
                 'lead_code' => 'Lead ID', 'customer_name' => 'Customer', 'type_name' => 'Type',
                 'system_name' => 'System', 'sales_name' => 'Sales', 'funding_name' => 'Funding',
                 'status_label' => 'Status', 'survey_status_label' => 'Status Survey',
-                'priority_label' => 'Urgensi', 'estimator_name_fmt' => 'Estimator',
+                'priority_label' => 'Urgensi',
                 'surveyor_name_fmt' => 'Surveyor', 'position_label' => 'Current Position',
                 'current_pic_name_fmt' => 'Current PIC', 'updated_at_fmt' => 'Last Update',
             ],
@@ -189,7 +189,6 @@ class ReportController extends Controller
                 $r['status_label'] = $statusMap[$r['status']]['name'] ?? $r['status'];
                 $r['survey_status_label'] = $r['survey_status_name'] ?? '-';
                 $r['priority_label'] = !empty($r['queue_priority']) ? ($priorityMap[$r['queue_priority']]['name'] ?? $r['queue_priority']) : '-';
-                $r['estimator_name_fmt'] = $r['estimator_name'] ?? '-';
                 $r['surveyor_name_fmt'] = $r['surveyor_name'] ?? '-';
                 $r['position_label'] = $position['label'];
                 $r['current_pic_name_fmt'] = Lead::picFromReportRow($r, $position['label']);

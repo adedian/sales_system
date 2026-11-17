@@ -98,7 +98,7 @@ class ProcurementController extends Controller
             // Revisi Sub-Fase 3 — Validasi Harga Direktur.
             'pendingValidation' => ProcurementPriceValidation::pendingForRequest((int) $pr['id']),
             'validationHistory' => ProcurementPriceValidation::forRequest((int) $pr['id']),
-            'isDirector' => (int) (Auth::user()['is_director'] ?? 0) === 1,
+            'isDirector' => Acl::can('price.validate'),
         ]);
     }
 
@@ -606,9 +606,7 @@ class ProcurementController extends Controller
 
     /**
      * "Validasi Harga Direktur — Approved": moves the price on to Sales.
-     * Gate is the `is_director` capability flag directly, not an Acl
-     * permission slug — this isn't an RBAC role (Pak Ronny keeps role
-     * `sales`), matching the same pattern as Estimator/Surveyor/Engineer.
+     * Gate: permission `price.validate` (dimiliki role Direktur dan Super Admin).
      */
     public function approveValidation(Request $request, array $params): void
     {
@@ -763,11 +761,11 @@ class ProcurementController extends Controller
             return $pr;
         }
 
-        if (Acl::hasRole('procurement') && (int) $pr['assigned_to'] !== Auth::id()) {
+        if (Acl::scoped('procurement') && (int) $pr['assigned_to'] !== Auth::id()) {
             $this->abort(403, 'Anda hanya dapat mengakses request yang ditugaskan kepada Anda.');
         }
 
-        if (Acl::hasRole('sales') && (int) $pr['lead_sales_id'] !== Auth::id()) {
+        if (Acl::scoped('sales') && (int) $pr['lead_sales_id'] !== Auth::id()) {
             $this->abort(403, 'Anda hanya dapat mengakses request dari lead Anda sendiri.');
         }
 
@@ -778,7 +776,7 @@ class ProcurementController extends Controller
     {
         $actor = Auth::user();
 
-        return $actor && (int) ($actor['is_director'] ?? 0) === 1;
+        return Acl::can('price.validate');
     }
 
     private function findAuthorizedLead(int $id): array
@@ -789,7 +787,7 @@ class ProcurementController extends Controller
             $this->abort(404);
         }
 
-        if (Acl::hasRole('sales') && (int) $lead['sales_id'] !== Auth::id()) {
+        if (Acl::scoped('sales') && (int) $lead['sales_id'] !== Auth::id()) {
             $this->abort(403, 'Anda hanya dapat mengakses lead yang ditugaskan kepada Anda.');
         }
 
@@ -809,11 +807,11 @@ class ProcurementController extends Controller
 
     private function scopeFilters(): array
     {
-        if (Acl::hasRole('procurement')) {
+        if (Acl::scoped('procurement')) {
             return ['scope_assigned_to' => Auth::id()];
         }
 
-        if (Acl::hasRole('sales')) {
+        if (Acl::scoped('sales')) {
             return ['scope_sales_id' => Auth::id()];
         }
 
@@ -822,7 +820,7 @@ class ProcurementController extends Controller
 
     private function canOperate(array $pr): bool
     {
-        return Acl::can('procurement.manage') || (Acl::hasRole('procurement') && (int) $pr['assigned_to'] === Auth::id());
+        return Acl::can('procurement.manage') || (Acl::scoped('procurement') && (int) $pr['assigned_to'] === Auth::id());
     }
 
     private function procurementRoleId(): ?int

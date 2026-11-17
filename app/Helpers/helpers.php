@@ -102,8 +102,70 @@ if (!function_exists('format_datetime')) {
         }
 
         $timestamp = strtotime($datetime);
+        if ($timestamp === false) {
+            return '-';
+        }
 
-        return $timestamp === false ? '-' : date($format, $timestamp);
+        // Singkatan bulan berbahasa Indonesia (date() hanya menghasilkan bahasa Inggris).
+        $bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+        $format = str_replace('M', '\\' . implode('\\', str_split($bulan[(int) date('n', $timestamp) - 1])), $format);
+
+        return date($format, $timestamp);
+    }
+}
+
+if (!function_exists('format_date')) {
+    function format_date(?string $date, string $format = 'd M Y'): string
+    {
+        return format_datetime($date, $format);
+    }
+}
+
+if (!function_exists('audit_label')) {
+    /**
+     * Nama aksi audit log dalam bahasa Indonesia (mis. "lead_marked_won" ->
+     * "Lead ditandai menang"). Aksi yang belum dikenal diterjemahkan per kata.
+     */
+    function audit_label(string $action): string
+    {
+        static $explicit = [
+            'login_success' => 'Masuk ke sistem',
+            'login_failed' => 'Gagal masuk',
+            'logout' => 'Keluar dari sistem',
+            'lead_marked_won' => 'Lead ditandai Menang (Won)',
+            'lead_marked_lost' => 'Lead ditandai Kalah (Lost)',
+            'survey_gate_override' => 'Gerbang Survey di-override',
+            'survey_report_submitted' => 'Survey Report diajukan untuk diperiksa',
+            'survey_report_completed' => 'Survey Report disetujui',
+            'survey_report_revision' => 'Survey Report perlu revisi',
+            'proposal_status_changed' => 'Status Proposal diubah',
+            'lead_status_changed' => 'Status Lead diubah',
+        ];
+        static $words = [
+            'lead' => 'Lead', 'queue' => 'Antrian', 'engineer' => 'Engineer', 'procurement' => 'Procurement',
+            'proposal' => 'Proposal', 'prelim' => 'Prelim', 'survey' => 'Survey', 'report' => 'Laporan',
+            'followup' => 'Follow Up', 'user' => 'Pengguna', 'role' => 'Role', 'price' => 'Harga',
+            'validation' => 'validasi', 'created' => 'dibuat', 'updated' => 'diperbarui', 'deleted' => 'dihapus',
+            'restored' => 'dipulihkan', 'sent' => 'dikirim', 'approved' => 'disetujui', 'rejected' => 'ditolak',
+            'submitted' => 'diajukan', 'requested' => 'diajukan', 'accepted' => 'diterima', 'completed' => 'selesai',
+            'cancelled' => 'dibatalkan', 'scheduled' => 'dijadwalkan', 'rescheduled' => 'dijadwalkan ulang',
+            'in' => '', 'progress' => 'sedang berlangsung', 'started' => 'dimulai', 'status' => 'status',
+            'changed' => 'diubah', 'priority' => 'prioritas', 'assigned' => 'ditugaskan', 'reassigned' => 'ditugaskan ulang',
+            'revision' => 'revisi', 'review' => 'pemeriksaan', 'note' => 'catatan', 'added' => 'ditambahkan',
+            'logged' => 'dicatat', 'document' => 'dokumen', 'uploaded' => 'diunggah', 'download' => 'unduh',
+            'won' => 'menang', 'lost' => 'kalah', 'reopened' => 'dibuka kembali', 'marked' => 'ditandai',
+            'viewed' => 'dilihat', 'negotiation' => 'negosiasi', 'item' => 'item', 'password' => 'password',
+            'toggled' => 'diubah', 'enqueued' => 'masuk antrian', 'auth' => 'Autentikasi',
+        ];
+
+        if (isset($explicit[$action])) {
+            return $explicit[$action];
+        }
+
+        $parts = array_filter(array_map(fn ($w) => $words[$w] ?? $w, explode('_', strtolower($action))), fn ($w) => $w !== '');
+        $text = implode(' ', $parts);
+
+        return $text === '' ? $action : mb_strtoupper(mb_substr($text, 0, 1)) . mb_substr($text, 1);
     }
 }
 

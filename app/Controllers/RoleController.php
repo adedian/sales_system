@@ -24,7 +24,6 @@ class RoleController extends Controller
             'roles' => Role::withUserCount(),
             'operationalFunctions' => [
                 ['label' => 'Sales', 'users' => User::activeSales()],
-                ['label' => 'Estimator', 'users' => User::activeEstimators()],
                 ['label' => 'Surveyor', 'users' => User::activeSurveyors()],
                 ['label' => 'Engineer', 'users' => User::activeEngineers()],
                 ['label' => 'Sales Engineer', 'users' => User::activeSalesEngineers()],

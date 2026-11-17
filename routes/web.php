@@ -23,6 +23,7 @@ use App\Controllers\QueueController;
 use App\Controllers\ReportController;
 use App\Controllers\RoleController;
 use App\Controllers\SettingController;
+use App\Controllers\SurveyController;
 use App\Controllers\UserController;
 use App\Controllers\VendorController;
 
@@ -74,6 +75,8 @@ $router->post('/leads/{id}/restore', [LeadController::class, 'restore'], ['auth'
 $router->post('/leads/{id}/enqueue', [LeadController::class, 'enqueue'], ['auth', 'permission:lead.edit']);
 $router->post('/leads/{id}/request-engineer', [EngineerController::class, 'requestAssignment'], ['auth', 'permission:lead.edit']);
 $router->post('/leads/{id}/request-procurement', [ProcurementController::class, 'requestFromLead'], ['auth', 'permission:lead.edit']);
+$router->post('/leads/{id}/surveys', [SurveyController::class, 'request'], ['auth', 'permission:survey.request']);
+$router->post('/leads/{id}/survey-override', [SurveyController::class, 'override'], ['auth', 'permission:survey.override']);
 $router->post('/leads/{id}/prelims', [PrelimController::class, 'createFromLead'], ['auth', 'permission:prelim.create']);
 $router->post('/leads/{id}/proposals', [ProposalController::class, 'createFromLead'], ['auth', 'permission:lead.edit']);
 $router->post('/leads/{id}/follow-ups', [FollowUpController::class, 'store'], ['auth', 'permission:followup.create']);
@@ -88,6 +91,24 @@ $router->get('/follow-ups', [FollowUpController::class, 'index'], ['auth', 'perm
 $router->get('/queue', [QueueController::class, 'index'], ['auth', 'permission:queue.view']);
 $router->post('/queue/{id}/notes', [QueueController::class, 'addNote'], ['auth', 'permission:queue.view']);
 $router->get('/queue/{id}', [QueueController::class, 'show'], ['auth', 'permission:queue.view']);
+
+// Survey lapangan wajib. Pekerjaan Surveyor dibatasi job (bukan hanya role);
+// kepemilikan/penugasan divalidasi lagi di SurveyController.
+$router->get('/surveys', [SurveyController::class, 'index'], ['auth', 'permission:survey.view']);
+$router->post('/surveys/{id}/accept', [SurveyController::class, 'accept'], ['auth', 'permission:survey.view', 'job:surveyor']);
+$router->post('/surveys/{id}/reject', [SurveyController::class, 'reject'], ['auth', 'permission:survey.view', 'job:surveyor']);
+$router->post('/surveys/{id}/start', [SurveyController::class, 'start'], ['auth', 'permission:survey.view', 'job:surveyor']);
+$router->post('/surveys/{id}/complete', [SurveyController::class, 'complete'], ['auth', 'permission:survey.view', 'job:surveyor']);
+$router->get('/surveys/{id}/report/edit', [SurveyController::class, 'editReport'], ['auth', 'permission:survey.view', 'job:surveyor']);
+$router->get('/surveys/{id}/report/pdf', [SurveyController::class, 'reportPdf'], ['auth', 'permission:survey.view']);
+$router->get('/surveys/{id}/photos/{photoId}', [SurveyController::class, 'photo'], ['auth', 'permission:survey.view']);
+$router->post('/surveys/{id}/report', [SurveyController::class, 'saveReport'], ['auth', 'permission:survey.view', 'job:surveyor']);
+$router->post('/surveys/{id}/report/submit', [SurveyController::class, 'submitReport'], ['auth', 'permission:survey.view', 'job:surveyor']);
+// Pemeriksa ditentukan di controller (job Sales Engineer/Engineer yang dilibatkan, atau pengelola).
+$router->post('/surveys/{id}/report/review', [SurveyController::class, 'reviewReport'], ['auth', 'permission:survey.view']);
+$router->post('/surveys/{id}/reschedule', [SurveyController::class, 'reschedule'], ['auth', 'permission:survey.view']);
+$router->post('/surveys/{id}/cancel', [SurveyController::class, 'cancel'], ['auth', 'permission:survey.view']);
+$router->get('/surveys/{id}', [SurveyController::class, 'show'], ['auth', 'permission:survey.view']);
 
 $router->get('/engineer', [EngineerController::class, 'index'], ['auth', 'permission:engineer.view']);
 $router->post('/engineer/{id}/accept', [EngineerController::class, 'accept'], ['auth', 'permission:engineer.view']);
@@ -132,8 +153,8 @@ $router->post('/procurement/{id}/need-revision', [ProcurementController::class, 
 $router->post('/procurement/{id}/cancel', [ProcurementController::class, 'cancel'], ['auth', 'permission:procurement.view']);
 $router->post('/procurement/{id}/notes', [ProcurementController::class, 'addNote'], ['auth', 'permission:procurement.view']);
 $router->post('/procurement/{id}/complete', [ProcurementController::class, 'markCompleted'], ['auth', 'permission:procurement.view']);
-$router->post('/procurement/{id}/validate/approve', [ProcurementController::class, 'approveValidation'], ['auth', 'permission:procurement.view']);
-$router->post('/procurement/{id}/validate/revision', [ProcurementController::class, 'requestValidationRevision'], ['auth', 'permission:procurement.view']);
+$router->post('/procurement/{id}/validate/approve', [ProcurementController::class, 'approveValidation'], ['auth', 'permission:price.validate']);
+$router->post('/procurement/{id}/validate/revision', [ProcurementController::class, 'requestValidationRevision'], ['auth', 'permission:price.validate']);
 $router->post('/procurement/{id}/create-proposal', [ProposalController::class, 'createFromProcurement'], ['auth', 'permission:procurement.view']);
 $router->get('/procurement/{id}', [ProcurementController::class, 'show'], ['auth', 'permission:procurement.view']);
 
@@ -165,7 +186,9 @@ $router->post('/proposals/{id}/delete', [ProposalController::class, 'destroy'], 
 $router->post('/proposals/{id}/plts-build', [ProposalController::class, 'pltsBuild'], ['auth', 'permission:proposal.view']);
 $router->get('/proposals/{id}/plts-pdf', [ProposalController::class, 'pltsPdf'], ['auth', 'permission:proposal.view']);
 $router->post('/proposals/{id}/generate-ai', [ProposalController::class, 'generateAi'], ['auth', 'permission:proposal.view']);
-$router->get('/proposals/{id}/pdf', [ProposalController::class, 'pdf'], ['auth', 'permission:proposal.view']);
+$router->get('/proposals/{id}/versions/{versionId}/pdf', [ProposalController::class, 'versionPdf'], ['auth', 'permission:proposal.view']);
+$router->get('/proposals/{id}/versions/{versionId}', [ProposalController::class, 'versionShow'], ['auth', 'permission:proposal.view']);
+$router->get('/proposals/{id}/pdf',[ProposalController::class, 'pdf'], ['auth', 'permission:proposal.view']);
 $router->post('/proposals/{id}', [ProposalController::class, 'update'], ['auth', 'permission:proposal.view']);
 $router->get('/proposals/{id}', [ProposalController::class, 'show'], ['auth', 'permission:proposal.view']);
 
@@ -187,6 +210,7 @@ $router->get('/api/notifications', [NotificationApiController::class, 'index'], 
 $router->post('/api/notifications/read-all', [NotificationApiController::class, 'markAllRead'], ['auth']);
 $router->post('/api/notifications/{id}/read', [NotificationApiController::class, 'markRead'], ['auth']);
 
+$router->get('/api/leads/locate', [LeadApiController::class, 'locate'], ['auth', 'permission:lead.view']);
 $router->get('/api/leads/summary', [LeadApiController::class, 'summary'], ['auth', 'permission:lead.view']);
 $router->get('/api/leads/{id}/ping', [LeadApiController::class, 'ping'], ['auth', 'permission:lead.view']);
 $router->post('/api/leads/{id}/status', [LeadApiController::class, 'updateStatus'], ['auth', 'permission:lead.edit']);
@@ -204,7 +228,6 @@ $router->post('/api/queue/{id}/follow-up-date', [QueueApiController::class, 'upd
 $router->post('/api/queue/{id}/task-name', [QueueApiController::class, 'updateTaskName'], ['auth', 'permission:queue.view']);
 $router->post('/api/queue/{id}/survey-status', [QueueApiController::class, 'updateSurveyStatus'], ['auth', 'permission:queue.view']);
 $router->post('/api/queue/{id}/stage', [QueueApiController::class, 'updateStage'], ['auth', 'permission:queue.view']);
-$router->post('/api/queue/{id}/estimator', [QueueApiController::class, 'updateEstimator'], ['auth', 'permission:queue.view']);
 $router->post('/api/queue/{id}/surveyor', [QueueApiController::class, 'updateSurveyor'], ['auth', 'permission:queue.view']);
 $router->post('/api/queue/{id}/current-pic', [QueueApiController::class, 'updateCurrentPic'], ['auth', 'permission:queue.view']);
 $router->post('/api/queue/{id}/notes-field', [QueueApiController::class, 'updateNotes'], ['auth', 'permission:queue.view']);

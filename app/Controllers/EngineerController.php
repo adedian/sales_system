@@ -818,13 +818,13 @@ class EngineerController extends Controller
         // (Fita/Rika). Gate on "is this a pooled worker viewing someone
         // else's item" via the flag instead of the role.
         $actor = Auth::user();
-        $inEngineerPool = $actor && ((int) ($actor['is_engineer'] ?? 0) === 1 || (int) ($actor['is_sales_engineer'] ?? 0) === 1 || Acl::hasRole('engineer-sales'));
+        $inEngineerPool = $actor && ((int) ($actor['is_engineer'] ?? 0) === 1 || (int) ($actor['is_sales_engineer'] ?? 0) === 1 || Acl::scoped('engineer'));
 
         if ($inEngineerPool && !$isAssignee && !Acl::can('engineer.manage')) {
             $this->abort(403, 'Anda hanya dapat mengakses assignment yang ditugaskan kepada Anda.');
         }
 
-        if (Acl::hasRole('sales') && !$isAssignee && (int) $assignment['lead_sales_id'] !== Auth::id()) {
+        if (Acl::scoped('sales') && !$isAssignee && (int) $assignment['lead_sales_id'] !== Auth::id()) {
             $this->abort(403, 'Anda hanya dapat mengakses assignment dari lead Anda sendiri.');
         }
 
@@ -839,7 +839,7 @@ class EngineerController extends Controller
             $this->abort(404);
         }
 
-        if (Acl::hasRole('sales') && (int) $lead['sales_id'] !== Auth::id()) {
+        if (Acl::scoped('sales') && (int) $lead['sales_id'] !== Auth::id()) {
             $this->abort(403, 'Anda hanya dapat mengakses lead yang ditugaskan kepada Anda.');
         }
 
@@ -851,11 +851,11 @@ class EngineerController extends Controller
         $actor = Auth::user();
         $inEngineerPool = $actor && ((int) ($actor['is_engineer'] ?? 0) === 1 || (int) ($actor['is_sales_engineer'] ?? 0) === 1);
 
-        if (Acl::hasRole('engineer-sales') || $inEngineerPool) {
+        if (Acl::scoped('engineer') || $inEngineerPool) {
             return ['scope_engineer_id' => Auth::id()];
         }
 
-        if (Acl::hasRole('sales')) {
+        if (Acl::scoped('sales')) {
             return ['scope_sales_id' => Auth::id()];
         }
 

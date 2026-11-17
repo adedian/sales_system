@@ -19,23 +19,23 @@ $firstName = explode(' ', auth_user()['name'] ?? '')[0] ?? '';
     </a>
     <a href="<?= url('/procurement') ?>?status=in_progress" class="stat-card stat-card-compact stat-card-link">
         <div class="stat-icon stat-icon-indigo"><i class="bi bi-arrow-repeat"></i></div>
-        <div class="stat-body"><span class="stat-label">In Progress</span><span class="stat-value" data-ws-count="in_progress"><?= (int) $summary['in_progress'] ?></span></div>
+        <div class="stat-body"><span class="stat-label">Sedang Diproses</span><span class="stat-value" data-ws-count="in_progress"><?= (int) $summary['in_progress'] ?></span></div>
     </a>
     <a href="<?= url('/procurement') ?>?status=quotation_requested" class="stat-card stat-card-compact stat-card-link">
         <div class="stat-icon stat-icon-amber"><i class="bi bi-hourglass-split"></i></div>
-        <div class="stat-body"><span class="stat-label">Waiting Quotation</span><span class="stat-value" data-ws-count="quotation_requested"><?= (int) $summary['quotation_requested'] ?></span></div>
+        <div class="stat-body"><span class="stat-label">Menunggu Quotation</span><span class="stat-value" data-ws-count="quotation_requested"><?= (int) $summary['quotation_requested'] ?></span></div>
     </a>
     <a href="<?= url('/procurement') ?>?status=need_revision&include_closed=1" class="stat-card stat-card-compact stat-card-link">
         <div class="stat-icon stat-icon-danger"><i class="bi bi-exclamation-triangle"></i></div>
-        <div class="stat-body"><span class="stat-label">Need Revision</span><span class="stat-value" data-ws-count="need_revision"><?= (int) $summary['need_revision'] ?></span></div>
+        <div class="stat-body"><span class="stat-label">Butuh Revisi</span><span class="stat-value" data-ws-count="need_revision"><?= (int) $summary['need_revision'] ?></span></div>
     </a>
     <a href="<?= url('/procurement') ?>?status=pricing_completed&include_closed=1" class="stat-card stat-card-compact stat-card-link">
         <div class="stat-icon stat-icon-emerald"><i class="bi bi-check-circle"></i></div>
-        <div class="stat-body"><span class="stat-label">Completed</span><span class="stat-value" data-ws-count="completed"><?= (int) $summary['completed'] ?></span></div>
+        <div class="stat-body"><span class="stat-label">Selesai</span><span class="stat-value" data-ws-count="completed"><?= (int) $summary['completed'] ?></span></div>
     </a>
     <a href="<?= url('/procurement') ?>?overdue=1" class="stat-card stat-card-compact stat-card-link <?= $summary['overdue'] > 0 ? 'stat-card-alert' : '' ?>">
         <div class="stat-icon stat-icon-danger"><i class="bi bi-exclamation-triangle"></i></div>
-        <div class="stat-body"><span class="stat-label">Overdue</span><span class="stat-value" data-ws-count="overdue"><?= (int) $summary['overdue'] ?></span></div>
+        <div class="stat-body"><span class="stat-label">Terlambat</span><span class="stat-value" data-ws-count="overdue"><?= (int) $summary['overdue'] ?></span></div>
     </a>
 </div>
 
@@ -97,7 +97,7 @@ $firstName = explode(' ', auth_user()['name'] ?? '')[0] ?? '';
                     <div class="timeline-item">
                         <div class="timeline-dot"></div>
                         <div class="timeline-body">
-                            <div class="timeline-title"><?= e($log['action']) ?> <span class="text-muted">&middot; <?= e($log['module']) ?></span></div>
+                            <div class="timeline-title"><?= e(audit_label((string) $log['action'])) ?> <span class="text-muted">&middot; <?= e(str_replace('_', ' ', (string) $log['module'])) ?></span></div>
                             <div class="timeline-meta"><?= e(format_datetime($log['created_at'])) ?></div>
                         </div>
                     </div>

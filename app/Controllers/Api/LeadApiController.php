@@ -27,13 +27,30 @@ class LeadApiController extends Controller
     private const STATUSES = ['new', 'in_queue', 'follow_up', 'engineering'];
     private const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 
+    /**
+     * Form lead: koordinat / link Google Maps -> detail lokasi (kota, provinsi,
+     * alamat). Hanya koordinat yang dikirim ke layanan geocoding luar.
+     */
+    public function locate(Request $request): void
+    {
+        try {
+            $address = trim((string) $request->input('address', ''));
+            $location = $address !== ''
+                ? \App\Services\LocationResolver::searchAddress($address, (string) $request->input('city', ''))
+                : \App\Services\LocationResolver::resolve((string) $request->input('q', ''));
+            $this->json(['location' => $location]);
+        } catch (\RuntimeException $e) {
+            $this->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
     /** Polled by the Leads list page (and Sales Workspace) to keep counts live. */
     public function summary(Request $request): void
     {
-        $scopeSalesId = (Acl::hasRole('sales') && !Acl::can('lead.assign')) ? Auth::id() : null;
+        $scopeSalesId = (Acl::scoped('sales') && !Acl::can('lead.assign')) ? Auth::id() : null;
 
         $this->json([
-            'counts' => Lead::countByStatus($scopeSalesId),
+            'counts' => Lead::countByStatus($scopeSalesId, Acl::requiresInvolvement() ? Auth::id() : null),
             'server_time' => date('c'),
         ]);
     }
@@ -304,7 +321,7 @@ class LeadApiController extends Controller
             return null;
         }
 
-        if (Acl::hasRole('sales') && (int) $lead['sales_id'] !== Auth::id() && !LeadSales::isAssigned($id, Auth::id())) {
+        if (Acl::scoped('sales') && (int) $lead['sales_id'] !== Auth::id() && !LeadSales::isAssigned($id, Auth::id())) {
             $this->json(['error' => 'forbidden'], 403);
 
             return null;

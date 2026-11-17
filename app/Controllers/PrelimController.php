@@ -114,6 +114,15 @@ class PrelimController extends Controller
             return;
         }
 
+        // Survey wajib untuk lead baru: Survey + Survey Report harus selesai (atau override Super Admin).
+        $surveyBlocker = \App\Models\Survey::prelimBlocker($lead);
+        if ($surveyBlocker !== null) {
+            Session::flash('error', 'Prelim belum dapat dibuat. ' . $surveyBlocker);
+            $this->redirect('/leads/' . $lead['id'] . '#survey-section');
+
+            return;
+        }
+
         $existing = Prelim::latestForLead((int) $lead['id']);
         if ($existing !== null && in_array($existing['status'], Prelim::OPEN_STATUSES, true)) {
             $this->redirect('/prelims/' . $existing['id']);
@@ -560,8 +569,11 @@ class PrelimController extends Controller
             $this->abort(404);
         }
 
-        if (Acl::hasRole('sales') && (int) $prelim['sales_id'] !== Auth::id()) {
+        if (Acl::scoped('sales') && (int) $prelim['sales_id'] !== Auth::id()) {
             $this->abort(403, 'Anda hanya dapat mengakses prelim milik Anda sendiri.');
+        }
+        if (Acl::requiresInvolvement() && !Lead::userInvolved((int) $prelim['lead_id'], (int) Auth::id())) {
+            $this->abort(403, 'Anda hanya dapat mengakses prelim dari lead yang Anda tangani.');
         }
 
         return $prelim;
@@ -575,8 +587,11 @@ class PrelimController extends Controller
             $this->abort(404);
         }
 
-        if (Acl::hasRole('sales') && (int) $lead['sales_id'] !== Auth::id()) {
+        if (Acl::scoped('sales') && (int) $lead['sales_id'] !== Auth::id()) {
             $this->abort(403, 'Anda hanya dapat mengakses lead yang ditugaskan kepada Anda.');
+        }
+        if (Acl::requiresInvolvement() && !Lead::userInvolved((int) $lead['id'], (int) Auth::id())) {
+            $this->abort(403, 'Anda hanya dapat mengakses lead yang Anda tangani.');
         }
 
         return $lead;
@@ -584,8 +599,11 @@ class PrelimController extends Controller
 
     private function scopeFilters(): array
     {
-        if (Acl::hasRole('sales')) {
+        if (Acl::scoped('sales')) {
             return ['scope_sales_id' => Auth::id()];
+        }
+        if (Acl::requiresInvolvement()) {
+            return ['scope_involved_user_id' => Auth::id()];
         }
 
         return [];
@@ -594,7 +612,7 @@ class PrelimController extends Controller
     /** Who may edit header, mark ready, send, and log client response — ownership-gated, same convention as ProposalController::canOperate(). */
     private function canOperate(array $prelim): bool
     {
-        return Acl::can('prelim.edit') && (!Acl::hasRole('sales') || (int) $prelim['sales_id'] === Auth::id());
+        return Acl::can('prelim.edit') && (!Acl::scoped('sales') || (int) $prelim['sales_id'] === Auth::id());
     }
 
     private function storageDir(int $prelimId): string

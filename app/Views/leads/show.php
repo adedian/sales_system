@@ -165,10 +165,12 @@ $latestPriceValidation = $priceValidations[0] ?? null;
                 <?php endif; ?>
                 <?php if ($prelim): ?>
                 <li><a class="dropdown-item" href="<?= url('/prelims/' . $prelim['id']) ?>"><i class="bi bi-file-earmark-richtext me-2"></i>Lihat Prelim</a></li>
-                <?php elseif ($canCreatePrelim && empty($missingPrelimFields)): ?>
+                <?php elseif ($canCreatePrelim && empty($missingPrelimFields) && $prelimBlocker === null): ?>
                 <li><a class="dropdown-item" href="#prelim-survey-section"><i class="bi bi-file-earmark-plus me-2"></i>Buat Prelim</a></li>
                 <?php endif; ?>
-                <?php if ($surveyEngineerAssignment || $surveySalesEngineerAssignment): ?>
+                <?php if ($surveyRequired): ?>
+                <li><a class="dropdown-item" href="#survey-section"><i class="bi bi-geo-alt me-2"></i><?= $currentSurvey ? 'Lihat Survey' : 'Ajukan Survey' ?></a></li>
+                <?php elseif ($surveyEngineerAssignment || $surveySalesEngineerAssignment): ?>
                 <li><a class="dropdown-item" href="<?= url('/engineer/' . ($surveySalesEngineerAssignment['id'] ?? $surveyEngineerAssignment['id'])) ?>"><i class="bi bi-geo-alt me-2"></i>Lihat Assignment Survey</a></li>
                 <?php elseif ($canRequestSurvey && !$prelim && !$lead['deleted_at']): ?>
                 <li><a class="dropdown-item" href="#prelim-survey-section"><i class="bi bi-geo-alt me-2"></i>Ajukan Survey</a></li>
@@ -201,20 +203,20 @@ $latestPriceValidation = $priceValidations[0] ?? null;
 <div class="process-panel">
     <div class="process-panel-grid">
         <div class="process-panel-item">
-            <span class="process-panel-label">Lead Status</span>
+            <span class="process-panel-label">Status Lead</span>
             <span class="process-panel-value"><span class="color-swatch color-swatch-<?= e($simpleColors[$simplifiedStatus]) ?>" data-badge="simple_status"><?= e($simpleLabels[$simplifiedStatus]) ?></span></span>
         </div>
         <div class="process-panel-item">
-            <span class="process-panel-label">Current Process</span>
+            <span class="process-panel-label">Proses Saat Ini</span>
             <span class="process-panel-value process-panel-value-lg"><?= e($posLabel === 'Sales' && $currentStepIndex === 6 ? 'Sales (Closing)' : $posLabel) ?></span>
             <span class="process-panel-since">Sejak <?= e(format_datetime($sinceAt)) ?></span>
         </div>
         <div class="process-panel-item">
-            <span class="process-panel-label">Current PIC</span>
+            <span class="process-panel-label">PIC Saat Ini</span>
             <span class="process-panel-value"><?= e($picValue) ?></span>
         </div>
         <div class="process-panel-item">
-            <span class="process-panel-label">Priority</span>
+            <span class="process-panel-label">Prioritas</span>
             <span class="process-panel-value"><span class="color-swatch color-swatch-<?= e($priorityRow['color']) ?>" data-badge="priority_display"><?= e($priorityRow['name']) ?></span></span>
         </div>
     </div>
@@ -222,13 +224,13 @@ $latestPriceValidation = $priceValidations[0] ?? null;
 
 <div class="detail-row">
     <div class="detail-section">
-        <h3 class="detail-section-title">Customer Information</h3>
+        <h3 class="detail-section-title">Informasi Customer</h3>
         <div class="info-grid">
             <div class="info-item"><span class="info-item-label">Customer</span><span class="info-item-value"><?= e($lead['customer_name']) ?></span></div>
             <div class="info-item"><span class="info-item-label">Perusahaan</span><span class="info-item-value"><?= e($lead['company_name'] ?: '-') ?></span></div>
             <div class="info-item"><span class="info-item-label">Telepon</span><span class="info-item-value"><?= $lead['phone'] ? '<a href="tel:' . e($lead['phone']) . '">' . e($lead['phone']) . '</a>' : '-' ?></span></div>
             <div class="info-item"><span class="info-item-label">Email</span><span class="info-item-value"><?= $lead['email'] ? '<a href="mailto:' . e($lead['email']) . '">' . e($lead['email']) . '</a>' : '-' ?></span></div>
-            <div class="info-item"><span class="info-item-label">Lokasi</span><span class="info-item-value"><?= e($lead['site_location'] ?: '-') ?></span></div>
+            <div class="info-item"><span class="info-item-label">Lokasi</span><span class="info-item-value"><?= e($lead['site_location'] ?: '-') ?><?php if (!empty($lead['maps_url'])): ?> <a href="<?= e($lead['maps_url']) ?>" target="_blank" rel="noopener" class="ms-1 small" title="Buka di Google Maps"><i class="bi bi-geo-alt-fill"></i> Peta</a><?php endif; ?></span></div>
             <div class="info-item info-item-full"><span class="info-item-label">Alamat</span><span class="info-item-value"><?= $lead['address'] ? nl2br(e($lead['address'])) : '-' ?></span></div>
         </div>
 
@@ -239,12 +241,12 @@ $latestPriceValidation = $priceValidations[0] ?? null;
             <div class="info-item"><span class="info-item-label">ID PLN</span><span class="info-item-value"><?= e($lead['pln_id'] ?: '-') ?></span></div>
             <div class="info-item"><span class="info-item-label">Tagihan Listrik</span><span class="info-item-value"><?= $lead['electricity_bill'] !== null ? 'Rp ' . e(number_format((float) $lead['electricity_bill'], 0, ',', '.')) . '/bulan' : '-' ?></span></div>
             <div class="info-item"><span class="info-item-label">Model System</span><span class="info-item-value"><?= e($lead['system_name'] ?? '-') ?></span></div>
-            <div class="info-item"><span class="info-item-label">Lokasi</span><span class="info-item-value"><?= e($lead['site_location'] ?: '-') ?></span></div>
+            <div class="info-item"><span class="info-item-label">Lokasi</span><span class="info-item-value"><?= e($lead['site_location'] ?: '-') ?><?php if (!empty($lead['maps_url'])): ?> <a href="<?= e($lead['maps_url']) ?>" target="_blank" rel="noopener" class="ms-1 small" title="Buka di Google Maps"><i class="bi bi-geo-alt-fill"></i> Peta</a><?php endif; ?></span></div>
         </div>
 
         <hr class="detail-divider">
 
-        <h3 class="detail-section-title">Lead Information</h3>
+        <h3 class="detail-section-title">Informasi Lead</h3>
         <div class="info-grid">
             <div class="info-item"><span class="info-item-label">Type</span><span class="info-item-value"><?= e($lead['type_name'] ?? '-') ?></span></div>
             <div class="info-item"><span class="info-item-label">System</span><span class="info-item-value"><?= e($lead['system_name'] ?? '-') ?></span></div>
@@ -329,7 +331,7 @@ $latestPriceValidation = $priceValidations[0] ?? null;
 </div>
 
 <div class="detail-section">
-    <h3 class="detail-section-title">Process Workflow</h3>
+    <h3 class="detail-section-title">Alur Proses</h3>
     <div class="workflow-stepper">
         <?php foreach ($steps as $i => $step): ?>
             <?php
@@ -356,7 +358,7 @@ $latestPriceValidation = $priceValidations[0] ?? null;
 
 <div class="detail-row">
     <div class="detail-section">
-        <h3 class="detail-section-title">Process History</h3>
+        <h3 class="detail-section-title">Riwayat Proses</h3>
         <?php $statusEvents = array_values(array_filter($timeline, fn ($e) => $e['type'] === 'status')); ?>
         <?php if (empty($statusEvents)): ?>
             <p class="text-muted small mb-0">Belum ada perubahan status.</p>
@@ -379,7 +381,7 @@ $latestPriceValidation = $priceValidations[0] ?? null;
     </div>
 
     <div class="detail-section">
-        <h3 class="detail-section-title">Activity</h3>
+        <h3 class="detail-section-title">Aktivitas</h3>
         <?php $auditEvents = array_values(array_filter($timeline, fn ($e) => $e['type'] === 'audit')); ?>
         <?php if (empty($auditEvents)): ?>
             <p class="text-muted small mb-0">Belum ada aktivitas lain tercatat.</p>
@@ -399,23 +401,118 @@ $latestPriceValidation = $priceValidations[0] ?? null;
     </div>
 </div>
 
+<?php if ($surveyRequired): ?>
+<div class="detail-section" id="survey-section">
+    <h3 class="detail-section-title">Survey Lapangan <span class="text-muted fs-6 fw-normal">(wajib sebelum Prelim)</span></h3>
+
+    <?php if (!empty($lead['survey_override_at'])): ?>
+        <div class="alert alert-info py-2 px-3">
+            <strong>Gerbang Survey di-override</strong> oleh Super Admin pada <?= e(format_datetime($lead['survey_override_at'])) ?>.
+            Alasan: <?= e($lead['survey_override_reason']) ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($currentSurvey): ?>
+        <?php
+        $svMeta = \App\Models\Survey::STATUS_META[$currentSurvey['status']];
+        $rpMeta = $currentSurvey['report_status'] ? \App\Models\Survey::REPORT_META[$currentSurvey['report_status']] : null;
+        ?>
+        <div class="info-grid mb-3">
+            <div class="info-item"><span class="info-item-label">Kode Survey</span><span class="info-item-value"><a href="<?= url('/surveys/' . $currentSurvey['id']) ?>" class="mono"><?= e($currentSurvey['survey_code']) ?></a></span></div>
+            <div class="info-item"><span class="info-item-label">Status Survey</span><span class="info-item-value"><span class="color-swatch color-swatch-<?= e($svMeta['color']) ?>"><?= e($svMeta['name']) ?></span></span></div>
+            <div class="info-item"><span class="info-item-label">Surveyor</span><span class="info-item-value"><?= e($currentSurvey['surveyor_name'] ?? '-') ?></span></div>
+            <div class="info-item"><span class="info-item-label">Jadwal</span><span class="info-item-value"><?= e(format_date($currentSurvey['scheduled_date'])) ?></span></div>
+            <div class="info-item"><span class="info-item-label">Survey Report</span><span class="info-item-value"><?= $rpMeta ? '<span class="color-swatch color-swatch-' . e($rpMeta['color']) . '">' . e($rpMeta['name']) . '</span>' : '<span class="text-muted">Belum dibuat</span>' ?></span></div>
+        </div>
+        <?php if ($prelimBlocker === null): ?>
+            <div class="alert alert-success py-2 px-3 mb-3">Survey dan Survey Report sudah selesai. Prelim dapat dibuat.</div>
+        <?php else: ?>
+            <div class="alert alert-warning py-2 px-3 mb-3"><?= e($prelimBlocker) ?></div>
+        <?php endif; ?>
+        <a href="<?= url('/surveys/' . $currentSurvey['id']) ?>" class="btn btn-sm btn-light"><i class="bi bi-box-arrow-up-right me-1"></i>Buka Detail Survey</a>
+    <?php elseif ($canRequestSurveyFlow): ?>
+        <p class="text-muted small mb-2">Survey lapangan wajib dilakukan sebelum Prelim. Pilih Surveyor, tentukan jadwal, dan libatkan Sales Engineer/Engineer bila perlu.</p>
+        <?php if (empty($surveyors)): ?>
+            <div class="alert alert-warning py-2 px-3 mb-0">Belum ada akun Surveyor yang aktif. Aktifkan penanda Surveyor pada menu Pengguna.</div>
+        <?php else: ?>
+        <form method="POST" action="<?= url('/leads/' . $lead['id'] . '/surveys') ?>" class="row g-3">
+            <?= csrf_field() ?>
+            <div class="col-12 col-md-6">
+                <label class="form-label" for="surveyor_id">Surveyor</label>
+                <select class="form-select" id="surveyor_id" name="surveyor_id" required>
+                    <option value="">Pilih Surveyor...</option>
+                    <?php foreach ($surveyors as $row): ?><option value="<?= (int) $row['id'] ?>"><?= e($row['name']) ?></option><?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-12 col-md-6">
+                <label class="form-label" for="scheduled_date">Rencana tanggal survey</label>
+                <input type="date" class="form-control" id="scheduled_date" name="scheduled_date" min="<?= e(date('Y-m-d')) ?>" required>
+            </div>
+            <?php if (!empty($surveyPartnerCandidates)): ?>
+            <div class="col-12">
+                <label class="form-label">Libatkan Sales Engineer / Engineer (opsional)</label>
+                <div class="d-flex flex-wrap gap-3">
+                    <?php foreach ($surveyPartnerCandidates as $row): ?>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="participants[]" value="<?= (int) $row['id'] ?>" id="sp_<?= (int) $row['id'] ?>_<?= e($row['partner_role']) ?>">
+                        <label class="form-check-label" for="sp_<?= (int) $row['id'] ?>_<?= e($row['partner_role']) ?>"><?= e($row['name']) ?> <span class="text-muted small">(<?= $row['partner_role'] === 'engineer' ? 'Engineer' : 'Sales Engineer' ?>)</span></label>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+            <div class="col-12">
+                <label class="form-label" for="request_notes">Catatan untuk Surveyor (opsional)</label>
+                <textarea class="form-control" id="request_notes" name="request_notes" rows="2" placeholder="Kontak di lokasi, akses atap, hal yang perlu didokumentasikan..."></textarea>
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-send me-1"></i>Ajukan Survey</button>
+            </div>
+        </form>
+        <?php endif; ?>
+    <?php else: ?>
+        <p class="text-muted small mb-0">Belum ada Survey untuk lead ini.</p>
+    <?php endif; ?>
+
+    <?php $pastSurveys = array_filter($surveyHistoryList, fn ($s) => in_array($s['status'], ['cancelled', 'rejected'], true)); ?>
+    <?php if (!empty($pastSurveys)): ?>
+        <p class="mt-3 mb-1 small text-uppercase text-muted">Pengajuan sebelumnya</p>
+        <ul class="small mb-0">
+            <?php foreach ($pastSurveys as $ps): ?>
+                <li><a href="<?= url('/surveys/' . $ps['id']) ?>" class="mono"><?= e($ps['survey_code']) ?></a> — <?= e(\App\Models\Survey::STATUS_META[$ps['status']]['name']) ?> (<?= e($ps['surveyor_name'] ?? '-') ?>)</li>
+            <?php endforeach; ?>
+        </ul>
+    <?php endif; ?>
+
+    <?php if ($canOverrideSurvey && $prelimBlocker !== null && empty($lead['survey_override_at'])): ?>
+        <details class="mt-3">
+            <summary class="small text-danger" style="cursor:pointer">Override gerbang Survey (khusus Super Admin)</summary>
+            <form method="POST" action="<?= url('/leads/' . $lead['id'] . '/survey-override') ?>" class="mt-2" data-confirm="Override gerbang Survey? Tindakan ini dicatat di audit log.">
+                <?= csrf_field() ?>
+                <textarea class="form-control mb-2" name="reason" rows="2" minlength="10" required placeholder="Alasan override (wajib, minimal 10 karakter). Tercatat bersama nama dan waktu Anda."></textarea>
+                <button type="submit" class="btn btn-outline-danger btn-sm">Override</button>
+            </form>
+        </details>
+    <?php endif; ?>
+</div>
+<?php else: ?>
 <div class="detail-section">
     <h3 class="detail-section-title">Survey</h3>
     <?php if ($activeQueue): ?>
     <div class="info-grid">
         <div class="info-item"><span class="info-item-label">Survey Status</span><span class="info-item-value"><?= e($activeQueue['survey_status_name'] ?? 'Belum diisi') ?></span></div>
-        <div class="info-item"><span class="info-item-label">Surveyor</span><span class="info-item-value"><?= e($activeQueue['surveyor_name'] ?? 'Not Assigned') ?></span></div>
-        <div class="info-item"><span class="info-item-label">Estimator</span><span class="info-item-value"><?= e($activeQueue['estimator_name'] ?? 'Not Assigned') ?></span></div>
+        <div class="info-item"><span class="info-item-label">Surveyor</span><span class="info-item-value"><?= e($activeQueue['surveyor_name'] ?? 'Belum ditugaskan') ?></span></div>
         <div class="info-item"><span class="info-item-label">Masuk Antrian</span><span class="info-item-value"><?= e(format_datetime($activeQueue['entered_at'])) ?></span></div>
     </div>
     <a href="<?= url('/queue/' . $activeQueue['id']) ?>" class="btn btn-sm btn-light mt-3">Lihat Detail Antrian &amp; Catatan</a>
     <?php else: ?>
     <div class="info-grid">
         <div class="info-item"><span class="info-item-label">Survey Status</span><span class="info-item-value">Belum masuk antrian</span></div>
-        <div class="info-item"><span class="info-item-label">Surveyor</span><span class="info-item-value">Not Assigned</span></div>
+        <div class="info-item"><span class="info-item-label">Surveyor</span><span class="info-item-value">Belum ditugaskan</span></div>
     </div>
     <?php endif; ?>
 </div>
+<?php endif; ?>
 
 <div class="detail-section" id="prelim-survey-section">
     <h3 class="detail-section-title">Prelim (Penawaran Awal)</h3>
@@ -428,7 +525,12 @@ $latestPriceValidation = $priceValidations[0] ?? null;
         </div>
         <a href="<?= url('/prelims/' . $prelim['id']) ?>" class="btn btn-sm btn-light">Lihat Detail Prelim</a>
     <?php else: ?>
-        <?php if (!empty($missingPrelimFields)): ?>
+        <?php if ($prelimBlocker !== null): ?>
+        <div class="alert alert-warning py-2 px-3 mb-3" role="alert">
+            <strong>Prelim belum dapat dibuat.</strong> <?= e($prelimBlocker) ?>
+            <a href="#survey-section" class="ms-1">Lihat bagian Survey</a>
+        </div>
+        <?php elseif (!empty($missingPrelimFields)): ?>
         <div class="alert alert-warning py-2 px-3 mb-3" role="alert">
             <strong>Prelim belum dapat dibuat.</strong> Data yang belum lengkap:
             <ul class="mb-0 ps-3">
@@ -444,6 +546,7 @@ $latestPriceValidation = $priceValidations[0] ?? null;
         </form>
         <?php endif; ?>
 
+        <?php if (!$surveyRequired): /* alur lama (lead sebelum Survey wajib) */ ?>
         <hr class="detail-divider">
 
         <h4 class="text-muted small text-uppercase mb-2">Survey (lengkapi Data Awal)</h4>
@@ -511,6 +614,7 @@ $latestPriceValidation = $priceValidations[0] ?? null;
         <?php elseif (empty($engineerFieldUsers) && empty($salesEngineerUsers)): ?>
             <p class="text-muted small mb-0">Belum ada akun Sales Engineer/Engineer yang aktif.</p>
         <?php endif; ?>
+        <?php endif; /* !surveyRequired */ ?>
     <?php endif; ?>
 </div>
 

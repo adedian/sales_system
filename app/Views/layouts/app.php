@@ -14,6 +14,7 @@
 </head>
 <body>
     <div class="app-shell">
+        <?php include __DIR__ . '/../partials/sidebar.php'; ?>
         <div class="app-main">
             <?php include __DIR__ . '/../partials/topbar.php'; ?>
 

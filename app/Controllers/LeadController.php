@@ -24,6 +24,7 @@ use App\Models\ProcurementRequest;
 use App\Models\Proposal;
 use App\Models\Role;
 use App\Models\SalesQueue;
+use App\Models\Survey;
 use App\Models\User;
 
 class LeadController extends Controller
@@ -51,6 +52,10 @@ class LeadController extends Controller
         if ($this->scopeSalesId() !== null) {
             $filters['scope_sales_id'] = $this->scopeSalesId();
             $filters['trashed'] = false; // sales users never see the trash bin
+        }
+        if (Acl::requiresInvolvement()) {
+            $filters['scope_involved_user_id'] = Auth::id();
+            $filters['trashed'] = false;
         }
 
         $result = Lead::search($filters);
@@ -105,7 +110,7 @@ class LeadController extends Controller
             'page' => $result['page'],
             'totalPages' => $result['totalPages'],
             'filters' => $filters,
-            'statusCounts' => Lead::countByStatus($this->scopeSalesId()),
+            'statusCounts' => Lead::countByStatus($this->scopeSalesId(), Acl::requiresInvolvement() ? Auth::id() : null),
             'statusMap' => MasterData::allAsMap('lead_statuses'),
             'priorityMap' => MasterData::allAsMap('priorities'),
             'sources' => MasterData::allAsMap('lead_sources', true),
@@ -138,12 +143,11 @@ class LeadController extends Controller
             'customer_name' => 'required|max:150',
             'email' => 'email|max:150',
             'phone' => 'max:30',
-            'priority' => 'required|in:low,medium,high,urgent',
         ]);
 
         if ($validator->fails()) {
             Session::flash('error', collect_first_error($validator->errors()));
-            Session::flashOld($request->only(['customer_name', 'company_name', 'phone', 'email', 'address', 'site_location', 'pln_id', 'electricity_bill', 'source_id', 'category_id', 'type_id', 'system_id', 'funding_id', 'need_type_id', 'needs_description', 'estimated_value', 'size_kwp', 'notes', 'note2', 'priority', 'sales_ids', 'follow_up_date']));
+            Session::flashOld($request->only(['customer_name', 'company_name', 'phone', 'email', 'address', 'site_location', 'pln_id', 'electricity_bill', 'source_id', 'category_id', 'type_id', 'system_id', 'funding_id', 'need_type_id', 'needs_description', 'estimated_value', 'size_kwp', 'notes', 'note2', 'sales_ids', 'latitude', 'longitude', 'maps_url']));
             $this->redirect('/leads/create');
 
             return;
@@ -168,6 +172,9 @@ class LeadController extends Controller
             'email' => trim((string) $request->input('email', '')) ?: null,
             'address' => trim((string) $request->input('address', '')) ?: null,
             'site_location' => trim((string) $request->input('site_location', '')) ?: null,
+            'latitude' => $this->coordinate($request->input('latitude'), 90),
+            'longitude' => $this->coordinate($request->input('longitude'), 180),
+            'maps_url' => $this->mapsUrl($request->input('maps_url')),
             'pln_id' => trim((string) $request->input('pln_id', '')) ?: null,
             'electricity_bill' => $request->input('electricity_bill') !== '' && $request->input('electricity_bill') !== null ? (float) $request->input('electricity_bill') : null,
             'source_id' => $this->nullableInt($request->input('source_id')),
@@ -183,9 +190,10 @@ class LeadController extends Controller
             'note2' => $note2,
             'note_updated_at' => ($notes !== null || $note2 !== null) ? date('Y-m-d H:i:s') : null,
             'status' => 'new',
-            'priority' => $request->input('priority'),
+            'priority' => 'medium',
+            // Revisi Survey wajib: lead BARU wajib Survey + Survey Report sebelum Prelim.
+            'survey_required' => 1,
             'sales_id' => $primarySalesId,
-            'follow_up_date' => $request->input('follow_up_date') ?: null,
             'created_by' => $actor['id'],
             'updated_by' => $actor['id'],
             'created_at' => date('Y-m-d H:i:s'),
@@ -246,6 +254,10 @@ class LeadController extends Controller
         $activePrelim = ($latestPrelim !== null && $latestPrelim['status'] !== 'approved') ? $latestPrelim : null;
         $missingPrelimFields = Lead::missingPrelimFields($lead);
 
+        // Survey wajib (lead baru): gerbang Prelim + data untuk seksi Survey.
+        $prelimBlocker = Survey::prelimBlocker($lead);
+        $currentSurvey = Survey::currentForLead((int) $lead['id']);
+
         $this->view('leads/show', [
             'pageTitle' => $lead['lead_code'],
             'lead' => $lead,
@@ -272,6 +284,17 @@ class LeadController extends Controller
             'canEnqueue' => Acl::can('lead.edit') && !$this->isReadOnlyForSales($lead),
             // Revisi Alur Bisnis (Prelim) — Data Awal completeness + Prelim itself.
             'missingPrelimFields' => $missingPrelimFields,
+            'prelimBlocker' => $prelimBlocker,
+            'surveyRequired' => (int) ($lead['survey_required'] ?? 0) === 1,
+            'currentSurvey' => $currentSurvey,
+            'surveyHistoryList' => Survey::forLead((int) $lead['id']),
+            'surveyors' => User::activeSurveyors(),
+            'surveyPartnerCandidates' => array_merge(
+                array_map(fn ($u) => $u + ['partner_role' => 'sales_engineer'], User::activeSalesEngineers()),
+                array_map(fn ($u) => $u + ['partner_role' => 'engineer'], User::activeEngineers())
+            ),
+            'canRequestSurveyFlow' => Acl::can('survey.request') && !$this->isReadOnlyForSales($lead) && !$lead['deleted_at'] && !in_array($lead['status'], ['won', 'lost'], true),
+            'canOverrideSurvey' => \App\Core\Jobs::has('super_admin') && Acl::can('survey.override'),
             'prelim' => $latestPrelim,
             'prelimStatusMap' => MasterData::allAsMap('prelim_statuses'),
             'canCreatePrelim' => Acl::can('prelim.create') && !$this->isReadOnlyForSales($lead) && !$lead['deleted_at'],
@@ -343,7 +366,6 @@ class LeadController extends Controller
             'customer_name' => 'required|max:150',
             'email' => 'email|max:150',
             'phone' => 'max:30',
-            'priority' => 'required|in:low,medium,high,urgent',
         ]);
 
         if ($validator->fails()) {
@@ -366,6 +388,9 @@ class LeadController extends Controller
             'email' => trim((string) $request->input('email', '')) ?: null,
             'address' => trim((string) $request->input('address', '')) ?: null,
             'site_location' => trim((string) $request->input('site_location', '')) ?: null,
+            'latitude' => $this->coordinate($request->input('latitude'), 90),
+            'longitude' => $this->coordinate($request->input('longitude'), 180),
+            'maps_url' => $this->mapsUrl($request->input('maps_url')),
             'pln_id' => trim((string) $request->input('pln_id', '')) ?: null,
             'electricity_bill' => $request->input('electricity_bill') !== '' && $request->input('electricity_bill') !== null ? (float) $request->input('electricity_bill') : null,
             'source_id' => $this->nullableInt($request->input('source_id')),
@@ -379,8 +404,6 @@ class LeadController extends Controller
             'size_kwp' => $request->input('size_kwp') !== '' && $request->input('size_kwp') !== null ? (float) $request->input('size_kwp') : null,
             'notes' => $notes,
             'note2' => $note2,
-            'priority' => $request->input('priority'),
-            'follow_up_date' => $request->input('follow_up_date') ?: null,
             'updated_by' => $actor['id'],
             'updated_at' => date('Y-m-d H:i:s'),
         ];
@@ -410,7 +433,7 @@ class LeadController extends Controller
             'funding_id' => $lead['funding_id'],
         ], [
             'customer_name' => $newData['customer_name'],
-            'priority' => $newData['priority'],
+            'priority' => $lead['priority'],
             'type_id' => $newData['type_id'],
             'system_id' => $newData['system_id'],
             'funding_id' => $newData['funding_id'],
@@ -418,6 +441,28 @@ class LeadController extends Controller
 
         Session::flash('success', 'Lead berhasil diperbarui.');
         $this->redirect('/leads/' . $lead['id']);
+    }
+
+    /** Koordinat dari form (hidden field hasil pencarian lokasi): angka dalam rentang, atau null. */
+    private function coordinate(mixed $value, int $limit): ?float
+    {
+        if ($value === null || $value === '' || !is_numeric($value)) {
+            return null;
+        }
+        $v = (float) $value;
+
+        return abs($v) <= $limit ? round($v, 7) : null;
+    }
+
+    /** Hanya link Google Maps (https) yang disimpan. */
+    private function mapsUrl(mixed $value): ?string
+    {
+        $url = trim((string) $value);
+        if ($url === '' || mb_strlen($url) > 500 || !preg_match('#^https://(www\.)?google\.[a-z.]+/maps#i', $url)) {
+            return null;
+        }
+
+        return $url;
     }
 
     public function destroy(Request $request, array $params): void
@@ -754,6 +799,9 @@ class LeadController extends Controller
         if ($scopeSalesId !== null && (int) $lead['sales_id'] !== $scopeSalesId && !LeadSales::isAssigned($id, $scopeSalesId)) {
             $this->abort(403, 'Anda hanya dapat mengakses lead yang ditugaskan kepada Anda.');
         }
+        if (Acl::requiresInvolvement() && !Lead::userInvolved($id, (int) Auth::id())) {
+            $this->abort(403, 'Anda hanya dapat mengakses lead yang Anda tangani (survey atau penugasan teknis).');
+        }
 
         return $lead;
     }
@@ -765,7 +813,7 @@ class LeadController extends Controller
      */
     private function scopeSalesId(): ?int
     {
-        return Acl::hasRole('sales') ? Auth::id() : null;
+        return Acl::scoped('sales') ? Auth::id() : null;
     }
 
     private function isReadOnlyForSales(array $lead): bool

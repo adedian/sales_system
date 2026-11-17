@@ -13,7 +13,7 @@ class ProposalApiController extends Controller
     /** Polled by the proposal dashboard to keep the tab counts live. */
     public function summary(Request $request): void
     {
-        $scopeSalesId = Acl::hasRole('sales') ? Auth::id() : null;
+        $scopeSalesId = Acl::scoped('sales') ? Auth::id() : null;
 
         $this->json([
             'counts' => Proposal::dashboardCounts($scopeSalesId),
@@ -46,7 +46,7 @@ class ProposalApiController extends Controller
             return null;
         }
 
-        if (Acl::hasRole('sales') && (int) $proposal['sales_id'] !== Auth::id()) {
+        if (Acl::scoped('sales') && (int) $proposal['sales_id'] !== Auth::id()) {
             $this->json(['error' => 'forbidden'], 403);
 
             return null;

@@ -78,7 +78,67 @@ class ProposalController extends Controller
             'negotiations' => ProposalNegotiation::forProposal((int) $proposal['id']),
             'canNegotiate' => $this->canOperate($proposal) && in_array($proposal['status'], ['sent', 'viewed', 'negotiation'], true),
             'products' => \App\Models\Product::activeList(),
+            'versions' => \App\Models\ProposalVersion::forProposal((int) $proposal['id']),
         ]);
+    }
+
+    /** Melihat salinan (baca-saja) proposal pada versi tertentu, dibandingkan dengan versi sebelumnya. */
+    public function versionShow(Request $request, array $params): void
+    {
+        $proposal = $this->findAuthorized((int) $params['id']);
+        $version = \App\Models\ProposalVersion::find((int) $proposal['id'], (int) $params['versionId']);
+        if ($version === null) {
+            $this->abort(404);
+
+            return;
+        }
+
+        $previous = null;
+        foreach (\App\Models\ProposalVersion::forProposal((int) $proposal['id']) as $v) {
+            if ((int) $v['id'] < (int) $version['id']) {
+                $previous = \App\Models\ProposalVersion::find((int) $proposal['id'], (int) $v['id']);
+                break;
+            }
+        }
+
+        $this->view('proposals/version', [
+            'pageTitle' => $proposal['proposal_code'] . ' v' . $version['version_no'],
+            'proposal' => $proposal,
+            'version' => $version,
+            'previous' => $previous,
+        ]);
+    }
+
+    public function versionPdf(Request $request, array $params): void
+    {
+        $proposal = $this->findAuthorized((int) $params['id']);
+        $version = \App\Models\ProposalVersion::find((int) $proposal['id'], (int) $params['versionId']);
+        if ($version === null) {
+            $this->abort(404);
+
+            return;
+        }
+
+        // Header relasi (lead, sales) tetap dari proposal saat ini; isi dokumen dari salinan versi.
+        $snapshot = array_merge($proposal, $version['data']['proposal']);
+        $this->streamPdf($snapshot, $version['data']['items'], $proposal['proposal_code'] . '_v' . $version['version_no'] . '.pdf', (bool) $request->input('download'), (int) $proposal['id']);
+    }
+
+    private function streamPdf(array $proposal, array $items, string $filename, bool $download, int $proposalId): void
+    {
+        $options = new Options();
+        $options->set('isRemoteEnabled', false);
+        $options->set('defaultFont', 'DejaVu Sans');
+
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($this->buildPdfHtml($proposal, $items));
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        AuditLogger::log((int) Auth::id(), 'proposal_pdf_generated', 'proposal', $proposalId, null, ['download' => $download, 'file' => $filename]);
+
+        $dompdf->stream($filename, ['Attachment' => $download]);
+        exit;
     }
 
     /** "Procurement -> Buat Proposal": copies priced items in as the starting point. */
@@ -91,17 +151,17 @@ class ProposalController extends Controller
             return;
         }
 
-        // Direktur (Pak Ronny, role tetap 'sales') butuh akses ke request siapa
+        // Direktur (permission price.validate) butuh akses ke request siapa
         // pun, sama seperti bypass di ProcurementController::findAuthorized() —
         // tanpa ini dia bisa buka request orang lain tapi 403 saat convert ke Proposal.
         if (!$this->isDirector()) {
-            if (Acl::hasRole('procurement') && (int) $pr['assigned_to'] !== Auth::id()) {
+            if (Acl::scoped('procurement') && (int) $pr['assigned_to'] !== Auth::id()) {
                 $this->abort(403);
 
                 return;
             }
 
-            if (Acl::hasRole('sales') && (int) $pr['lead_sales_id'] !== Auth::id()) {
+            if (Acl::scoped('sales') && (int) $pr['lead_sales_id'] !== Auth::id()) {
                 $this->abort(403);
 
                 return;
@@ -600,6 +660,7 @@ class ProposalController extends Controller
 
         Proposal::update((int) $proposal['id'], ['status' => 'internal_review', 'submitted_at' => $now, 'updated_at' => $now]);
         ProposalStatusHistory::record((int) $proposal['id'], $oldStatus, 'internal_review', Auth::id());
+        \App\Models\ProposalVersion::capture((int) $proposal['id'], 'submitted', Auth::id());
         AuditLogger::log((int) Auth::id(), 'proposal_submitted', 'proposal', (int) $proposal['id']);
 
         $managerRole = Role::findBySlug('manager');
@@ -693,6 +754,7 @@ class ProposalController extends Controller
 
         $reason = trim((string) $request->input('revision_reason'));
         Proposal::update((int) $proposal['id'], ['status' => 'revision', 'updated_at' => date('Y-m-d H:i:s')]);
+        \App\Models\ProposalVersion::bump((int) $proposal['id']);
         ProposalStatusHistory::record((int) $proposal['id'], 'internal_review', 'revision', Auth::id(), $reason);
         AuditLogger::log((int) Auth::id(), 'proposal_revision_requested', 'proposal', (int) $proposal['id'], null, ['reason' => $reason]);
 
@@ -738,6 +800,7 @@ class ProposalController extends Controller
 
         Proposal::update((int) $proposal['id'], ['status' => 'sent', 'sent_at' => $now, 'updated_at' => $now]);
         ProposalStatusHistory::record((int) $proposal['id'], $oldStatus, 'sent', Auth::id());
+        \App\Models\ProposalVersion::capture((int) $proposal['id'], 'sent', Auth::id());
         AuditLogger::log((int) Auth::id(), 'proposal_sent', 'proposal', (int) $proposal['id']);
 
         Session::flash('success', 'Proposal ditandai sudah dikirim ke customer.');
@@ -903,6 +966,7 @@ class ProposalController extends Controller
         ProposalNegotiation::add((int) $proposal['id'], 'revision_request', $reason, $requestedTotal, Auth::id());
 
         Proposal::update((int) $proposal['id'], ['status' => 'draft', 'updated_at' => date('Y-m-d H:i:s')]);
+        \App\Models\ProposalVersion::bump((int) $proposal['id']);
         ProposalStatusHistory::record((int) $proposal['id'], 'negotiation', 'draft', Auth::id(), 'Revisi berdasarkan negosiasi customer: ' . $reason);
         AuditLogger::log((int) Auth::id(), 'proposal_revision_from_negotiation', 'proposal', (int) $proposal['id'], null, ['reason' => $reason]);
 
@@ -952,22 +1016,7 @@ class ProposalController extends Controller
         $proposal = $this->findAuthorized((int) $params['id']);
         $items = ProposalItem::forProposal((int) $proposal['id']);
 
-        $options = new Options();
-        $options->set('isRemoteEnabled', false);
-        $options->set('defaultFont', 'DejaVu Sans');
-
-        $dompdf = new Dompdf($options);
-        $dompdf->loadHtml($this->buildPdfHtml($proposal, $items));
-        $dompdf->setPaper('A4', 'portrait');
-        $dompdf->render();
-
-        $download = (bool) $request->input('download');
-        $filename = $proposal['proposal_code'] . '.pdf';
-
-        AuditLogger::log((int) Auth::id(), 'proposal_pdf_generated', 'proposal', (int) $proposal['id'], null, ['download' => $download]);
-
-        $dompdf->stream($filename, ['Attachment' => $download]);
-        exit;
+        $this->streamPdf($proposal, $items, $proposal['proposal_code'] . '.pdf', (bool) $request->input('download'), (int) $proposal['id']);
     }
 
     private function buildPdfHtml(array $proposal, array $items): string
@@ -1119,8 +1168,11 @@ HTML;
             $this->abort(404);
         }
 
-        if (Acl::hasRole('sales') && (int) $proposal['sales_id'] !== Auth::id()) {
+        if (Acl::scoped('sales') && (int) $proposal['sales_id'] !== Auth::id()) {
             $this->abort(403, 'Anda hanya dapat mengakses proposal milik Anda sendiri.');
+        }
+        if (Acl::requiresInvolvement() && !\App\Models\Lead::userInvolved((int) $proposal['lead_id'], (int) Auth::id())) {
+            $this->abort(403, 'Anda hanya dapat mengakses proposal dari lead yang Anda tangani.');
         }
 
         return $proposal;
@@ -1130,7 +1182,7 @@ HTML;
     {
         $actor = Auth::user();
 
-        return $actor && (int) ($actor['is_director'] ?? 0) === 1;
+        return Acl::can('price.validate');
     }
 
     private function findAuthorizedLead(int $id): array
@@ -1141,7 +1193,7 @@ HTML;
             $this->abort(404);
         }
 
-        if (Acl::hasRole('sales') && (int) $lead['sales_id'] !== Auth::id()) {
+        if (Acl::scoped('sales') && (int) $lead['sales_id'] !== Auth::id()) {
             $this->abort(403, 'Anda hanya dapat mengakses lead yang ditugaskan kepada Anda.');
         }
 
@@ -1161,8 +1213,11 @@ HTML;
 
     private function scopeFilters(): array
     {
-        if (Acl::hasRole('sales')) {
+        if (Acl::scoped('sales')) {
             return ['scope_sales_id' => Auth::id()];
+        }
+        if (Acl::requiresInvolvement()) {
+            return ['scope_involved_user_id' => Auth::id()];
         }
 
         return [];
@@ -1171,7 +1226,7 @@ HTML;
     /** Who may edit header/items, submit for review, send, and log customer response. */
     private function canOperate(array $proposal): bool
     {
-        return Acl::can('proposal.edit') && (!Acl::hasRole('sales') || (int) $proposal['sales_id'] === Auth::id());
+        return Acl::can('proposal.edit') && (!Acl::scoped('sales') || (int) $proposal['sales_id'] === Auth::id());
     }
 
     /** Who may approve / request revision — an oversight action, not ownership-gated. */

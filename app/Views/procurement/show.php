@@ -10,7 +10,7 @@ $notes = array_values(array_filter($timeline, fn ($e) => $e['type'] === 'note'))
     <div>
         <div class="lead-code-eyebrow">
             <?= e($pr['request_code']) ?>
-            <?php if ($isOverdue): ?><span class="overdue-badge"><i class="bi bi-exclamation-triangle-fill"></i> Overdue</span><?php endif; ?>
+            <?php if ($isOverdue): ?><span class="overdue-badge"><i class="bi bi-exclamation-triangle-fill"></i> Terlambat</span><?php endif; ?>
         </div>
         <h2><?= e($pr['customer_name']) ?></h2>
         <p class="text-muted">

@@ -13,7 +13,7 @@ $notes = array_values(array_filter($timeline, fn ($e) => $e['type'] === 'note'))
             <?= e($assignment['assignment_code']) ?>
             <span class="badge-pill <?= $assignment['assignment_type'] === 'engineer' ? 'badge-pill-muted' : '' ?>"><?= $assignment['assignment_type'] === 'engineer' ? 'Engineer' : 'Sales Engineer' ?></span>
             <span class="badge-pill <?= $assignment['purpose'] === 'survey' ? 'badge-pill-amber' : 'badge-pill-muted' ?>"><?= $assignment['purpose'] === 'survey' ? 'Survey (Data Awal)' : 'Proposal + BOQ' ?></span>
-            <?php if ($isOverdue): ?><span class="overdue-badge"><i class="bi bi-exclamation-triangle-fill"></i> Overdue</span><?php endif; ?>
+            <?php if ($isOverdue): ?><span class="overdue-badge"><i class="bi bi-exclamation-triangle-fill"></i> Terlambat</span><?php endif; ?>
         </div>
         <h2><?= e($assignment['customer_name']) ?></h2>
         <p class="text-muted">

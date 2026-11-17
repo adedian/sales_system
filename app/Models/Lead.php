@@ -67,6 +67,21 @@ class Lead extends Model
      * Binds the same sales id twice — callers must push $salesId to
      * $params twice, in the same order this fragment appears.
      */
+    /**
+     * Keterlibatan pengguna pada sebuah lead: Survey (surveyor/peserta) atau penugasan
+     * Engineer/Sales Engineer. Tiga placeholder, semuanya diisi id pengguna.
+     */
+    public static function involvedSql(string $leadIdColumn = 'leads.id'): string
+    {
+        return "(EXISTS (SELECT 1 FROM surveys sv WHERE sv.lead_id = {$leadIdColumn} AND sv.deleted_at IS NULL AND (sv.surveyor_id = ? OR EXISTS (SELECT 1 FROM survey_participants sp WHERE sp.survey_id = sv.id AND sp.user_id = ?)))"
+            . " OR EXISTS (SELECT 1 FROM engineer_assignments ea WHERE ea.lead_id = {$leadIdColumn} AND ea.engineer_id = ?))";
+    }
+
+    public static function userInvolved(int $leadId, int $userId): bool
+    {
+        return Database::fetch('SELECT 1 AS ok FROM leads WHERE leads.id = ? AND ' . self::involvedSql(), [$leadId, $userId, $userId, $userId]) !== null;
+    }
+
     private static function ownedBySalesSql(string $column = 'leads.sales_id'): string
     {
         return "({$column} = ? OR EXISTS (SELECT 1 FROM lead_sales WHERE lead_sales.lead_id = leads.id AND lead_sales.user_id = ?))";
@@ -194,6 +209,15 @@ class Lead extends Model
             return ['label' => 'Approval Harga', 'color' => 'amber'];
         }
 
+        // Survey wajib (lead baru): selama Survey/Survey Report belum selesai
+        // dan Prelim belum ada, posisi lead adalah "Survey". Lead lama
+        // (survey_required = 0) tidak terpengaruh.
+        if (empty($extra['prelim']) && empty($extra['procurement']) && (int) ($lead['survey_required'] ?? 0) === 1
+            && (self::STATUS_RANK[$lead['status']] ?? 0) <= self::STATUS_RANK['engineering']
+            && \App\Models\Survey::openStageForLead($lead) !== null) {
+            return ['label' => 'Survey', 'color' => 'amber'];
+        }
+
         if (!empty($extra['procurement'])) {
             return ['label' => 'Procurement', 'color' => 'indigo'];
         }
@@ -271,6 +295,10 @@ class Lead extends Model
             $where[] = self::ownedBySalesSql();
             $params[] = (int) $filters['scope_sales_id'];
             $params[] = (int) $filters['scope_sales_id'];
+        }
+        if (!empty($filters['scope_involved_user_id'])) {
+            $where[] = self::involvedSql();
+            array_push($params, (int) $filters['scope_involved_user_id'], (int) $filters['scope_involved_user_id'], (int) $filters['scope_involved_user_id']);
         }
 
         if (!empty($filters['q'])) {
@@ -434,10 +462,14 @@ class Lead extends Model
                 ) prelim ON prelim.lead_id = leads.id AND prelim.rn = 1";
     }
 
-    public static function countByStatus(?int $scopeSalesId = null): array
+    public static function countByStatus(?int $scopeSalesId = null, ?int $involvedUserId = null): array
     {
         $sql = "SELECT status, COUNT(*) AS total FROM leads WHERE deleted_at IS NULL";
         $params = [];
+        if ($involvedUserId !== null) {
+            $sql .= ' AND ' . self::involvedSql();
+            array_push($params, $involvedUserId, $involvedUserId, $involvedUserId);
+        }
         if ($scopeSalesId !== null) {
             $sql .= ' AND ' . self::ownedBySalesSql();
             $params[] = $scopeSalesId;

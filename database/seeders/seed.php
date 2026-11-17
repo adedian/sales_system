@@ -62,8 +62,9 @@ $rolesDefinition = [
                 || str_starts_with($slug, 'vendor.')
                 || str_starts_with($slug, 'product.')
                 || str_starts_with($slug, 'prelim.')
-                || str_starts_with($slug, 'proposal.')
+                || (str_starts_with($slug, 'proposal.') && $slug !== 'proposal.approve')
                 || str_starts_with($slug, 'followup.')
+                || (str_starts_with($slug, 'survey.') && $slug !== 'survey.override')
                 || $slug === 'report.view'
                 || $slug === 'user.manage'
                 || $slug === 'master_data.manage'
@@ -79,23 +80,40 @@ $rolesDefinition = [
             'prelim.view', 'prelim.create', 'prelim.edit', 'prelim.send',
             'proposal.view', 'proposal.create', 'proposal.edit', 'proposal.send',
             'followup.view', 'followup.create', 'followup.edit',
+            'survey.view', 'survey.request',
         ],
     ],
-    'engineer-sales' => [
-        'name' => 'Engineer Sales',
-        'description' => 'Menangani analisa teknis lead yang ditugaskan',
-        'permissions' => ['dashboard.view', 'engineer.view', 'procurement.view', 'lead.view'],
+    // Role pekerjaan (multi-role: satu pengguna boleh memiliki beberapa; lihat tabel user_roles).
+    'sales-engineer' => [
+        'name' => 'Sales Engineer',
+        'description' => 'Analisis kebutuhan, BOQ, dan pembuatan/revisi proposal',
+        'permissions' => ['dashboard.view', 'lead.view', 'survey.view', 'survey.review', 'engineer.view', 'procurement.view', 'prelim.view', 'proposal.view', 'proposal.create', 'proposal.edit'],
+    ],
+    'engineer' => [
+        'name' => 'Engineer',
+        'description' => 'Analisis teknis, pemeriksaan, perhitungan sistem, dan spesifikasi',
+        'permissions' => ['dashboard.view', 'engineer.view', 'procurement.view', 'lead.view', 'survey.view', 'survey.review'],
+    ],
+    'surveyor' => [
+        'name' => 'Surveyor',
+        'description' => 'Survey lapangan, dokumentasi foto, dan Survey Report',
+        'permissions' => ['dashboard.view', 'lead.view', 'survey.view', 'queue.view'],
+    ],
+    'direktur' => [
+        'name' => 'Direktur',
+        'description' => 'Approval harga dan penawaran',
+        'permissions' => ['dashboard.view', 'lead.view', 'survey.view', 'survey.review', 'engineer.view', 'prelim.view', 'proposal.view', 'proposal.approve', 'procurement.view', 'price.validate', 'followup.view', 'queue.view', 'report.view', 'report.export'],
     ],
     'procurement' => [
         'name' => 'Procurement',
         'description' => 'Mencari vendor, quotation, dan menentukan harga beli',
-        'permissions' => ['dashboard.view', 'procurement.view', 'lead.view'],
+        'permissions' => ['dashboard.view', 'procurement.view', 'lead.view', 'vendor.manage', 'product.manage'],
     ],
     'manager' => [
         'name' => 'Manager/Supervisor',
         'description' => 'Memantau seluruh modul dan laporan',
         'permissions' => array_values(array_filter($allSlugs, function ($slug) {
-            return str_ends_with($slug, '.view') || $slug === 'report.export' || $slug === 'dashboard.view' || $slug === 'proposal.approve';
+            return str_ends_with($slug, '.view') || $slug === 'report.export' || $slug === 'dashboard.view' || $slug === 'survey.review';
         })),
     ],
 ];
@@ -145,7 +163,7 @@ $demoUsers = [
     ['username' => 'superadmin', 'name' => 'Super Administrator', 'email' => 'superadmin@internal.local', 'role' => 'super-admin'],
     ['username' => 'adminsales', 'name' => 'Admin Sales', 'email' => 'adminsales@internal.local', 'role' => 'admin-sales'],
     ['username' => 'sales1', 'name' => 'Sales Satu', 'email' => 'sales1@internal.local', 'role' => 'sales'],
-    ['username' => 'engineer1', 'name' => 'Engineer Satu', 'email' => 'engineer1@internal.local', 'role' => 'engineer-sales'],
+    ['username' => 'engineer1', 'name' => 'Engineer Satu', 'email' => 'engineer1@internal.local', 'role' => 'engineer'],
     ['username' => 'procurement1', 'name' => 'Procurement Satu', 'email' => 'procurement1@internal.local', 'role' => 'procurement'],
     ['username' => 'manager1', 'name' => 'Manager Satu', 'email' => 'manager1@internal.local', 'role' => 'manager'],
     // Phase A (Leads revision) — roster Sales nyata dari referensi spreadsheet.
@@ -236,6 +254,21 @@ foreach ($directorUsernames as $username) {
     Database::execute('UPDATE users SET is_director = 1 WHERE username = ?', [$username]);
 }
 echo "  = engineer/sales-engineer/director flags applied.\n";
+
+/* ------------------------------------------------------------------
+ * 3c) Multi-role: relasi user_roles + pemetaan awal nama -> role.
+ *     Hanya dijalankan bila user_roles masih kosong (database baru), agar
+ *     seeding ulang tidak menimpa perubahan role yang dibuat lewat menu Pengguna.
+ *     Database yang sudah berjalan memakai database/migrations/2026-11-17-multi-role.sql.
+ * ---------------------------------------------------------------- */
+$pdo->exec('CREATE TABLE IF NOT EXISTS user_roles (user_id INT UNSIGNED NOT NULL, role_id INT UNSIGNED NOT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (user_id, role_id), KEY idx_user_roles_role (role_id), CONSTRAINT fk_user_roles_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE, CONSTRAINT fk_user_roles_role FOREIGN KEY (role_id) REFERENCES roles (id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
+if ((int) Database::fetch('SELECT COUNT(*) AS n FROM user_roles')['n'] === 0) {
+    $migration = preg_replace('/^\s*--.*$/m', '', (string) file_get_contents(__DIR__ . '/../migrations/2026-11-17-multi-role.sql'));
+    foreach (array_filter(array_map('trim', preg_split('/;\s*\n/', $migration))) as $statement) {
+        $pdo->exec($statement);
+    }
+    echo "  + multi-role migration applied.\n";
+}
 
 /* ------------------------------------------------------------------
  * 4) Master Data (Phase 4) — satu tabel per tipe, semua kolom seragam.

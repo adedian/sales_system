@@ -22,8 +22,8 @@ class ProcurementApiController extends Controller
     /** Polled by the procurement dashboard to keep the tab counts live. */
     public function summary(Request $request): void
     {
-        $scopeAssignedTo = Acl::hasRole('procurement') ? Auth::id() : null;
-        $scopeSalesId = Acl::hasRole('sales') ? Auth::id() : null;
+        $scopeAssignedTo = Acl::scoped('procurement') ? Auth::id() : null;
+        $scopeSalesId = Acl::scoped('sales') ? Auth::id() : null;
 
         $this->json([
             'counts' => ProcurementRequest::dashboardCounts($scopeAssignedTo, $scopeSalesId),
@@ -211,20 +211,20 @@ class ProcurementApiController extends Controller
             return null;
         }
 
-        // Revisi Sub-Fase 3 — Direktur (is_director flag, role stays `sales`)
+        // Revisi Sub-Fase 3 — Direktur (permission price.validate)
         // needs to poll/view any request regardless of lead ownership.
         $actor = Auth::user();
-        if ($actor && (int) ($actor['is_director'] ?? 0) === 1) {
+        if (Acl::can('price.validate')) {
             return $pr;
         }
 
-        if (Acl::hasRole('procurement') && (int) $pr['assigned_to'] !== Auth::id()) {
+        if (Acl::scoped('procurement') && (int) $pr['assigned_to'] !== Auth::id()) {
             $this->json(['error' => 'forbidden'], 403);
 
             return null;
         }
 
-        if (Acl::hasRole('sales') && (int) $pr['lead_sales_id'] !== Auth::id()) {
+        if (Acl::scoped('sales') && (int) $pr['lead_sales_id'] !== Auth::id()) {
             $this->json(['error' => 'forbidden'], 403);
 
             return null;

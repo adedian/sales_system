@@ -19,23 +19,23 @@ $firstName = explode(' ', auth_user()['name'] ?? '')[0] ?? '';
     </a>
     <a href="<?= url('/engineer') ?>?status=accepted" class="stat-card stat-card-compact stat-card-link">
         <div class="stat-icon stat-icon-primary"><i class="bi bi-check2"></i></div>
-        <div class="stat-body"><span class="stat-label">Accepted</span><span class="stat-value" data-ws-count="accepted"><?= (int) $summary['accepted'] ?></span></div>
+        <div class="stat-body"><span class="stat-label">Diterima</span><span class="stat-value" data-ws-count="accepted"><?= (int) $summary['accepted'] ?></span></div>
     </a>
     <a href="<?= url('/engineer') ?>?status=in_progress" class="stat-card stat-card-compact stat-card-link">
         <div class="stat-icon stat-icon-indigo"><i class="bi bi-arrow-repeat"></i></div>
-        <div class="stat-body"><span class="stat-label">In Progress</span><span class="stat-value" data-ws-count="in_progress"><?= (int) $summary['in_progress'] ?></span></div>
+        <div class="stat-body"><span class="stat-label">Sedang Dikerjakan</span><span class="stat-value" data-ws-count="in_progress"><?= (int) $summary['in_progress'] ?></span></div>
     </a>
     <a href="<?= url('/engineer') ?>?status=waiting" class="stat-card stat-card-compact stat-card-link">
         <div class="stat-icon stat-icon-amber"><i class="bi bi-hourglass-split"></i></div>
-        <div class="stat-body"><span class="stat-label">Waiting</span><span class="stat-value" data-ws-count="waiting"><?= (int) $summary['waiting'] ?></span></div>
+        <div class="stat-body"><span class="stat-label">Menunggu</span><span class="stat-value" data-ws-count="waiting"><?= (int) $summary['waiting'] ?></span></div>
     </a>
     <a href="<?= url('/engineer') ?>?status=completed&include_closed=1" class="stat-card stat-card-compact stat-card-link">
         <div class="stat-icon stat-icon-emerald"><i class="bi bi-check-circle"></i></div>
-        <div class="stat-body"><span class="stat-label">Completed</span><span class="stat-value" data-ws-count="completed"><?= (int) $summary['completed'] ?></span></div>
+        <div class="stat-body"><span class="stat-label">Selesai</span><span class="stat-value" data-ws-count="completed"><?= (int) $summary['completed'] ?></span></div>
     </a>
     <a href="<?= url('/engineer') ?>?status=rejected&include_closed=1" class="stat-card stat-card-compact stat-card-link">
         <div class="stat-icon stat-icon-danger"><i class="bi bi-x-circle"></i></div>
-        <div class="stat-body"><span class="stat-label">Rejected</span><span class="stat-value" data-ws-count="rejected"><?= (int) $summary['rejected'] ?></span></div>
+        <div class="stat-body"><span class="stat-label">Ditolak</span><span class="stat-value" data-ws-count="rejected"><?= (int) $summary['rejected'] ?></span></div>
     </a>
 </div>
 
@@ -97,7 +97,7 @@ $firstName = explode(' ', auth_user()['name'] ?? '')[0] ?? '';
                     <div class="timeline-item">
                         <div class="timeline-dot"></div>
                         <div class="timeline-body">
-                            <div class="timeline-title"><?= e($log['action']) ?> <span class="text-muted">&middot; <?= e($log['module']) ?></span></div>
+                            <div class="timeline-title"><?= e(audit_label((string) $log['action'])) ?> <span class="text-muted">&middot; <?= e(str_replace('_', ' ', (string) $log['module'])) ?></span></div>
                             <div class="timeline-meta"><?= e(format_datetime($log['created_at'])) ?></div>
                         </div>
                     </div>

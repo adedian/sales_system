@@ -61,7 +61,7 @@ $todayIdx = count($week['days']) - 1;
         </div>
         <?php endif; ?>
         <?php if (can('report.export')): ?>
-        <a href="<?= url('/reports/leads') ?>?format=csv" class="btn btn-light"><i class="bi bi-box-arrow-up me-1"></i>Export</a>
+        <a href="<?= url('/reports/leads') ?>?format=csv" class="btn btn-light"><i class="bi bi-box-arrow-up me-1"></i>Ekspor</a>
         <?php endif; ?>
         <?php if (can('lead.create')): ?>
         <a href="<?= url('/leads/create') ?>" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Lead Baru</a>
@@ -254,7 +254,7 @@ $todayIdx = count($week['days']) - 1;
         <div class="pill-tabs">
             <button type="button" class="pill-tab active" data-tab-group="detail" data-tab-target="tab-active">Lead Aktif</button>
             <button type="button" class="pill-tab" data-tab-group="detail" data-tab-target="tab-sales">Kinerja Sales</button>
-            <button type="button" class="pill-tab" data-tab-group="detail" data-tab-target="tab-aging">Aging &amp; Bottleneck</button>
+            <button type="button" class="pill-tab" data-tab-group="detail" data-tab-target="tab-aging">Usia &amp; Hambatan</button>
             <button type="button" class="pill-tab" data-tab-group="detail" data-tab-target="tab-team">Beban Kerja Tim</button>
             <button type="button" class="pill-tab" data-tab-group="detail" data-tab-target="tab-log">Aktivitas Terbaru</button>
         </div>
@@ -302,7 +302,7 @@ $todayIdx = count($week['days']) - 1;
             <?php else: ?>
             <div class="table-responsive">
                 <table class="table table-modern">
-                    <thead><tr><th>Sales</th><th>Lead Aktif</th><th>Won</th><th>Lost</th><th>Konversi</th><th style="min-width:220px">Nilai Won</th></tr></thead>
+                    <thead><tr><th>Sales</th><th>Lead Aktif</th><th>Menang</th><th>Kalah</th><th>Konversi</th><th style="min-width:220px">Nilai Menang</th></tr></thead>
                     <tbody>
                         <?php foreach ($salesPerformance as $sp): ?>
                         <tr>
@@ -341,7 +341,7 @@ $todayIdx = count($week['days']) - 1;
                             <td class="mono"><?= (int) $row['total'] ?></td>
                             <td class="mono <?= $slaRisk ? 'text-danger' : '' ?>"><?= e($row['avg_age_days']) ?> hari</td>
                             <td>
-                                <?php if ($isBottleneck): ?><span class="badge-pill badge-pill-amber"><i class="bi bi-exclamation-triangle-fill me-1"></i>Bottleneck</span><?php endif; ?>
+                                <?php if ($isBottleneck): ?><span class="badge-pill badge-pill-amber"><i class="bi bi-exclamation-triangle-fill me-1"></i>Hambatan</span><?php endif; ?>
                                 <?php if ($slaRisk): ?><span class="badge-pill badge-pill-danger">Lewat SLA (<?= (int) $slaDays ?> hari)</span><?php endif; ?>
                             </td>
                         </tr>
@@ -389,7 +389,7 @@ $todayIdx = count($week['days']) - 1;
                         <tr>
                             <td class="text-nowrap text-muted"><?= e(format_datetime($log['created_at'])) ?></td>
                             <td><?= e($log['user_name'] ?? 'Sistem') ?></td>
-                            <td><span class="badge-pill"><?= e($log['action']) ?></span></td>
+                            <td><span class="badge-pill"><?= e(audit_label((string) $log['action'])) ?></span></td>
                             <td><?= e($log['module']) ?></td>
                         </tr>
                         <?php endforeach; ?>

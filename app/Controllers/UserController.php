@@ -62,14 +62,13 @@ class UserController extends Controller
             'username' => 'required|max:100|unique:users,username',
             'email' => 'required|email|max:150|unique:users,email',
             'password' => 'required|min:8',
-            'role_id' => 'required',
             'phone' => 'max:30',
         ]);
 
-        $role = Role::find((int) $request->input('role_id'));
-        if (!$validator->fails() && $role === null) {
-            Session::flash('error', 'Role tidak valid.');
-            Session::flashOld($request->only(['name', 'username', 'email', 'phone', 'role_id']));
+        $roleIds = $this->requestedRoleIds($request);
+        if (!$validator->fails() && $roleIds === []) {
+            Session::flash('error', 'Pilih minimal satu role yang valid.');
+            Session::flashOld($request->only(['name', 'username', 'email', 'phone']) + ['role_ids' => (array) $request->input('role_ids', [])]);
             $this->redirect('/users/create');
 
             return;
@@ -78,9 +77,9 @@ class UserController extends Controller
         // Only an existing Super Admin may mint another Super Admin account —
         // otherwise any role holding user.manage (e.g. Admin Sales) could
         // self-escalate by creating a new top-tier account.
-        if (!$validator->fails() && $role !== null && $role['slug'] === 'super-admin' && !Acl::hasRole('super-admin')) {
+        if (!$validator->fails() && $roleIds !== [] && $this->grantsSuperAdmin($roleIds) && !Acl::hasRole('super-admin')) {
             Session::flash('error', 'Anda tidak memiliki izin untuk menetapkan role Super Admin.');
-            Session::flashOld($request->only(['name', 'username', 'email', 'phone', 'role_id']));
+            Session::flashOld($request->only(['name', 'username', 'email', 'phone']) + ['role_ids' => $roleIds]);
             $this->redirect('/users/create');
 
             return;
@@ -89,7 +88,7 @@ class UserController extends Controller
         if ($validator->fails()) {
             $firstError = collect_first_error($validator->errors());
             Session::flash('error', $firstError);
-            Session::flashOld($request->only(['name', 'username', 'email', 'phone', 'role_id']));
+            Session::flashOld($request->only(['name', 'username', 'email', 'phone']) + ['role_ids' => $roleIds]);
             $this->redirect('/users/create');
 
             return;
@@ -102,18 +101,19 @@ class UserController extends Controller
             'username' => trim((string) $request->input('username')),
             'email' => trim((string) $request->input('email')),
             'password' => password_hash((string) $request->input('password'), PASSWORD_DEFAULT),
-            'role_id' => (int) $request->input('role_id'),
+            'role_id' => $roleIds[0],
             'phone' => trim((string) $request->input('phone')) ?: null,
             'is_active' => 1,
             'must_change_password' => 1,
             'created_by' => $actor['id'],
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
-        ], $this->capabilityFlags($request)));
+        ], []));
+        User::syncRoles($newUserId, $roleIds);
 
         AuditLogger::log((int) $actor['id'], 'user_created', 'user', $newUserId, null, [
             'username' => $request->input('username'),
-            'role_id' => (int) $request->input('role_id'),
+            'role_ids' => $roleIds,
         ]);
 
         Session::flash('success', 'Pengguna berhasil dibuat.');
@@ -183,23 +183,29 @@ class UserController extends Controller
         $actor = Auth::user();
         $isSelf = (int) $targetUser['id'] === (int) $actor['id'];
 
-        $newData = array_merge([
+        $newData = [
             'name' => trim((string) $request->input('name')),
             'username' => trim((string) $request->input('username')),
             'email' => trim((string) $request->input('email')),
             'phone' => trim((string) $request->input('phone')) ?: null,
             'updated_by' => $actor['id'],
-        ], $this->capabilityFlags($request));
+        ];
 
         // Safety guard: an admin editing their own account can't change their
-        // own role or active flag here — prevents an accidental self-lockout.
+        // own roles or active flag here — prevents an accidental self-lockout.
+        $newRoleIds = null;
         if (!$isSelf) {
-            $role = Role::find((int) $request->input('role_id'));
-            if ($role !== null && ($role['slug'] !== 'super-admin' || Acl::hasRole('super-admin'))) {
-                // Same escalation guard as store(): only Super Admin can hand out the Super Admin role.
-                $newData['role_id'] = (int) $request->input('role_id');
-            } elseif ($role !== null && $role['slug'] === 'super-admin') {
-                Session::flash('error', 'Anda tidak memiliki izin untuk menetapkan role Super Admin.');
+            $newRoleIds = $this->requestedRoleIds($request);
+            if ($newRoleIds === []) {
+                Session::flash('error', 'Pilih minimal satu role yang valid.');
+                $this->redirect("/users/{$id}/edit");
+
+                return;
+            }
+            // Eskalasi: hanya Super Admin yang boleh memberi atau mencabut role Super Admin.
+            $touchesSuperAdmin = $this->grantsSuperAdmin($newRoleIds) || in_array('super-admin', (array) $targetUser['role_slugs'], true);
+            if ($touchesSuperAdmin && !Acl::hasRole('super-admin')) {
+                Session::flash('error', 'Anda tidak memiliki izin untuk mengubah role Super Admin.');
                 $this->redirect("/users/{$id}/edit");
 
                 return;
@@ -213,11 +219,15 @@ class UserController extends Controller
         }
 
         User::update($id, $newData);
+        if ($newRoleIds !== null) {
+            User::syncRoles($id, $newRoleIds);
+            $newData['role_ids'] = $newRoleIds;
+        }
 
         AuditLogger::log((int) $actor['id'], 'user_updated', 'user', $id, [
             'name' => $targetUser['name'],
             'email' => $targetUser['email'],
-            'role_id' => (int) $targetUser['role_id'],
+            'role_ids' => $targetUser['role_ids'],
             'is_active' => (int) $targetUser['is_active'],
         ], $newData);
 
@@ -268,21 +278,39 @@ class UserController extends Controller
         $this->redirect('/users');
     }
 
-    /**
-     * Master Personnel — operational function flags (Estimator/Surveyor/
-     * Engineer/Sales Engineer/Direktur). Independent of RBAC role_id: a user
-     * keeps their normal login role and can additionally be flagged for one
-     * or more of these (see App\Models\User::activeByFlag).
-     *
-     * @return array<string,int>
-     */
-    private function capabilityFlags(Request $request): array
-    {
-        $flags = ['is_sales', 'is_estimator', 'is_surveyor', 'is_engineer', 'is_sales_engineer', 'is_director'];
+    /** Urutan prioritas role utama (users.role_id); role kustom menyusul. */
+    private const ROLE_PRIORITY = ['super-admin', 'admin-sales', 'manager', 'sales', 'sales-engineer', 'surveyor', 'engineer', 'procurement', 'direktur'];
 
-        return array_combine($flags, array_map(
-            fn ($flag) => $request->input($flag) ? 1 : 0,
-            $flags
-        ));
+    /**
+     * Role yang dipilih pada form (role_ids[]), difilter ke role yang benar-benar ada
+     * dan diurutkan menurut prioritas (elemen pertama menjadi role utama).
+     *
+     * @return int[]
+     */
+    private function requestedRoleIds(Request $request): array
+    {
+        $submitted = array_unique(array_map('intval', (array) $request->input('role_ids', [])));
+        $valid = [];
+        foreach (Role::all('id ASC') as $role) {
+            if (in_array((int) $role['id'], $submitted, true)) {
+                $valid[] = $role;
+            }
+        }
+        usort($valid, static function (array $x, array $y): int {
+            $px = array_search($x['slug'], self::ROLE_PRIORITY, true);
+            $py = array_search($y['slug'], self::ROLE_PRIORITY, true);
+
+            return ($px === false ? 99 : $px) <=> ($py === false ? 99 : $py);
+        });
+
+        return array_map(static fn (array $r): int => (int) $r['id'], $valid);
+    }
+
+    /** @param int[] $roleIds */
+    private function grantsSuperAdmin(array $roleIds): bool
+    {
+        $super = Role::findBySlug('super-admin');
+
+        return $super !== null && in_array((int) $super['id'], $roleIds, true);
     }
 }

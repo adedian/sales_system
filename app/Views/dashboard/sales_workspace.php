@@ -6,6 +6,13 @@ $daysLate = function (string $date): int {
     return (int) floor((strtotime(date('Y-m-d')) - strtotime($date)) / 86400);
 };
 ?>
+<?php if (!empty($pendingApprovals)): ?>
+<div class="alert alert-warning d-flex align-items-center gap-2 mb-3" role="alert">
+    <i class="bi bi-shield-check"></i>
+    <span><strong><?= (int) $pendingApprovals ?> harga</strong> menunggu validasi Anda sebagai Direktur.</span>
+    <a href="<?= url('/procurement/validation') ?>" class="btn btn-sm btn-warning ms-auto">Buka Approval Harga</a>
+</div>
+<?php endif; ?>
 <div class="page-header page-header-row">
     <div>
         <h2>Selamat datang, <?= e($firstName) ?></h2>
@@ -20,27 +27,27 @@ $daysLate = function (string $date): int {
 <div class="stat-grid stat-grid-6">
     <a href="<?= url('/leads') ?>" class="stat-card stat-card-compact stat-card-link">
         <div class="stat-icon stat-icon-primary"><i class="bi bi-person-lines-fill"></i></div>
-        <div class="stat-body"><span class="stat-label">My Leads</span><span class="stat-value" data-ws-count="my_leads"><?= (int) $summary['my_leads'] ?></span></div>
+        <div class="stat-body"><span class="stat-label">Lead Saya</span><span class="stat-value" data-ws-count="my_leads"><?= (int) $summary['my_leads'] ?></span></div>
     </a>
     <a href="<?= url('/queue') ?>" class="stat-card stat-card-compact stat-card-link">
         <div class="stat-icon stat-icon-indigo"><i class="bi bi-list-ol"></i></div>
-        <div class="stat-body"><span class="stat-label">My Queue</span><span class="stat-value" data-ws-count="my_queue"><?= (int) $summary['my_queue'] ?></span></div>
+        <div class="stat-body"><span class="stat-label">Antrian Saya</span><span class="stat-value" data-ws-count="my_queue"><?= (int) $summary['my_queue'] ?></span></div>
     </a>
     <a href="<?= url('/follow-ups') ?>" class="stat-card stat-card-compact stat-card-link">
         <div class="stat-icon stat-icon-amber"><i class="bi bi-hourglass-split"></i></div>
-        <div class="stat-body"><span class="stat-label">Follow Up Today</span><span class="stat-value" data-ws-count="follow_up_today"><?= (int) $summary['follow_up_today'] ?></span></div>
+        <div class="stat-body"><span class="stat-label">Follow Up Hari Ini</span><span class="stat-value" data-ws-count="follow_up_today"><?= (int) $summary['follow_up_today'] ?></span></div>
     </a>
     <a href="<?= url('/queue') ?>?overdue=1" class="stat-card stat-card-compact stat-card-link <?= $summary['overdue'] > 0 ? 'stat-card-alert' : '' ?>">
         <div class="stat-icon stat-icon-danger"><i class="bi bi-exclamation-triangle"></i></div>
-        <div class="stat-body"><span class="stat-label">Overdue</span><span class="stat-value" data-ws-count="overdue"><?= (int) $summary['overdue'] ?></span></div>
+        <div class="stat-body"><span class="stat-label">Terlambat</span><span class="stat-value" data-ws-count="overdue"><?= (int) $summary['overdue'] ?></span></div>
     </a>
     <a href="<?= url('/queue') ?>?status=waiting_engineer" class="stat-card stat-card-compact stat-card-link">
         <div class="stat-icon stat-icon-indigo"><i class="bi bi-send"></i></div>
-        <div class="stat-body"><span class="stat-label">Waiting Engineer</span><span class="stat-value" data-ws-count="waiting_engineer"><?= (int) $summary['waiting_engineer'] ?></span></div>
+        <div class="stat-body"><span class="stat-label">Menunggu Engineer</span><span class="stat-value" data-ws-count="waiting_engineer"><?= (int) $summary['waiting_engineer'] ?></span></div>
     </a>
     <a href="<?= url('/queue') ?>?status=done" class="stat-card stat-card-compact stat-card-link">
         <div class="stat-icon stat-icon-emerald"><i class="bi bi-check-circle"></i></div>
-        <div class="stat-body"><span class="stat-label">Completed</span><span class="stat-value" data-ws-count="completed"><?= (int) $summary['completed'] ?></span></div>
+        <div class="stat-body"><span class="stat-label">Selesai</span><span class="stat-value" data-ws-count="completed"><?= (int) $summary['completed'] ?></span></div>
     </a>
 </div>
 
@@ -60,7 +67,7 @@ $daysLate = function (string $date): int {
 <div class="row g-3">
     <div class="col-12 col-xl-8">
         <div class="card card-elevated" id="follow-ups">
-            <div class="card-header"><h3>Follow Up &amp; Overdue</h3></div>
+            <div class="card-header"><h3>Follow Up &amp; Terlambat</h3></div>
             <div class="card-body p-0">
                 <?php if (empty($followUps)): ?>
                     <div class="empty-state"><i class="bi bi-check2-circle"></i><p>Tidak ada follow up yang jatuh tempo.</p></div>
@@ -140,7 +147,7 @@ $daysLate = function (string $date): int {
                                     <div class="user-cell-name"><?= e($lead['customer_name']) ?></div>
                                     <?php if ($lead['company_name']): ?><div class="user-cell-sub"><?= e($lead['company_name']) ?></div><?php endif; ?>
                                 </td>
-                                <td><span class="badge-pill"><?= e(ucfirst(str_replace('_', ' ', $lead['status']))) ?></span></td>
+                                <td><span class="badge-pill"><?= e($statusMap[$lead['status']]['name'] ?? ucfirst(str_replace('_', ' ', $lead['status']))) ?></span></td>
                                 <td class="text-muted"><?= e(format_datetime($lead['created_at'], 'd M Y')) ?></td>
                             </tr>
                             <?php endforeach; ?>
@@ -164,7 +171,7 @@ $daysLate = function (string $date): int {
                     <div class="timeline-item">
                         <div class="timeline-dot"></div>
                         <div class="timeline-body">
-                            <div class="timeline-title"><?= e($log['action']) ?> <span class="text-muted">&middot; <?= e($log['module']) ?></span></div>
+                            <div class="timeline-title"><?= e(audit_label((string) $log['action'])) ?> <span class="text-muted">&middot; <?= e(str_replace('_', ' ', (string) $log['module'])) ?></span></div>
                             <div class="timeline-meta"><?= e(format_datetime($log['created_at'])) ?></div>
                         </div>
                     </div>

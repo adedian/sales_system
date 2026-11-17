@@ -23,7 +23,10 @@ class User extends Model
     public static function activeByRole(int $roleId): array
     {
         return Database::fetchAll(
-            'SELECT * FROM users WHERE role_id = ? AND is_active = 1 AND deleted_at IS NULL ORDER BY name ASC',
+            'SELECT users.* FROM users
+             WHERE users.is_active = 1 AND users.deleted_at IS NULL
+               AND EXISTS (SELECT 1 FROM user_roles ur WHERE ur.user_id = users.id AND ur.role_id = ?)
+             ORDER BY users.name ASC',
             [$roleId]
         );
     }
@@ -37,15 +40,10 @@ class User extends Model
     }
 
     /**
-     * Phase B — Estimator/Surveyor are capability flags independent of
-     * role_id (a user keeps their normal login role, e.g. sales, and can
-     * additionally be flagged available for either/both), not RBAC roles.
+     * Surveyor/Engineer/Sales Engineer/Direktur/Sales adalah ROLE (tabel
+     * user_roles). Kolom is_* di tabel users hanyalah cache turunan yang
+     * diselaraskan oleh syncRoles()/syncFlags() — jangan diisi manual.
      */
-    public static function activeEstimators(): array
-    {
-        return self::activeByFlag('is_estimator');
-    }
-
     public static function activeSurveyors(): array
     {
         return self::activeByFlag('is_surveyor');
@@ -85,7 +83,7 @@ class User extends Model
 
     private static function activeByFlag(string $flagColumn): array
     {
-        $allowed = ['is_estimator', 'is_surveyor', 'is_engineer', 'is_sales_engineer', 'is_director', 'is_sales'];
+        $allowed = ['is_surveyor', 'is_engineer', 'is_sales_engineer', 'is_director', 'is_sales'];
         if (!in_array($flagColumn, $allowed, true)) {
             throw new \InvalidArgumentException("Kolom flag tidak dikenal: {$flagColumn}");
         }
@@ -102,7 +100,79 @@ class User extends Model
                 LEFT JOIN roles ON roles.id = users.role_id
                 WHERE users.id = ? AND users.deleted_at IS NULL";
 
-        return Database::fetch($sql, [$id]);
+        $user = Database::fetch($sql, [$id]);
+        if ($user === null) {
+            return null;
+        }
+
+        // Seluruh role pengguna (multi-role). Role utama (users.role_id) ikut sebagai
+        // pengaman bila relasi user_roles kosong.
+        $roles = self::rolesOf($id);
+        if ($roles === [] && !empty($user['role_id'])) {
+            $roles = [['id' => (int) $user['role_id'], 'slug' => (string) $user['role_slug'], 'name' => (string) $user['role_name']]];
+        }
+        $user['role_ids'] = array_column($roles, 'id');
+        $user['role_slugs'] = array_column($roles, 'slug');
+        $user['role_names'] = array_column($roles, 'name');
+
+        return $user;
+    }
+
+    /** @return array<int,array{id:int,slug:string,name:string}> */
+    public static function rolesOf(int $userId): array
+    {
+        $rows = Database::fetchAll(
+            'SELECT roles.id, roles.slug, roles.name FROM user_roles
+             INNER JOIN roles ON roles.id = user_roles.role_id
+             WHERE user_roles.user_id = ? ORDER BY roles.id ASC',
+            [$userId]
+        );
+
+        return array_map(static fn (array $r): array => ['id' => (int) $r['id'], 'slug' => $r['slug'], 'name' => $r['name']], $rows);
+    }
+
+    /** Pemetaan kolom flag turunan -> slug role. */
+    private const FLAG_ROLES = [
+        'is_sales' => 'sales',
+        'is_surveyor' => 'surveyor',
+        'is_engineer' => 'engineer',
+        'is_sales_engineer' => 'sales-engineer',
+        'is_director' => 'direktur',
+    ];
+
+    /**
+     * Mengganti seluruh role pengguna. Role utama (users.role_id) = role
+     * pertama di $roleIds, lalu flag turunan disinkronkan. Pemanggil wajib
+     * memvalidasi $roleIds (role ada, tidak menambah Super Admin tanpa hak).
+     *
+     * @param int[] $roleIds
+     */
+    public static function syncRoles(int $userId, array $roleIds): void
+    {
+        $roleIds = array_values(array_unique(array_map('intval', $roleIds)));
+        if ($roleIds === []) {
+            throw new \InvalidArgumentException('Pengguna harus memiliki minimal satu role.');
+        }
+
+        Database::transaction(function () use ($userId, $roleIds): void {
+            Database::execute('DELETE FROM user_roles WHERE user_id = ?', [$userId]);
+            foreach ($roleIds as $roleId) {
+                Database::execute('INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)', [$userId, $roleId]);
+            }
+            Database::execute('UPDATE users SET role_id = ?, updated_at = ? WHERE id = ?', [$roleIds[0], date('Y-m-d H:i:s'), $userId]);
+            self::syncFlags($userId);
+        });
+    }
+
+    /** Menyelaraskan flag is_* dengan isi user_roles (is_estimator selalu 0). */
+    public static function syncFlags(int $userId): void
+    {
+        $slugs = array_column(self::rolesOf($userId), 'slug');
+        $sets = ['is_estimator = 0'];
+        foreach (self::FLAG_ROLES as $column => $slug) {
+            $sets[] = $column . ' = ' . (in_array($slug, $slugs, true) ? 1 : 0);
+        }
+        Database::execute('UPDATE users SET ' . implode(', ', $sets) . ' WHERE id = ?', [$userId]);
     }
 
     public static function countActive(): int
@@ -130,7 +200,7 @@ class User extends Model
         }
 
         if (!empty($filters['role_id'])) {
-            $where[] = 'users.role_id = ?';
+            $where[] = 'EXISTS (SELECT 1 FROM user_roles ur WHERE ur.user_id = users.id AND ur.role_id = ?)';
             $params[] = (int) $filters['role_id'];
         }
 
@@ -162,6 +232,11 @@ class User extends Model
              LIMIT {$perPage} OFFSET {$offset}",
             $params
         );
+
+        foreach ($rows as &$row) {
+            $row['role_names'] = array_column(self::rolesOf((int) $row['id']), 'name');
+        }
+        unset($row);
 
         return ['rows' => $rows, 'total' => $total, 'page' => $page, 'perPage' => $perPage, 'totalPages' => $totalPages];
     }

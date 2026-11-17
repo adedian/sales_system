@@ -1,0 +1,15 @@
+# Root htdocs InfinityFree: docroot tidak bisa diubah, jadi semua request
+# diarahkan ke folder /public dan folder sensitif ditutup.
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Tutup folder & file internal dari akses langsung
+    RewriteRule ^(app|vendor|storage|database|routes|tools|docs|deploy|\.git|\.claude)(/|$) - [F,L]
+    RewriteRule ^(\.env.*|composer\.(json|lock)|bootstrap\.php)$ - [F,L]
+
+    # Arahkan sisanya ke /public (aset + front controller)
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>

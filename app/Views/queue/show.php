@@ -10,7 +10,7 @@ $isOverdue = !empty($queue['deadline']) && $queue['deadline'] < date('Y-m-d') &&
     <div class="lead-header-main">
         <div class="lead-header-eyebrow">
             <span class="mono">Antrian #<?= (int) $queue['queue_number'] ?></span>
-            <?php if ($isOverdue): ?><span class="overdue-badge"><i class="bi bi-exclamation-triangle-fill"></i> Overdue</span><?php endif; ?>
+            <?php if ($isOverdue): ?><span class="overdue-badge"><i class="bi bi-exclamation-triangle-fill"></i> Terlambat</span><?php endif; ?>
         </div>
         <h2><?= e(\App\Models\SalesQueue::displayTitle($queue)) ?></h2>
         <div class="lead-header-meta">
@@ -40,11 +40,11 @@ $isOverdue = !empty($queue['deadline']) && $queue['deadline'] < date('Y-m-d') &&
             <span class="process-panel-value"><span class="color-swatch color-swatch-<?= e($statusRow['color']) ?>" data-badge="status"><?= e($statusRow['name']) ?></span></span>
         </div>
         <div class="process-panel-item process-panel-item-primary">
-            <span class="process-panel-label">Current Process</span>
+            <span class="process-panel-label">Proses Saat Ini</span>
             <span class="process-panel-value process-panel-value-lg"><?= $currentPosition ? e($currentPosition['label']) : '-' ?></span>
         </div>
         <div class="process-panel-item">
-            <span class="process-panel-label">Current PIC</span>
+            <span class="process-panel-label">PIC Saat Ini</span>
             <span class="process-panel-value text-muted" data-badge="current_pic_name"><?= e($queue['current_pic_name'] ?? 'None') ?></span>
         </div>
         <div class="process-panel-item">
@@ -152,17 +152,6 @@ $isOverdue = !empty($queue['deadline']) && $queue['deadline'] < date('Y-m-d') &&
             </div>
 
             <div class="lead-side-field">
-                <label class="form-label">Estimator</label>
-                <select class="form-select queue-live-field" data-endpoint="estimator" data-field="estimator_id" <?= $canOperate ? '' : 'disabled' ?>>
-                    <option value="">None</option>
-                    <?php foreach ($estimators as $row): ?>
-                        <option value="<?= (int) $row['id'] ?>" <?= (int) ($queue['estimator_id'] ?? 0) === (int) $row['id'] ? 'selected' : '' ?>><?= e($row['name']) ?></option>
-                    <?php endforeach; ?>
-                </select>
-                <div class="lead-side-current text-muted" data-badge="estimator_name"><?= e($queue['estimator_name'] ?? 'None') ?></div>
-            </div>
-
-            <div class="lead-side-field">
                 <label class="form-label">Surveyor</label>
                 <select class="form-select queue-live-field" data-endpoint="surveyor" data-field="surveyor_id" <?= $canOperate ? '' : 'disabled' ?>>
                     <option value="">None</option>
@@ -174,7 +163,7 @@ $isOverdue = !empty($queue['deadline']) && $queue['deadline'] < date('Y-m-d') &&
             </div>
 
             <div class="lead-side-field">
-                <label class="form-label">Current PIC</label>
+                <label class="form-label">PIC Saat Ini</label>
                 <select class="form-select queue-live-field" data-endpoint="current-pic" data-field="current_pic_id" <?= $canOperate ? '' : 'disabled' ?>>
                     <option value="">None</option>
                     <?php foreach ($currentPicUsers as $row): ?>
@@ -302,8 +291,6 @@ $isOverdue = !empty($queue['deadline']) && $queue['deadline'] < date('Y-m-d') &&
                     var stbadge = panel.querySelector('[data-badge="stage"]');
                     stbadge.textContent = data.label;
                     stbadge.className = 'color-swatch color-swatch-' + data.color;
-                } else if (endpoint === 'estimator') {
-                    panel.querySelector('[data-badge="estimator_name"]').textContent = data.estimator_name;
                 } else if (endpoint === 'surveyor') {
                     panel.querySelector('[data-badge="surveyor_name"]').textContent = data.surveyor_name;
                 } else if (endpoint === 'current-pic') {

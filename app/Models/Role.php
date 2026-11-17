@@ -30,7 +30,7 @@ class Role extends Model
     public static function withUserCount(): array
     {
         $sql = "SELECT roles.*,
-                       (SELECT COUNT(*) FROM users WHERE users.role_id = roles.id AND users.deleted_at IS NULL) AS user_count,
+                       (SELECT COUNT(*) FROM user_roles INNER JOIN users ON users.id = user_roles.user_id WHERE user_roles.role_id = roles.id AND users.deleted_at IS NULL) AS user_count,
                        (SELECT COUNT(*) FROM role_permissions WHERE role_permissions.role_id = roles.id) AS permission_count
                 FROM roles
                 ORDER BY roles.is_system DESC, roles.name ASC";
@@ -41,7 +41,7 @@ class Role extends Model
     public static function userCount(int $roleId): int
     {
         return (int) (Database::fetch(
-            'SELECT COUNT(*) AS total FROM users WHERE role_id = ? AND deleted_at IS NULL',
+            'SELECT COUNT(*) AS total FROM user_roles INNER JOIN users ON users.id = user_roles.user_id WHERE user_roles.role_id = ? AND users.deleted_at IS NULL',
             [$roleId]
         )['total'] ?? 0);
     }

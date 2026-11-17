@@ -5,7 +5,9 @@ namespace App\Controllers;
 use App\Core\Acl;
 use App\Core\Auth;
 use App\Core\Controller;
+use App\Core\Jobs;
 use App\Models\AuditLog;
+use App\Models\ProcurementPriceValidation;
 use App\Models\EngineerAssignment;
 use App\Models\FollowUp;
 use App\Models\Lead;
@@ -21,25 +23,112 @@ class DashboardController extends Controller
 {
     public function index(): void
     {
-        if (Acl::hasRole('sales')) {
-            $this->renderSalesWorkspace();
+        // Role dengan visibilitas seluruh perusahaan tetap memakai dashboard analitik.
+        if (Acl::hasRole('super-admin') || Acl::hasRole('admin-sales') || Acl::hasRole('manager')) {
+            $this->renderAnalyticsDashboard();
 
             return;
         }
 
-        if (Acl::hasRole('engineer-sales')) {
-            $this->renderEngineerWorkspace();
+        // Selain itu dashboard mengikuti ROLE pengguna (bisa lebih dari satu). Setiap
+        // role punya ringkasan pekerjaan sendiri; pengguna multi-role melihat
+        // ringkasan semua role-nya, dikelompokkan dan diberi label per role.
+        $jobs = Jobs::of();
+
+        // Urutan = urutan tampil. Engineer dan Sales Engineer memakai ringkasan tugas teknis yang sama.
+        $blocks = [];
+        if (in_array('sales', $jobs, true)) {
+            $blocks[] = ['label' => Jobs::LABELS['sales'], 'render' => fn () => $this->renderSalesWorkspace()];
+        }
+        if (array_intersect(['sales_engineer', 'engineer'], $jobs) !== []) {
+            $blocks[] = [
+                'label' => implode(' / ', array_map(fn ($j) => Jobs::LABELS[$j], array_values(array_intersect(['sales_engineer', 'engineer'], $jobs)))),
+                'render' => fn () => $this->renderEngineerWorkspace(),
+            ];
+        }
+        if (in_array('surveyor', $jobs, true)) {
+            $blocks[] = ['label' => Jobs::LABELS['surveyor'], 'render' => fn () => $this->renderSurveyorWorkspace()];
+        }
+        if (in_array('procurement', $jobs, true)) {
+            $blocks[] = ['label' => Jobs::LABELS['procurement'], 'render' => fn () => $this->renderProcurementWorkspace()];
+        }
+        if (in_array('director', $jobs, true)) {
+            $blocks[] = ['label' => 'Approval ' . Jobs::LABELS['director'], 'render' => fn () => $this->renderApprovalWorkspace()];
+        }
+
+        if ($blocks === []) {
+            $this->renderAnalyticsDashboard();
 
             return;
         }
 
-        if (Acl::hasRole('procurement')) {
-            $this->renderProcurementWorkspace();
+        if (count($blocks) === 1) {
+            ($blocks[0]['render'])();
 
             return;
         }
 
-        $this->renderAnalyticsDashboard();
+        // Multi-role: tiap ringkasan dirender ke buffer lalu disatukan dengan label role.
+        $groups = [];
+        $this->collected = [];
+        foreach ($blocks as $block) {
+            $this->collected = [];
+            ($block['render'])();
+            $groups[] = ['label' => $block['label'], 'id' => 'dash-' . trim((string) preg_replace('/[^a-z0-9]+/', '-', strtolower($block['label'])), '-'), 'html' => implode('', $this->collected)];
+        }
+        $this->collected = null;
+
+        $this->view('dashboard/multi', ['pageTitle' => 'Dashboard', 'groups' => $groups]);
+    }
+
+    /** Bila tidak null, view() menampung HTML (tanpa layout) alih-alih mencetaknya — dipakai dashboard multi-role. */
+    private ?array $collected = null;
+
+    protected function view(string $view, array $data = [], ?string $layout = 'layouts/app'): void
+    {
+        if ($this->collected !== null) {
+            ob_start();
+            \App\Core\View::render($view, $data, null);
+            $this->collected[] = (string) ob_get_clean();
+
+            return;
+        }
+
+        parent::view($view, $data, $layout);
+    }
+    /**
+     * Dashboard Surveyor: penugasan survey, jadwal, dan Survey Report yang
+     * belum selesai.
+     */
+    private function renderSurveyorWorkspace(): void
+    {
+        $userId = (int) Auth::id();
+
+        $this->view('dashboard/surveyor_workspace', [
+            'pageTitle' => 'Workspace Surveyor',
+            'counts' => \App\Models\Survey::countsForSurveyor($userId),
+            'openSurveys' => \App\Models\Survey::openForSurveyor($userId, 10),
+            'recentActivity' => AuditLog::recentForUser($userId, 8),
+        ]);
+    }
+
+    /**
+     * Dashboard Direktur: hanya pekerjaan yang butuh keputusan Direktur.
+     */
+    private function renderApprovalWorkspace(): void
+    {
+        $queue = ProcurementPriceValidation::pendingQueue();
+        $total = 0.0;
+        foreach ($queue as $row) {
+            $total += (float) $row['total_price'];
+        }
+
+        $this->view('dashboard/approval_workspace', [
+            'pageTitle' => 'Workspace Approval',
+            'queue' => $queue,
+            'queueTotal' => $total,
+            'recentActivity' => AuditLog::recentForUser((int) Auth::id(), 8),
+        ]);
     }
 
     /**
@@ -122,7 +211,7 @@ class DashboardController extends Controller
         // Alur proses: tahap berurutan seperti urutan kerja di lapangan.
         $tally = array_column($positionCounts, 'total', 'label');
         $sum = fn (array $labels) => array_sum(array_map(fn ($l) => (int) ($tally[$l] ?? 0), $labels));
-        $isDirector = (int) (auth_user()['is_director'] ?? 0) === 1;
+        $isDirector = can('price.validate');
         $flowStages = [
             ['label' => 'Di Sales', 'hint' => 'Belum masuk antrian', 'total' => $sum(['Sales']), 'url' => '/leads', 'can' => true],
             ['label' => 'Survey & Data', 'hint' => 'Kelengkapan data awal', 'total' => $sum(['Survey', 'Data Antrian']), 'url' => '/queue', 'can' => can('queue.view')],
@@ -225,9 +314,12 @@ class DashboardController extends Controller
             ],
             'followUps' => array_slice($followUps, 0, 10),
             'recentLeads' => Lead::recentForSales($salesId, 6),
+            'statusMap' => MasterData::allAsMap('lead_statuses'),
             'recentActivity' => AuditLog::recentForUser($salesId, 8),
             'openProposals' => Proposal::openForSales($salesId, 6),
             'proposalStatusMap' => MasterData::allAsMap('proposal_statuses'),
+            // Sales yang juga Direktur (mis. Pak Ronny) melihat approval harga yang menunggu.
+            'pendingApprovals' => Jobs::has('director') ? count(ProcurementPriceValidation::pendingQueue()) : 0,
         ]);
     }
 

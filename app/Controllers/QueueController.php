@@ -92,7 +92,6 @@ class QueueController extends Controller
             'priorityMap' => MasterData::allAsMap('priorities'),
             'surveyStatusMap' => MasterData::allAsMap('survey_statuses'),
             'stageMap' => MasterData::allAsMap('queue_stages'),
-            'estimators' => User::activeEstimators(),
             'surveyors' => User::activeSurveyors(),
             'currentPicUsers' => User::allActive(),
             'salesUsers' => User::activeSales(),
@@ -167,7 +166,7 @@ class QueueController extends Controller
 
     private function scopeSalesId(): ?int
     {
-        return (Acl::hasRole('sales') && !Acl::can('queue.manage')) ? Auth::id() : null;
+        return (Acl::scoped('sales') && !Acl::can('queue.manage')) ? Auth::id() : null;
     }
 
     public function isReadOnlyForSales(array $queue): bool
@@ -186,7 +185,7 @@ class QueueController extends Controller
     private function canOperate(array $queue): bool
     {
         return Acl::can('queue.manage')
-            || (Acl::hasRole('sales') && (int) $queue['sales_id'] === Auth::id());
+            || (Acl::scoped('sales') && (int) $queue['sales_id'] === Auth::id());
     }
 
     private function buildTimeline(int $queueId): array

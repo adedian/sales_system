@@ -135,7 +135,7 @@ class FollowUpController extends Controller
             $this->abort(404);
         }
 
-        if (Acl::hasRole('sales') && (int) $lead['sales_id'] !== Auth::id()) {
+        if (Acl::scoped('sales') && (int) $lead['sales_id'] !== Auth::id()) {
             $this->abort(403, 'Anda hanya dapat mengakses lead yang ditugaskan kepada Anda.');
         }
 
@@ -144,7 +144,7 @@ class FollowUpController extends Controller
 
     private function scopeSalesId(): ?int
     {
-        return Acl::hasRole('sales') ? Auth::id() : null;
+        return Acl::scoped('sales') ? Auth::id() : null;
     }
 
     private function nullableInt(mixed $value): ?int

@@ -10,6 +10,11 @@
 Thumbs.db
 
 # Generator PLTS: datasheet (berat), hasil PDF, dan data proyek klien tidak ikut git
+# Output build deploy (berisi kredensial)
+/deploy/_out/
+
 /tools/hme-proposal-plts/datasheet/
 /tools/hme-proposal-plts/proposal-generator/output/
 /tools/hme-proposal-plts/proposal-generator/projects/pro-*/
+/storage/cache/*
+!/storage/cache/.gitkeep

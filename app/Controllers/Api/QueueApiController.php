@@ -21,7 +21,7 @@ class QueueApiController extends Controller
     /** Polled by the queue list/dashboard to keep the indicator tiles live. */
     public function summary(Request $request): void
     {
-        $scopeSalesId = (Acl::hasRole('sales') && !Acl::can('queue.manage')) ? Auth::id() : null;
+        $scopeSalesId = (Acl::scoped('sales') && !Acl::can('queue.manage')) ? Auth::id() : null;
 
         $this->json([
             'counts' => SalesQueue::dashboardCounts($scopeSalesId),
@@ -391,45 +391,6 @@ class QueueApiController extends Controller
         ]);
     }
 
-    public function updateEstimator(Request $request, array $params): void
-    {
-        $queue = $this->authorizedQueueForWrite((int) $params['id']);
-        if ($queue === null) {
-            return;
-        }
-
-        if (!Csrf::verifyRequest()) {
-            $this->json(['error' => 'csrf'], 419);
-
-            return;
-        }
-
-        $id = $this->nullableId($request->input('estimator_id'));
-        $user = $id !== null ? User::find($id) : null;
-
-        if ($id !== null && ($user === null || (int) $user['is_active'] !== 1 || (int) $user['is_estimator'] !== 1)) {
-            $this->json(['error' => 'Estimator tidak valid atau tidak aktif.'], 422);
-
-            return;
-        }
-
-        $now = date('Y-m-d H:i:s');
-        SalesQueue::update((int) $queue['id'], [
-            'estimator_id' => $id,
-            'last_updated_at' => $now,
-            'updated_at' => $now,
-        ]);
-
-        AuditLogger::log((int) Auth::id(), 'queue_estimator_changed', 'queue', (int) $queue['id'], ['estimator_id' => $queue['estimator_id']], ['estimator_id' => $id]);
-
-        $this->json([
-            'success' => true,
-            'estimator_id' => $id,
-            'estimator_name' => $user['name'] ?? 'None',
-            'updated_at' => $now,
-        ]);
-    }
-
     public function updateSurveyor(Request $request, array $params): void
     {
         $queue = $this->authorizedQueueForWrite((int) $params['id']);
@@ -626,7 +587,7 @@ class QueueApiController extends Controller
             return null;
         }
 
-        if (Acl::hasRole('sales') && !Acl::can('queue.manage') && (int) $queue['sales_id'] !== Auth::id()) {
+        if (Acl::scoped('sales') && !Acl::can('queue.manage') && (int) $queue['sales_id'] !== Auth::id()) {
             $this->json(['error' => 'forbidden'], 403);
 
             return null;
@@ -651,7 +612,7 @@ class QueueApiController extends Controller
             return null;
         }
 
-        $isOwner = Acl::hasRole('sales') && (int) $queue['sales_id'] === Auth::id();
+        $isOwner = Acl::scoped('sales') && (int) $queue['sales_id'] === Auth::id();
 
         if (!Acl::can('queue.manage') && !$isOwner) {
             $this->json(['error' => 'forbidden'], 403);

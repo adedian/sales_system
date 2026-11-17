@@ -1138,3 +1138,175 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- -----------------------------------------------------------------------------
 ALTER TABLE `proposals`
     ADD COLUMN IF NOT EXISTS `plts_data` LONGTEXT NULL AFTER `notes`;
+
+
+-- -----------------------------------------------------------------------------
+-- Lokasi instalasi dari koordinat / link Google Maps. `site_location` tetap
+-- berisi nama kota/kabupaten (dipakai daftar lead & syarat Prelim); koordinat
+-- dan link disimpan di kolom baru. Aman dijalankan ulang.
+-- -----------------------------------------------------------------------------
+ALTER TABLE `leads`
+    ADD COLUMN IF NOT EXISTS `latitude` DECIMAL(10,7) NULL AFTER `site_location`,
+    ADD COLUMN IF NOT EXISTS `longitude` DECIMAL(10,7) NULL AFTER `latitude`,
+    ADD COLUMN IF NOT EXISTS `maps_url` VARCHAR(500) NULL AFTER `longitude`;
+
+-- =============================================================================
+-- Revisi Survey Wajib (Tahap 3) — aditif, tidak mengubah data lama.
+-- leads.survey_required = 1 hanya untuk lead BARU (lead lama tetap alur lama).
+-- Override gerbang Survey hanya Super Admin, dengan alasan, tercatat.
+-- =============================================================================
+ALTER TABLE `leads`
+    ADD COLUMN IF NOT EXISTS `survey_required` TINYINT(1) NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS `survey_override_by` INT UNSIGNED NULL,
+    ADD COLUMN IF NOT EXISTS `survey_override_reason` VARCHAR(500) NULL,
+    ADD COLUMN IF NOT EXISTS `survey_override_at` DATETIME NULL;
+
+CREATE TABLE IF NOT EXISTS `surveys` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `survey_code` VARCHAR(30) NOT NULL,
+    `lead_id` INT UNSIGNED NOT NULL,
+    `surveyor_id` INT UNSIGNED NULL,
+    `requested_by` INT UNSIGNED NULL,
+    `status` ENUM('requested','scheduled','in_progress','completed','cancelled','rejected') NOT NULL DEFAULT 'requested',
+    `scheduled_date` DATE NULL,
+    `request_notes` TEXT NULL,
+    `started_at` DATETIME NULL,
+    `completed_at` DATETIME NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` DATETIME NULL,
+    UNIQUE KEY `uq_surveys_code` (`survey_code`),
+    KEY `idx_surveys_lead` (`lead_id`),
+    KEY `idx_surveys_surveyor` (`surveyor_id`),
+    KEY `idx_surveys_status` (`status`),
+    CONSTRAINT `fk_surveys_lead` FOREIGN KEY (`lead_id`) REFERENCES `leads` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_surveys_surveyor` FOREIGN KEY (`surveyor_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+    CONSTRAINT `fk_surveys_requested_by` FOREIGN KEY (`requested_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Pihak yang dilibatkan dalam Survey (Sales Engineer / Engineer / Sales).
+CREATE TABLE IF NOT EXISTS `survey_participants` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `survey_id` INT UNSIGNED NOT NULL,
+    `user_id` INT UNSIGNED NOT NULL,
+    `role` ENUM('sales','sales_engineer','engineer') NOT NULL,
+    UNIQUE KEY `uq_survey_participant` (`survey_id`, `user_id`),
+    CONSTRAINT `fk_survey_participants_survey` FOREIGN KEY (`survey_id`) REFERENCES `surveys` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_survey_participants_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Survey Report. `data` disiapkan untuk form terstruktur (Tahap 4); `summary`
+-- dipakai sebagai ringkasan/kesimpulan sementara.
+CREATE TABLE IF NOT EXISTS `survey_reports` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `survey_id` INT UNSIGNED NOT NULL,
+    `status` ENUM('draft','pending_review','revision','completed') NOT NULL DEFAULT 'draft',
+    `summary` TEXT NULL,
+    `data` LONGTEXT NULL,
+    `submitted_at` DATETIME NULL,
+    `reviewed_by` INT UNSIGNED NULL,
+    `reviewed_at` DATETIME NULL,
+    `review_notes` TEXT NULL,
+    `created_by` INT UNSIGNED NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY `uq_survey_reports_survey` (`survey_id`),
+    KEY `idx_survey_reports_status` (`status`),
+    CONSTRAINT `fk_survey_reports_survey` FOREIGN KEY (`survey_id`) REFERENCES `surveys` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_survey_reports_reviewer` FOREIGN KEY (`reviewed_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Riwayat status Survey dan Survey Report (siapa, kapan, dari-ke, catatan/alasan).
+CREATE TABLE IF NOT EXISTS `survey_status_history` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `survey_id` INT UNSIGNED NOT NULL,
+    `entity` ENUM('survey','report') NOT NULL DEFAULT 'survey',
+    `from_status` VARCHAR(30) NULL,
+    `to_status` VARCHAR(30) NOT NULL,
+    `changed_by` INT UNSIGNED NULL,
+    `notes` TEXT NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY `idx_survey_history_survey` (`survey_id`),
+    CONSTRAINT `fk_survey_history_survey` FOREIGN KEY (`survey_id`) REFERENCES `surveys` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_survey_history_user` FOREIGN KEY (`changed_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================================
+-- Tahap 4 — Survey Report terstruktur, foto, dan versi (aditif).
+-- =============================================================================
+ALTER TABLE `survey_reports`
+    ADD COLUMN IF NOT EXISTS `revision_no` INT UNSIGNED NOT NULL DEFAULT 0;
+
+-- Foto dokumentasi Survey. File asli disimpan di storage/uploads/survey/<id>/
+-- (di luar folder publik); file web (maks 1600px) dipakai untuk pratinjau dan PDF.
+CREATE TABLE IF NOT EXISTS `survey_photos` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `survey_id` INT UNSIGNED NOT NULL,
+    `category` ENUM('site_overview','layout','notes') NOT NULL DEFAULT 'notes',
+    `caption` VARCHAR(255) NULL,
+    `sort_order` INT UNSIGNED NOT NULL DEFAULT 0,
+    `original_name` VARCHAR(255) NOT NULL,
+    `original_path` VARCHAR(255) NOT NULL,
+    `web_path` VARCHAR(255) NOT NULL,
+    `mime_type` VARCHAR(100) NOT NULL,
+    `file_size` INT UNSIGNED NOT NULL DEFAULT 0,
+    `width` INT UNSIGNED NULL,
+    `height` INT UNSIGNED NULL,
+    `uploaded_by` INT UNSIGNED NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY `idx_survey_photos_survey` (`survey_id`, `category`, `sort_order`),
+    CONSTRAINT `fk_survey_photos_survey` FOREIGN KEY (`survey_id`) REFERENCES `surveys` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_survey_photos_user` FOREIGN KEY (`uploaded_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Salinan isi laporan setiap kali diajukan (riwayat revisi; versi lama tidak hilang).
+CREATE TABLE IF NOT EXISTS `survey_report_versions` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `report_id` INT UNSIGNED NOT NULL,
+    `revision_no` INT UNSIGNED NOT NULL DEFAULT 0,
+    `summary` TEXT NULL,
+    `data` LONGTEXT NULL,
+    `created_by` INT UNSIGNED NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY `idx_report_versions_report` (`report_id`, `revision_no`),
+    CONSTRAINT `fk_report_versions_report` FOREIGN KEY (`report_id`) REFERENCES `survey_reports` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================================
+-- Tahap 5 — Versioning proposal (aditif).
+-- Setiap proposal punya nomor versi (v1, v2, ...). Salinan isi (header + item)
+-- disimpan saat proposal diajukan review dan saat dikirim ke customer. Nomor
+-- versi naik ketika proposal dibuka kembali untuk revisi (permintaan revisi
+-- internal atau revisi dari negosiasi), sehingga versi lama tidak hilang.
+-- =============================================================================
+ALTER TABLE `proposals`
+    ADD COLUMN IF NOT EXISTS `version_no` INT UNSIGNED NOT NULL DEFAULT 1;
+
+CREATE TABLE IF NOT EXISTS `proposal_versions` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `proposal_id` INT UNSIGNED NOT NULL,
+    `version_no` INT UNSIGNED NOT NULL,
+    `event` ENUM('submitted','sent') NOT NULL,
+    `total` DECIMAL(18,2) NOT NULL DEFAULT 0,
+    `snapshot` LONGTEXT NOT NULL,
+    `created_by` INT UNSIGNED NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY `idx_proposal_versions_proposal` (`proposal_id`, `version_no`),
+    CONSTRAINT `fk_proposal_versions_proposal` FOREIGN KEY (`proposal_id`) REFERENCES `proposals` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_proposal_versions_user` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================================
+-- Multi-role (2026-11-17) — satu pengguna boleh memiliki banyak role.
+-- Data awal/pemetaan: database/migrations/2026-11-17-multi-role.sql (atau seed.php
+-- pada database baru). users.role_id tetap ada sebagai role utama.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS `user_roles` (
+    `user_id` INT UNSIGNED NOT NULL,
+    `role_id` INT UNSIGNED NOT NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`user_id`, `role_id`),
+    KEY `idx_user_roles_role` (`role_id`),
+    CONSTRAINT `fk_user_roles_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_user_roles_role` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

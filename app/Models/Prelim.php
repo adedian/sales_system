@@ -85,6 +85,11 @@ class Prelim extends Model
             $params[] = (int) $filters['scope_sales_id'];
         }
 
+        if (!empty($filters['scope_involved_user_id'])) {
+            $where[] = Lead::involvedSql('prelims.lead_id');
+            array_push($params, (int) $filters['scope_involved_user_id'], (int) $filters['scope_involved_user_id'], (int) $filters['scope_involved_user_id']);
+        }
+
         if (!empty($filters['q'])) {
             $where[] = '(prelims.prelim_code LIKE ? OR leads.lead_code LIKE ? OR leads.customer_name LIKE ? OR leads.company_name LIKE ?)';
             $like = '%' . $filters['q'] . '%';

@@ -9,7 +9,7 @@ $notes = array_values(array_filter($timeline, fn ($e) => $e['type'] === 'note'))
 <div class="page-header page-header-row">
     <div>
         <div class="lead-code-eyebrow">
-            <?= e($proposal['proposal_code']) ?>
+            <?= e($proposal['proposal_code']) ?> <span class="color-swatch color-swatch-primary">v<?= (int) ($proposal['version_no'] ?? 1) ?></span>
             <?php if ($isExpiringSoon): ?><span class="overdue-badge"><i class="bi bi-exclamation-triangle-fill"></i> Melewati masa berlaku</span><?php endif; ?>
         </div>
         <h2><?= e($proposal['customer_name']) ?></h2>
@@ -321,6 +321,30 @@ $notes = array_values(array_filter($timeline, fn ($e) => $e['type'] === 'note'))
                 <?php endif; ?>
             </div>
         </div>
+
+        <?php if (!empty($versions)): ?>
+        <div class="card card-elevated mt-3" id="versions">
+            <div class="card-header"><h3>Riwayat Versi</h3></div>
+            <div class="card-body">
+                <p class="text-muted small">Versi aktif: <strong>v<?= (int) ($proposal['version_no'] ?? 1) ?></strong>. Salinan disimpan saat proposal diajukan review dan saat dikirim ke customer; nomor versi naik setiap proposal dibuka kembali untuk revisi.</p>
+                <ul class="list-unstyled mb-0">
+                    <?php foreach ($versions as $v): ?>
+                    <li class="d-flex flex-wrap justify-content-between align-items-center gap-2 py-2 border-bottom">
+                        <span>
+                            <strong>v<?= (int) $v['version_no'] ?></strong> &middot; <?= e(\App\Models\ProposalVersion::EVENTS[$v['event']] ?? $v['event']) ?>
+                            &middot; <span class="mono">Rp <?= e(number_format((float) $v['total'], 0, ',', '.')) ?></span>
+                            <span class="text-muted small d-block"><?= e($v['created_by_name'] ?? 'Sistem') ?> &middot; <?= e(format_datetime($v['created_at'])) ?></span>
+                        </span>
+                        <span class="d-flex gap-1">
+                            <a class="btn btn-light btn-sm" href="<?= url('/proposals/' . $proposal['id'] . '/versions/' . $v['id']) ?>">Lihat</a>
+                            <a class="btn btn-light btn-sm" target="_blank" href="<?= url('/proposals/' . $proposal['id'] . '/versions/' . $v['id'] . '/pdf') ?>">PDF</a>
+                        </span>
+                    </li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <?php if ($canNegotiate || !empty($negotiations)): ?>
         <div class="card card-elevated mt-3" id="negotiations">
