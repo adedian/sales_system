@@ -130,6 +130,13 @@ class ProcurementController extends Controller
         // shortcut straight to Procurement; Procurement is further
         // downstream than Engineering in the mandated flow, so it needs the
         // same Prelim-ACC gate as EngineerController::requestAssignment().
+        if (($surveyBlock = \App\Models\Survey::prelimBlocker($lead)) !== null) {
+            Session::flash('error', 'Request procurement belum bisa dibuat. ' . $surveyBlock);
+            $this->redirect('/leads/' . $lead['id']);
+
+            return;
+        }
+
         if (!Prelim::hasApprovedForLead((int) $lead['id'])) {
             Session::flash('error', 'Request procurement belum bisa dibuat karena Prelim belum di-ACC oleh Client.');
             $this->redirect('/leads/' . $lead['id']);

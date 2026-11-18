@@ -100,6 +100,14 @@ $daysLate = function (string $date): int {
             </div>
         </div>
 
+        <?php
+        $surveyTitle = 'Survey Lead Saya';
+        $surveyEmpty = 'Belum ada Survey untuk Lead Anda. Ajukan Survey dari halaman detail Lead.';
+        $surveyRows = $mySurveys ?? [];
+        $surveyAllUrl = '/surveys';
+        include __DIR__ . '/_survey_list.php';
+        ?>
+
         <div class="card card-elevated mt-3">
             <div class="card-header"><h3>Proposal Saya</h3></div>
             <div class="card-body p-0">
@@ -115,7 +123,7 @@ $daysLate = function (string $date): int {
                             <tr>
                                 <td class="mono"><?= e($p['proposal_code']) ?></td>
                                 <td>
-                                    <a href="<?= url('/leads/' . $p['lead_id']) ?>" class="mono d-block"><?= e($p['lead_code']) ?></a>
+                                    <?= lead_link($p['lead_id'], e($p['lead_code']), 'mono d-block') ?>
                                     <div class="user-cell-name"><?= e($p['customer_name']) ?></div>
                                 </td>
                                 <td><span class="color-swatch color-swatch-<?= e($pStatus['color']) ?>"><?= e($pStatus['name']) ?></span></td>
@@ -142,7 +150,7 @@ $daysLate = function (string $date): int {
                         <tbody>
                             <?php foreach ($recentLeads as $lead): ?>
                             <tr>
-                                <td><a href="<?= url('/leads/' . $lead['id']) ?>" class="mono"><?= e($lead['lead_code']) ?></a></td>
+                                <td><?= lead_link($lead['id'], e($lead['lead_code']), 'mono') ?></td>
                                 <td>
                                     <div class="user-cell-name"><?= e($lead['customer_name']) ?></div>
                                     <?php if ($lead['company_name']): ?><div class="user-cell-sub"><?= e($lead['company_name']) ?></div><?php endif; ?>

@@ -105,6 +105,15 @@ class LeadApiController extends Controller
         // Revisi Alur Bisnis (Prelim) — sama seperti gate di EngineerController/
         // ProcurementController/ProposalController: lead tidak boleh dianggap
         // masuk stage Engineering lewat quick-status ini sebelum Prelim di-ACC.
+        // Survey + Survey Report wajib sebelum tahap berikutnya: status maju (selain Cancel/Lost)
+        // tidak boleh dilompati lewat API ini.
+        if (in_array($newStatus, ['engineering', 'procurement', 'pricing_ready', 'proposal', 'won'], true)
+            && ($surveyBlock = \App\Models\Survey::prelimBlocker($lead)) !== null) {
+            $this->json(['error' => $surveyBlock], 422);
+
+            return;
+        }
+
         if ($newStatus === 'engineering' && !Prelim::hasApprovedForLead((int) $lead['id'])) {
             $this->json(['error' => 'Prelim belum di-ACC oleh Client.'], 422);
 

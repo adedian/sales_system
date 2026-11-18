@@ -37,7 +37,7 @@ $firstName = explode(' ', auth_user()['name'] ?? '')[0] ?? '';
                     <tr>
                         <td class="mono"><?= e($row['request_code']) ?></td>
                         <td>
-                            <a href="<?= url('/leads/' . $row['lead_id']) ?>" class="mono d-block"><?= e($row['lead_code']) ?></a>
+                            <?= lead_link($row['lead_id'], e($row['lead_code']), 'mono d-block') ?>
                             <div class="user-cell-name"><?= e($row['customer_name']) ?></div>
                         </td>
                         <td class="text-muted"><?= e($row['sales_name'] ?? '-') ?></td>

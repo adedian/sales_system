@@ -23,7 +23,12 @@ use App\Models\Prelim;
 use App\Models\ProcurementRequest;
 use App\Models\ProcurementStatusHistory;
 use App\Models\Role;
+use App\Models\Survey;
+use App\Models\SurveyPhoto;
+use App\Models\SurveyReport;
 use App\Models\User;
+use App\Services\SurveyReportPdf;
+use App\Services\SurveyReportSchema;
 
 class EngineerController extends Controller
 {
@@ -92,7 +97,53 @@ class EngineerController extends Controller
             'engineerUsers' => $assignment['assignment_type'] === 'engineer' ? User::activeEngineers() : User::activeSalesEngineers(),
             'procurementUsers' => ($id = $this->procurementRoleId()) ? User::activeByRole($id) : [],
             'activeProcurementRequest' => ProcurementRequest::activeForLead((int) $assignment['lead_id']),
+            'surveyReference' => $this->surveyReferenceFor($assignment),
         ]);
+    }
+
+    /**
+     * Referensi hasil Survey untuk pekerjaan teknis: hanya Survey yang SUDAH selesai beserta
+     * Survey Report yang sudah disetujui. Ini akses baca-saja lewat tugas teknis, bukan akses
+     * untuk mengelola Survey atau Lead (Sales Engineer tidak punya menu/izin Survey).
+     *
+     * @return array<string,mixed>|null
+     */
+    private function surveyReferenceFor(array $assignment): ?array
+    {
+        $survey = Survey::currentForLead((int) $assignment['lead_id']);
+        if ($survey === null || $survey['status'] !== 'completed' || ($survey['report_status'] ?? null) !== 'completed') {
+            return null;
+        }
+
+        return $survey;
+    }
+
+    /** PDF Survey Report sebagai referensi tugas teknis (pemegang tugas atau pengelola; hanya bila Survey Report selesai). */
+    public function surveyReport(Request $request, array $params): void
+    {
+        $assignment = $this->findAuthorized((int) $params['id']);
+        $survey = $this->surveyReferenceFor($assignment);
+        if ($survey === null) {
+            $this->abort(404, 'Survey Report untuk lead ini belum tersedia atau belum selesai.');
+
+            return;
+        }
+
+        $report = SurveyReport::forSurvey((int) $survey['id']);
+        if ($report === null) {
+            $this->abort(404);
+
+            return;
+        }
+        $lead = Lead::withRelations((int) $survey['lead_id']);
+        $saved = json_decode((string) ($report['data'] ?? ''), true);
+        $data = SurveyReportSchema::merged($survey, $lead ?? [], is_array($saved) ? $saved : null);
+        $reporter = $report['created_by'] ? (User::find((int) $report['created_by'])['name'] ?? null) : null;
+        $dompdf = SurveyReportPdf::render($survey, $report, $data, SurveyPhoto::forSurvey((int) $survey['id']), $reporter);
+
+        AuditLogger::log((int) Auth::id(), 'survey_report_reference_view', 'engineer_assignment', (int) $assignment['id'], null, ['survey_code' => $survey['survey_code']]);
+        $dompdf->stream('SurveyReport_' . $survey['survey_code'] . '.pdf', ['Attachment' => false]);
+        exit;
     }
 
     /**
@@ -135,6 +186,31 @@ class EngineerController extends Controller
         $purpose = $request->input('purpose', 'engineering');
         if (!in_array($purpose, ['survey', 'engineering'], true)) {
             $purpose = 'engineering';
+        }
+
+        // Sales Engineer tidak terlibat dalam Survey (apa pun alurnya): tidak ada penugasan Survey untuknya.
+        if ($purpose === 'survey' && $type === 'sales_engineer') {
+            Session::flash('error', 'Sales Engineer tidak menerima penugasan Survey. Pilih Engineer, atau ajukan Survey lewat Surveyor.');
+            $this->redirect('/leads/' . $lead['id']);
+
+            return;
+        }
+
+        // Lead dengan Survey wajib: Survey hanya lewat modul Survey (Surveyor + Engineer terpilih),
+        // bukan lewat penugasan Engineer lama.
+        if ($purpose === 'survey' && (int) ($lead['survey_required'] ?? 0) === 1) {
+            Session::flash('error', 'Survey untuk lead ini diajukan lewat menu Pengajuan Survey (pilih Surveyor, Engineer pendukung opsional).');
+            $this->redirect('/leads/' . $lead['id']);
+
+            return;
+        }
+
+        // Tahap teknis hanya setelah Survey + Survey Report selesai (lead dengan Survey wajib).
+        if ($purpose === 'engineering' && ($blocker = Survey::prelimBlocker($lead)) !== null) {
+            Session::flash('error', 'Tahap teknis belum bisa dimulai. ' . $blocker);
+            $this->redirect('/leads/' . $lead['id']);
+
+            return;
         }
 
         if ($purpose === 'engineering' && !Prelim::hasApprovedForLead((int) $lead['id'])) {

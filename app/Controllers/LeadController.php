@@ -35,6 +35,7 @@ class LeadController extends Controller
             'q' => trim((string) $request->input('q', '')),
             'status' => $request->input('status', ''),
             'simple_status' => $request->input('simple_status', ''),
+            'survey' => $request->input('survey', ''),
             'priority' => $request->input('priority', ''),
             'source_id' => $request->input('source_id', ''),
             'category_id' => $request->input('category_id', ''),
@@ -288,11 +289,10 @@ class LeadController extends Controller
             'surveyRequired' => (int) ($lead['survey_required'] ?? 0) === 1,
             'currentSurvey' => $currentSurvey,
             'surveyHistoryList' => Survey::forLead((int) $lead['id']),
-            'surveyors' => User::activeSurveyors(),
-            'surveyPartnerCandidates' => array_merge(
-                array_map(fn ($u) => $u + ['partner_role' => 'sales_engineer'], User::activeSalesEngineers()),
-                array_map(fn ($u) => $u + ['partner_role' => 'engineer'], User::activeEngineers())
-            ),
+            // Pilihan petugas Survey: Surveyor utama (wajib) dan Engineer pendukung (opsional).
+            // Sales Engineer tidak pernah muncul di sini.
+            'surveyors' => User::surveyStaff('surveyor'),
+            'surveyPartnerCandidates' => array_map(fn ($u) => $u + ['partner_role' => 'engineer'], User::surveyStaff('engineer')),
             'canRequestSurveyFlow' => Acl::can('survey.request') && !$this->isReadOnlyForSales($lead) && !$lead['deleted_at'] && !in_array($lead['status'], ['won', 'lost'], true),
             'canOverrideSurvey' => \App\Core\Jobs::has('super_admin') && Acl::can('survey.override'),
             'prelim' => $latestPrelim,
@@ -596,6 +596,13 @@ class LeadController extends Controller
 
         if ($validator->fails()) {
             Session::flash('error', 'Nilai deal dan tanggal closing wajib diisi dengan benar.');
+            $this->redirect('/leads/' . $lead['id']);
+
+            return;
+        }
+
+        if (($surveyBlock = Survey::prelimBlocker($lead)) !== null) {
+            Session::flash('error', 'Lead belum dapat ditandai Deal. ' . $surveyBlock);
             $this->redirect('/leads/' . $lead['id']);
 
             return;

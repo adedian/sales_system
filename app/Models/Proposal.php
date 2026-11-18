@@ -69,7 +69,12 @@ class Proposal extends Model
         $params = [];
 
         if (!empty($filters['scope_sales_id'])) {
-            $where[] = 'proposals.sales_id = ?';
+            if (!empty($filters['scope_approver_review'])) {
+                // Sales yang juga Direktur: proposal miliknya + antrian approval (review internal) dari Sales lain.
+                $where[] = "(proposals.sales_id = ? OR proposals.status = 'internal_review')";
+            } else {
+                $where[] = 'proposals.sales_id = ?';
+            }
             $params[] = (int) $filters['scope_sales_id'];
         }
 

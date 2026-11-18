@@ -108,6 +108,7 @@ class Router
             'guest' => \App\Middleware\GuestMiddleware::class,
             'permission' => \App\Middleware\PermissionMiddleware::class,
             'job' => \App\Middleware\JobMiddleware::class,
+            'area' => \App\Middleware\AreaMiddleware::class,
         ];
 
         if (!isset($map[$name])) {

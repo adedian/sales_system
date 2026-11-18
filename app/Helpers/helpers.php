@@ -198,3 +198,30 @@ if (!function_exists('auth_user')) {
         return \App\Core\Auth::user();
     }
 }
+
+if (!function_exists('can_open_lead')) {
+    /**
+     * Pengguna boleh membuka halaman Lead? Hanya Sales (dan pengawas) yang punya
+     * Lead Management. Role lain melihat kode/nama Lead sebagai teks konteks saja.
+     */
+    function can_open_lead(): bool
+    {
+        return \App\Core\Acl::managesLeads() && \App\Core\Acl::can('lead.view');
+    }
+}
+
+if (!function_exists('lead_link')) {
+    /**
+     * Tautan ke detail Lead bila pengguna berhak; bila tidak, hanya teks.
+     * $content sudah harus aman (di-escape pemanggil).
+     */
+    function lead_link(int|string $leadId, string $content, string $class = ''): string
+    {
+        $cls = $class !== '' ? ' class="' . e($class) . '"' : '';
+        if (can_open_lead()) {
+            return '<a href="' . e(url('/leads/' . (int) $leadId)) . '"' . $cls . '>' . $content . '</a>';
+        }
+
+        return '<span' . $cls . '>' . $content . '</span>';
+    }
+}

@@ -2,6 +2,8 @@
 
 namespace App\Core;
 
+use App\Models\User;
+
 /**
  * Membangun menu sidebar dari app/Config/navigation.php sesuai job dan izin
  * pengguna yang sedang login. Hanya untuk tampilan: setiap halaman tetap
@@ -41,13 +43,25 @@ class Navigation
                     continue;
                 }
 
-                // Tautan yang sama tidak ditampilkan dua kali bila pengguna punya beberapa job.
+                // Tautan yang sama tidak ditampilkan dua kali bila pengguna punya beberapa job
+                // (daun maupun submenu). Induk tanpa submenu tersisa ikut disembunyikan.
+                if (!$all) {
+                    if (isset($prepared['children'])) {
+                        $prepared['children'] = array_values(array_filter(
+                            $prepared['children'],
+                            static fn (array $c): bool => !isset($seen[$c['href']])
+                        ));
+                        if ($prepared['children'] === []) {
+                            continue;
+                        }
+                        $prepared['active'] = in_array(true, array_column($prepared['children'], 'active'), true);
+                    } elseif (isset($seen[$prepared['href']])) {
+                        continue;
+                    }
+                }
                 $hrefs = isset($prepared['children'])
                     ? array_column($prepared['children'], 'href')
                     : [$prepared['href']];
-                if (!$all && !isset($prepared['children']) && isset($seen[$prepared['href']])) {
-                    continue;
-                }
                 foreach ($hrefs as $h) {
                     $seen[$h] = true;
                 }
@@ -92,6 +106,9 @@ class Navigation
         if (!empty($item['perm']) && !Acl::can((string) $item['perm'])) {
             return null;
         }
+        if (!empty($item['when']) && !self::condition((string) $item['when'])) {
+            return null;
+        }
 
         if (isset($item['children'])) {
             $children = [];
@@ -112,9 +129,24 @@ class Navigation
             return $item;
         }
 
-        $item['active'] = self::isActive($item, $path, $query);
+        $item['active'] = empty($item['never_active']) && self::isActive($item, $path, $query);
 
         return $item;
+    }
+
+    /**
+     * Syarat tampilnya sebuah menu di luar izin. Hanya untuk tampilan; akses data tetap
+     * divalidasi backend.
+     *
+     * survey_support: Engineer yang ditugaskan sebagai personel pendukung pada Survey tertentu
+     * (Super Admin selalu melihatnya).
+     */
+    private static function condition(string $name): bool
+    {
+        return match ($name) {
+            'survey_support' => Jobs::has('super_admin') || User::hasSurveySupportAssignment((int) Auth::id()),
+            default => false,
+        };
     }
 
     /**

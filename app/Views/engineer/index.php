@@ -119,7 +119,7 @@ $tiles = [
                     <tr>
                         <td class="mono"><?= e($a['assignment_code']) ?></td>
                         <td>
-                            <a href="<?= url('/leads/' . $a['lead_id']) ?>" class="mono d-block"><?= e($a['lead_code']) ?></a>
+                            <?= lead_link($a['lead_id'], e($a['lead_code']), 'mono d-block') ?>
                             <div class="user-cell-name"><?= e($a['customer_name']) ?></div>
                         </td>
                         <td><span class="badge-pill <?= $a['assignment_type'] === 'engineer' ? 'badge-pill-muted' : '' ?>"><?= $a['assignment_type'] === 'engineer' ? 'Engineer' : 'Sales Engineer' ?></span></td>

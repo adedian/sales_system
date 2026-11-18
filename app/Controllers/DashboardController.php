@@ -316,6 +316,8 @@ class DashboardController extends Controller
             'recentLeads' => Lead::recentForSales($salesId, 6),
             'statusMap' => MasterData::allAsMap('lead_statuses'),
             'recentActivity' => AuditLog::recentForUser($salesId, 8),
+            // Survey dari Lead milik sendiri (Sales memantau, bukan petugas Survey).
+            'mySurveys' => \App\Models\Survey::search(['scope_user_id' => $salesId, 'status' => 'ongoing', 'per_page' => 5])['rows'],
             'openProposals' => Proposal::openForSales($salesId, 6),
             'proposalStatusMap' => MasterData::allAsMap('proposal_statuses'),
             // Sales yang juga Direktur (mis. Pak Ronny) melihat approval harga yang menunggu.
@@ -345,6 +347,8 @@ class DashboardController extends Controller
                 'overdue' => $counts['overdue'],
             ],
             'openAssignments' => EngineerAssignment::openForEngineer($engineerId, 8),
+            // Dukungan Survey: hanya Survey tempat Engineer ini ditugaskan secara eksplisit.
+            'supportSurveys' => Jobs::has('engineer') ? \App\Models\Survey::openForSupport($engineerId, 6) : [],
             'statusMap' => MasterData::allAsMap('engineer_statuses'),
             'priorityMap' => MasterData::allAsMap('priorities'),
             'recentActivity' => AuditLog::recentForUser($engineerId, 8),

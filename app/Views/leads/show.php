@@ -431,7 +431,7 @@ $latestPriceValidation = $priceValidations[0] ?? null;
         <?php endif; ?>
         <a href="<?= url('/surveys/' . $currentSurvey['id']) ?>" class="btn btn-sm btn-light"><i class="bi bi-box-arrow-up-right me-1"></i>Buka Detail Survey</a>
     <?php elseif ($canRequestSurveyFlow): ?>
-        <p class="text-muted small mb-2">Survey lapangan wajib dilakukan sebelum Prelim. Pilih Surveyor, tentukan jadwal, dan libatkan Sales Engineer/Engineer bila perlu.</p>
+        <p class="text-muted small mb-2">Survey lapangan wajib dilakukan sebelum Prelim. Pilih Surveyor (wajib), tentukan jadwal, dan libatkan Engineer pendukung bila perlu. Anda tetap tercatat sebagai Sales pemilik Lead yang memantau Survey ini.</p>
         <?php if (empty($surveyors)): ?>
             <div class="alert alert-warning py-2 px-3 mb-0">Belum ada akun Surveyor yang aktif. Aktifkan penanda Surveyor pada menu Pengguna.</div>
         <?php else: ?>
@@ -450,12 +450,12 @@ $latestPriceValidation = $priceValidations[0] ?? null;
             </div>
             <?php if (!empty($surveyPartnerCandidates)): ?>
             <div class="col-12">
-                <label class="form-label">Libatkan Sales Engineer / Engineer (opsional)</label>
+                <label class="form-label">Libatkan Engineer pendukung (opsional; pilih secara eksplisit)</label>
                 <div class="d-flex flex-wrap gap-3">
                     <?php foreach ($surveyPartnerCandidates as $row): ?>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" name="participants[]" value="<?= (int) $row['id'] ?>" id="sp_<?= (int) $row['id'] ?>_<?= e($row['partner_role']) ?>">
-                        <label class="form-check-label" for="sp_<?= (int) $row['id'] ?>_<?= e($row['partner_role']) ?>"><?= e($row['name']) ?> <span class="text-muted small">(<?= $row['partner_role'] === 'engineer' ? 'Engineer' : 'Sales Engineer' ?>)</span></label>
+                        <label class="form-check-label" for="sp_<?= (int) $row['id'] ?>_<?= e($row['partner_role']) ?>"><?= e($row['name']) ?> <span class="text-muted small">(Engineer)</span></label>
                     </div>
                     <?php endforeach; ?>
                 </div>
@@ -559,27 +559,18 @@ $latestPriceValidation = $priceValidations[0] ?? null;
                 <div class="info-item"><span class="info-item-label">Status</span><span class="info-item-value"><span class="color-swatch color-swatch-<?= e($svStatus['color']) ?>"><?= e($svStatus['name']) ?></span></span></div>
             </div>
             <a href="<?= url('/engineer/' . $surveyAssignment['id']) ?>" class="btn btn-sm btn-light">Lihat Detail Assignment Survey</a>
-        <?php elseif ($canRequestSurvey && (!empty($engineerFieldUsers) || !empty($salesEngineerUsers))): ?>
-        <p class="text-muted small mb-2">Pilih Sales Engineer atau Engineer sebagai partner Survey untuk melengkapi Data Awal.</p>
+        <?php elseif ($canRequestSurvey && !empty($engineerFieldUsers)): ?>
+        <p class="text-muted small mb-2">Pilih Engineer sebagai partner Survey untuk melengkapi Data Awal. (Sales Engineer tidak terlibat dalam Survey.)</p>
         <form method="POST" action="<?= url('/leads/' . $lead['id'] . '/request-engineer') ?>" class="row g-2">
             <?= csrf_field() ?>
             <input type="hidden" name="purpose" value="survey">
-            <div class="col-12 col-md-4">
-                <label class="form-label">Tipe Partner</label>
-                <select name="assignment_type" class="form-select" id="surveyAssignmentType" required>
-                    <option value="sales_engineer">Sales Engineer</option>
-                    <option value="engineer">Engineer</option>
-                </select>
-            </div>
-            <div class="col-12 col-md-5">
-                <label class="form-label">Partner Survey</label>
+            <input type="hidden" name="assignment_type" value="engineer">
+            <div class="col-12 col-md-6">
+                <label class="form-label">Engineer Partner Survey</label>
                 <select name="engineer_id" class="form-select" id="surveyEngineerPicker" required>
                     <option value="">Pilih...</option>
-                    <?php foreach ($salesEngineerUsers as $row): ?>
-                        <option value="<?= (int) $row['id'] ?>" data-type="sales_engineer"><?= e($row['name']) ?></option>
-                    <?php endforeach; ?>
                     <?php foreach ($engineerFieldUsers as $row): ?>
-                        <option value="<?= (int) $row['id'] ?>" data-type="engineer" hidden><?= e($row['name']) ?></option>
+                        <option value="<?= (int) $row['id'] ?>"><?= e($row['name']) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -595,24 +586,8 @@ $latestPriceValidation = $priceValidations[0] ?? null;
                 <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-send me-1"></i>Ajukan Survey</button>
             </div>
         </form>
-        <script>
-        (function () {
-            var typeSel = document.getElementById('surveyAssignmentType');
-            var partnerSel = document.getElementById('surveyEngineerPicker');
-            if (!typeSel || !partnerSel) return;
-            function sync() {
-                Array.prototype.forEach.call(partnerSel.options, function (opt) {
-                    if (!opt.value) return;
-                    opt.hidden = opt.getAttribute('data-type') !== typeSel.value;
-                });
-                partnerSel.value = '';
-            }
-            typeSel.addEventListener('change', sync);
-            sync();
-        })();
-        </script>
-        <?php elseif (empty($engineerFieldUsers) && empty($salesEngineerUsers)): ?>
-            <p class="text-muted small mb-0">Belum ada akun Sales Engineer/Engineer yang aktif.</p>
+        <?php elseif (empty($engineerFieldUsers)): ?>
+            <p class="text-muted small mb-0">Belum ada akun Engineer yang aktif.</p>
         <?php endif; ?>
         <?php endif; /* !surveyRequired */ ?>
     <?php endif; ?>

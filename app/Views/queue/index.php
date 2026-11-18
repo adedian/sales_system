@@ -190,7 +190,7 @@ $chipRemoveUrl = fn ($key) => url('/queue') . '?' . http_build_query(array_merge
                     <tr>
                         <td class="mono">#<?= (int) $q['queue_number'] ?></td>
                         <td>
-                            <a href="<?= url('/leads/' . $q['lead_id']) ?>" class="mono d-block"><?= e($q['lead_code']) ?></a>
+                            <?= lead_link($q['lead_id'], e($q['lead_code']), 'mono d-block') ?>
                             <div class="user-cell-name"><?= e(\App\Models\SalesQueue::displayTitle($q)) ?></div>
                         </td>
                         <td class="text-muted"><?= $q['survey_status_name'] ? e($q['survey_status_name']) : '-' ?></td>

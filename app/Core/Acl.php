@@ -18,6 +18,23 @@ class Acl
      */
     public const BROAD_ROLES = ['super-admin', 'admin-sales', 'manager', 'direktur'];
 
+    /** Role pengawas untuk data Sales: Direktur TIDAK termasuk (Sales+Direktur tetap dibatasi ke lead miliknya). */
+    public const SALES_OVERSIGHT_ROLES = ['super-admin', 'admin-sales', 'manager'];
+
+    /**
+     * Satu-satunya role yang boleh MENGELOLA Lead (halaman /leads, /api/leads, pembuatan,
+     * perubahan, penghapusan, perubahan status). Role lain hanya melihat ringkasan Lead
+     * sebagai konteks di halaman tugasnya. Izin (lead.*) tetap berlaku di atas ini.
+     */
+    public const LEAD_ROLES = ['super-admin', 'admin-sales', 'manager', 'sales'];
+
+    /**
+     * Role yang boleh menyentuh modul Survey. Sales Engineer sengaja TIDAK ada:
+     * ia tidak mengajukan, menerima, atau mengelola Survey, apa pun izin yang
+     * tercatat pada role-nya.
+     */
+    public const SURVEY_ROLES = ['super-admin', 'admin-sales', 'manager', 'sales', 'surveyor', 'engineer'];
+
     /**
      * Cached for the lifetime of the current request only (static, not
      * session). Role permissions can be edited at runtime via Role
@@ -55,7 +72,21 @@ class Acl
      */
     public static function scoped(string $roleSlug): bool
     {
-        return self::hasRole($roleSlug) && !self::hasAnyRole(...self::BROAD_ROLES);
+        $oversight = $roleSlug === 'sales' ? self::SALES_OVERSIGHT_ROLES : self::BROAD_ROLES;
+
+        return self::hasRole($roleSlug) && !self::hasAnyRole(...$oversight);
+    }
+
+    /** Boleh mengelola Lead (menu Lead Management, /leads, /api/leads). */
+    public static function managesLeads(): bool
+    {
+        return self::hasAnyRole(...self::LEAD_ROLES);
+    }
+
+    /** Boleh menyentuh modul Survey (lihat SURVEY_ROLES). */
+    public static function touchesSurvey(): bool
+    {
+        return self::hasAnyRole(...self::SURVEY_ROLES);
     }
 
     /**
@@ -65,6 +96,7 @@ class Acl
      */
     public static function requiresInvolvement(): bool
     {
+        // Sales dibatasi lewat kepemilikan lead. Sales+Direktur tetap Sales: scoped('sales') yang berlaku.
         return Auth::user() !== null && !self::hasAnyRole(...self::BROAD_ROLES, ...['sales', 'engineer', 'procurement']);
     }
 

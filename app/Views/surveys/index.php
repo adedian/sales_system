@@ -59,7 +59,7 @@ $qs = function (array $override = []) use ($filters) {
                     <tr>
                         <td class="mono"><a href="<?= url('/surveys/' . $r['id']) ?>"><?= e($r['survey_code']) ?></a></td>
                         <td>
-                            <a href="<?= url('/leads/' . $r['lead_id']) ?>" class="mono d-block"><?= e($r['lead_code']) ?></a>
+                            <?= lead_link($r['lead_id'], e($r['lead_code']), 'mono d-block') ?>
                             <div class="user-cell-name"><?= e($r['customer_name']) ?></div>
                         </td>
                         <td class="text-muted"><?= e($r['site_location'] ?: '-') ?></td>

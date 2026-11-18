@@ -88,7 +88,11 @@ $sql .= "INSERT IGNORE INTO `role_permissions` (`role_id`, `permission_id`)\n"
     . "SELECT r.`id`, p.`id` FROM (\n    " . implode("\n    UNION ALL ", $union) . "\n) m\n"
     . "JOIN `roles` r ON r.`slug` = m.`rs` JOIN `permissions` p ON p.`slug` = m.`ps`;\n\n";
 
-// 5) migrasi menurunkan flag dari user_roles; pastikan lagi di akhir
+// 5) pembagian tanggung jawab Sales/Surveyor/Engineer/Sales Engineer (2026-11-18).
+//    Harus SETELAH bagian 4: migrasi ini juga MENCABUT izin lama dan menambah
+//    kolom surveys.owner_sales_id/location, yang tidak bisa dilakukan INSERT IGNORE.
+$sql .= "-- ==== 5. Pembagian tanggung jawab ====\n"
+    . trim((string) file_get_contents($root . '/database/migrations/2026-11-18-pembagian-tanggung-jawab.sql')) . "\n\n";
 $sql .= "-- ==== Selesai ====\n";
 file_put_contents($out . '/update.sql', $sql);
 echo 'update.sql OK (' . round(strlen($sql) / 1024) . " KB)\n";

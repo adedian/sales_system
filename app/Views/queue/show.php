@@ -14,7 +14,7 @@ $isOverdue = !empty($queue['deadline']) && $queue['deadline'] < date('Y-m-d') &&
         </div>
         <h2><?= e(\App\Models\SalesQueue::displayTitle($queue)) ?></h2>
         <div class="lead-header-meta">
-            <a href="<?= url('/leads/' . $queue['lead_id']) ?>" class="mono"><?= e($queue['lead_code']) ?></a>
+            <?= lead_link($queue['lead_id'], e($queue['lead_code']), 'mono') ?>
             &middot; <?= e($queue['customer_name']) ?><?= $queue['company_name'] ? ' (' . e($queue['company_name']) . ')' : '' ?>
         </div>
     </div>
@@ -29,7 +29,7 @@ $isOverdue = !empty($queue['deadline']) && $queue['deadline'] < date('Y-m-d') &&
         </div>
     </div>
     <div class="lead-header-actions">
-        <a href="<?= url('/leads/' . $queue['lead_id']) ?>" class="btn btn-light btn-sm"><i class="bi bi-person-lines-fill me-1"></i>Lihat Lead</a>
+        <?php if (can_open_lead()): ?><a href="<?= url('/leads/' . $queue['lead_id']) ?>" class="btn btn-light btn-sm"><i class="bi bi-person-lines-fill me-1"></i>Lihat Lead</a><?php endif; ?>
     </div>
 </div>
 

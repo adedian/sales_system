@@ -84,30 +84,31 @@ $rolesDefinition = [
         ],
     ],
     // Role pekerjaan (multi-role: satu pengguna boleh memiliki beberapa; lihat tabel user_roles).
+    // Lead Management hanya milik Sales (+pengawas); Sales Engineer tidak punya izin Survey sama sekali.
     'sales-engineer' => [
         'name' => 'Sales Engineer',
         'description' => 'Analisis kebutuhan, BOQ, dan pembuatan/revisi proposal',
-        'permissions' => ['dashboard.view', 'lead.view', 'survey.view', 'survey.review', 'engineer.view', 'procurement.view', 'prelim.view', 'proposal.view', 'proposal.create', 'proposal.edit'],
+        'permissions' => ['dashboard.view', 'engineer.view', 'procurement.view', 'prelim.view', 'proposal.view', 'proposal.create', 'proposal.edit'],
     ],
     'engineer' => [
         'name' => 'Engineer',
         'description' => 'Analisis teknis, pemeriksaan, perhitungan sistem, dan spesifikasi',
-        'permissions' => ['dashboard.view', 'engineer.view', 'procurement.view', 'lead.view', 'survey.view', 'survey.review'],
+        'permissions' => ['dashboard.view', 'engineer.view', 'procurement.view', 'survey.view', 'survey.review'],
     ],
     'surveyor' => [
         'name' => 'Surveyor',
         'description' => 'Survey lapangan, dokumentasi foto, dan Survey Report',
-        'permissions' => ['dashboard.view', 'lead.view', 'survey.view', 'queue.view'],
+        'permissions' => ['dashboard.view', 'survey.view'],
     ],
     'direktur' => [
         'name' => 'Direktur',
         'description' => 'Approval harga dan penawaran',
-        'permissions' => ['dashboard.view', 'lead.view', 'survey.view', 'survey.review', 'engineer.view', 'prelim.view', 'proposal.view', 'proposal.approve', 'procurement.view', 'price.validate', 'followup.view', 'queue.view', 'report.view', 'report.export'],
+        'permissions' => ['dashboard.view', 'survey.view', 'survey.review', 'engineer.view', 'prelim.view', 'proposal.view', 'proposal.approve', 'procurement.view', 'price.validate', 'followup.view', 'queue.view', 'report.view', 'report.export'],
     ],
     'procurement' => [
         'name' => 'Procurement',
         'description' => 'Mencari vendor, quotation, dan menentukan harga beli',
-        'permissions' => ['dashboard.view', 'procurement.view', 'lead.view', 'vendor.manage', 'product.manage'],
+        'permissions' => ['dashboard.view', 'procurement.view', 'vendor.manage', 'product.manage'],
     ],
     'manager' => [
         'name' => 'Manager/Supervisor',

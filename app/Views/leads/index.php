@@ -27,6 +27,9 @@ if ($filters['status'] !== '') {
 if ($filters['simple_status'] !== '') {
     $chips[] = ['key' => 'simple_status', 'label' => 'Status Sederhana: ' . ucfirst($filters['simple_status'])];
 }
+if (($filters['survey'] ?? '') === 'none') {
+    $chips[] = ['key' => 'survey', 'label' => 'Belum diajukan Survey'];
+}
 if ($filters['type_id'] !== '') {
     $row = $findById($leadTypes, $filters['type_id']);
     $chips[] = ['key' => 'type_id', 'label' => 'Type: ' . ($row['name'] ?? $filters['type_id'])];

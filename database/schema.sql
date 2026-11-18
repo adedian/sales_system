@@ -1169,6 +1169,8 @@ CREATE TABLE IF NOT EXISTS `surveys` (
     `requested_by` INT UNSIGNED NULL,
     `status` ENUM('requested','scheduled','in_progress','completed','cancelled','rejected') NOT NULL DEFAULT 'requested',
     `scheduled_date` DATE NULL,
+    `owner_sales_id` INT UNSIGNED NULL,
+    `location` VARCHAR(500) NULL,
     `request_notes` TEXT NULL,
     `started_at` DATETIME NULL,
     `completed_at` DATETIME NULL,
@@ -1179,12 +1181,14 @@ CREATE TABLE IF NOT EXISTS `surveys` (
     KEY `idx_surveys_lead` (`lead_id`),
     KEY `idx_surveys_surveyor` (`surveyor_id`),
     KEY `idx_surveys_status` (`status`),
+    KEY `idx_surveys_owner_sales` (`owner_sales_id`),
     CONSTRAINT `fk_surveys_lead` FOREIGN KEY (`lead_id`) REFERENCES `leads` (`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_surveys_surveyor` FOREIGN KEY (`surveyor_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
     CONSTRAINT `fk_surveys_requested_by` FOREIGN KEY (`requested_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Pihak yang dilibatkan dalam Survey (Sales Engineer / Engineer / Sales).
+-- Personel pendukung Survey: hanya Engineer, dipilih eksplisit saat pengajuan.
+-- Sales Engineer tidak pernah menjadi petugas Survey. Nilai 'sales'/'sales_engineer' tinggal warisan.
 CREATE TABLE IF NOT EXISTS `survey_participants` (
     `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     `survey_id` INT UNSIGNED NOT NULL,
@@ -1220,7 +1224,7 @@ CREATE TABLE IF NOT EXISTS `survey_reports` (
 CREATE TABLE IF NOT EXISTS `survey_status_history` (
     `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     `survey_id` INT UNSIGNED NOT NULL,
-    `entity` ENUM('survey','report') NOT NULL DEFAULT 'survey',
+    `entity` ENUM('survey','report','note') NOT NULL DEFAULT 'survey',
     `from_status` VARCHAR(30) NULL,
     `to_status` VARCHAR(30) NOT NULL,
     `changed_by` INT UNSIGNED NULL,

@@ -19,7 +19,7 @@ $renderLeadTable = function (array $rows, string $emptyText) {
             <tbody>
                 <?php foreach ($rows as $row): ?>
                 <tr>
-                    <td><a href="<?= url('/leads/' . $row['id']) ?>" class="mono"><?= e($row['lead_code']) ?></a></td>
+                    <td><?= lead_link($row['id'], e($row['lead_code']), 'mono') ?></td>
                     <td>
                         <div class="user-cell-name"><?= e($row['customer_name']) ?></div>
                         <?php if (!empty($row['company_name'])): ?><div class="user-cell-sub"><?= e($row['company_name']) ?></div><?php endif; ?>
@@ -95,7 +95,7 @@ $renderLeadTable = function (array $rows, string $emptyText) {
     <div class="card-body"><?php $renderLeadTable($upcoming, 'Belum ada follow up terjadwal ke depan.'); ?></div>
 </div>
 
-<div class="card card-elevated mt-3">
+<div class="card card-elevated mt-3" id="riwayat">
     <div class="card-header"><h3>Riwayat Follow Up Terbaru</h3></div>
     <div class="card-body">
         <?php if (empty($recentLog)): ?>
@@ -107,7 +107,7 @@ $renderLeadTable = function (array $rows, string $emptyText) {
                 <tbody>
                     <?php foreach ($recentLog as $log): ?>
                     <tr>
-                        <td><a href="<?= url('/leads/' . $log['lead_id']) ?>" class="mono"><?= e($log['lead_code']) ?></a><div class="user-cell-sub"><?= e($log['customer_name']) ?></div></td>
+                        <td><?= lead_link($log['lead_id'], e($log['lead_code']), 'mono') ?><div class="user-cell-sub"><?= e($log['customer_name']) ?></div></td>
                         <td><span class="badge-pill"><?= e($methodLabels[$log['method']] ?? $log['method']) ?></span></td>
                         <td><?= $log['customer_response'] ? '<span class="color-swatch color-swatch-' . e($responseColors[$log['customer_response']] ?? 'muted') . '">' . e($responseLabels[$log['customer_response']] ?? $log['customer_response']) . '</span>' : '<span class="text-muted">-</span>' ?></td>
                         <td class="text-muted"><?= $log['notes'] ? e(mb_strimwidth($log['notes'], 0, 60, '...')) : '-' ?></td>

@@ -66,25 +66,25 @@ $router->post('/master-data/{type}/{id}', [MasterDataController::class, 'update'
 $router->post('/master-data/{type}/{id}/toggle-status', [MasterDataController::class, 'toggleStatus'], ['auth', 'permission:master_data.manage']);
 $router->post('/master-data/{type}/{id}/delete', [MasterDataController::class, 'destroy'], ['auth', 'permission:master_data.manage']);
 
-$router->get('/leads', [LeadController::class, 'index'], ['auth', 'permission:lead.view']);
-$router->get('/leads/create', [LeadController::class, 'create'], ['auth', 'permission:lead.create']);
-$router->post('/leads', [LeadController::class, 'store'], ['auth', 'permission:lead.create']);
-$router->get('/leads/{id}/edit', [LeadController::class, 'edit'], ['auth', 'permission:lead.edit']);
-$router->post('/leads/{id}/delete', [LeadController::class, 'destroy'], ['auth', 'permission:lead.delete']);
-$router->post('/leads/{id}/restore', [LeadController::class, 'restore'], ['auth', 'permission:lead.delete']);
-$router->post('/leads/{id}/enqueue', [LeadController::class, 'enqueue'], ['auth', 'permission:lead.edit']);
-$router->post('/leads/{id}/request-engineer', [EngineerController::class, 'requestAssignment'], ['auth', 'permission:lead.edit']);
-$router->post('/leads/{id}/request-procurement', [ProcurementController::class, 'requestFromLead'], ['auth', 'permission:lead.edit']);
-$router->post('/leads/{id}/surveys', [SurveyController::class, 'request'], ['auth', 'permission:survey.request']);
-$router->post('/leads/{id}/survey-override', [SurveyController::class, 'override'], ['auth', 'permission:survey.override']);
-$router->post('/leads/{id}/prelims', [PrelimController::class, 'createFromLead'], ['auth', 'permission:prelim.create']);
-$router->post('/leads/{id}/proposals', [ProposalController::class, 'createFromLead'], ['auth', 'permission:lead.edit']);
-$router->post('/leads/{id}/follow-ups', [FollowUpController::class, 'store'], ['auth', 'permission:followup.create']);
-$router->post('/leads/{id}/mark-won', [LeadController::class, 'markWon'], ['auth', 'permission:lead.edit']);
-$router->post('/leads/{id}/mark-lost', [LeadController::class, 'markLost'], ['auth', 'permission:lead.edit']);
-$router->post('/leads/{id}/reopen-deal', [LeadController::class, 'reopenDeal'], ['auth', 'permission:lead.edit']);
-$router->post('/leads/{id}', [LeadController::class, 'update'], ['auth', 'permission:lead.edit']);
-$router->get('/leads/{id}', [LeadController::class, 'show'], ['auth', 'permission:lead.view']);
+$router->get('/leads', [LeadController::class, 'index'], ['auth', 'area:lead', 'permission:lead.view']);
+$router->get('/leads/create', [LeadController::class, 'create'], ['auth', 'area:lead', 'permission:lead.create']);
+$router->post('/leads', [LeadController::class, 'store'], ['auth', 'area:lead', 'permission:lead.create']);
+$router->get('/leads/{id}/edit', [LeadController::class, 'edit'], ['auth', 'area:lead', 'permission:lead.edit']);
+$router->post('/leads/{id}/delete', [LeadController::class, 'destroy'], ['auth', 'area:lead', 'permission:lead.delete']);
+$router->post('/leads/{id}/restore', [LeadController::class, 'restore'], ['auth', 'area:lead', 'permission:lead.delete']);
+$router->post('/leads/{id}/enqueue', [LeadController::class, 'enqueue'], ['auth', 'area:lead', 'permission:lead.edit']);
+$router->post('/leads/{id}/request-engineer', [EngineerController::class, 'requestAssignment'], ['auth', 'area:lead', 'permission:lead.edit']);
+$router->post('/leads/{id}/request-procurement', [ProcurementController::class, 'requestFromLead'], ['auth', 'area:lead', 'permission:lead.edit']);
+$router->post('/leads/{id}/surveys', [SurveyController::class, 'request'], ['auth', 'area:lead', 'area:survey', 'permission:survey.request']);
+$router->post('/leads/{id}/survey-override', [SurveyController::class, 'override'], ['auth', 'area:lead', 'area:survey', 'permission:survey.override']);
+$router->post('/leads/{id}/prelims', [PrelimController::class, 'createFromLead'], ['auth', 'area:lead', 'permission:prelim.create']);
+$router->post('/leads/{id}/proposals', [ProposalController::class, 'createFromLead'], ['auth', 'area:lead', 'permission:lead.edit']);
+$router->post('/leads/{id}/follow-ups', [FollowUpController::class, 'store'], ['auth', 'area:lead', 'permission:followup.create']);
+$router->post('/leads/{id}/mark-won', [LeadController::class, 'markWon'], ['auth', 'area:lead', 'permission:lead.edit']);
+$router->post('/leads/{id}/mark-lost', [LeadController::class, 'markLost'], ['auth', 'area:lead', 'permission:lead.edit']);
+$router->post('/leads/{id}/reopen-deal', [LeadController::class, 'reopenDeal'], ['auth', 'area:lead', 'permission:lead.edit']);
+$router->post('/leads/{id}', [LeadController::class, 'update'], ['auth', 'area:lead', 'permission:lead.edit']);
+$router->get('/leads/{id}', [LeadController::class, 'show'], ['auth', 'area:lead', 'permission:lead.view']);
 
 $router->get('/follow-ups', [FollowUpController::class, 'index'], ['auth', 'permission:followup.view']);
 
@@ -94,21 +94,22 @@ $router->get('/queue/{id}', [QueueController::class, 'show'], ['auth', 'permissi
 
 // Survey lapangan wajib. Pekerjaan Surveyor dibatasi job (bukan hanya role);
 // kepemilikan/penugasan divalidasi lagi di SurveyController.
-$router->get('/surveys', [SurveyController::class, 'index'], ['auth', 'permission:survey.view']);
-$router->post('/surveys/{id}/accept', [SurveyController::class, 'accept'], ['auth', 'permission:survey.view', 'job:surveyor']);
-$router->post('/surveys/{id}/reject', [SurveyController::class, 'reject'], ['auth', 'permission:survey.view', 'job:surveyor']);
-$router->post('/surveys/{id}/start', [SurveyController::class, 'start'], ['auth', 'permission:survey.view', 'job:surveyor']);
-$router->post('/surveys/{id}/complete', [SurveyController::class, 'complete'], ['auth', 'permission:survey.view', 'job:surveyor']);
-$router->get('/surveys/{id}/report/edit', [SurveyController::class, 'editReport'], ['auth', 'permission:survey.view', 'job:surveyor']);
-$router->get('/surveys/{id}/report/pdf', [SurveyController::class, 'reportPdf'], ['auth', 'permission:survey.view']);
-$router->get('/surveys/{id}/photos/{photoId}', [SurveyController::class, 'photo'], ['auth', 'permission:survey.view']);
-$router->post('/surveys/{id}/report', [SurveyController::class, 'saveReport'], ['auth', 'permission:survey.view', 'job:surveyor']);
-$router->post('/surveys/{id}/report/submit', [SurveyController::class, 'submitReport'], ['auth', 'permission:survey.view', 'job:surveyor']);
+$router->get('/surveys', [SurveyController::class, 'index'], ['auth', 'area:survey', 'permission:survey.view']);
+$router->post('/surveys/{id}/accept', [SurveyController::class, 'accept'], ['auth', 'area:survey', 'permission:survey.view', 'job:surveyor']);
+$router->post('/surveys/{id}/reject', [SurveyController::class, 'reject'], ['auth', 'area:survey', 'permission:survey.view', 'job:surveyor']);
+$router->post('/surveys/{id}/start', [SurveyController::class, 'start'], ['auth', 'area:survey', 'permission:survey.view', 'job:surveyor']);
+$router->post('/surveys/{id}/complete', [SurveyController::class, 'complete'], ['auth', 'area:survey', 'permission:survey.view', 'job:surveyor']);
+$router->get('/surveys/{id}/report/edit', [SurveyController::class, 'editReport'], ['auth', 'area:survey', 'permission:survey.view', 'job:surveyor']);
+$router->get('/surveys/{id}/report/pdf', [SurveyController::class, 'reportPdf'], ['auth', 'area:survey', 'permission:survey.view']);
+$router->get('/surveys/{id}/photos/{photoId}', [SurveyController::class, 'photo'], ['auth', 'area:survey', 'permission:survey.view']);
+$router->post('/surveys/{id}/report', [SurveyController::class, 'saveReport'], ['auth', 'area:survey', 'permission:survey.view', 'job:surveyor']);
+$router->post('/surveys/{id}/report/submit', [SurveyController::class, 'submitReport'], ['auth', 'area:survey', 'permission:survey.view', 'job:surveyor']);
 // Pemeriksa ditentukan di controller (job Sales Engineer/Engineer yang dilibatkan, atau pengelola).
-$router->post('/surveys/{id}/report/review', [SurveyController::class, 'reviewReport'], ['auth', 'permission:survey.view']);
-$router->post('/surveys/{id}/reschedule', [SurveyController::class, 'reschedule'], ['auth', 'permission:survey.view']);
-$router->post('/surveys/{id}/cancel', [SurveyController::class, 'cancel'], ['auth', 'permission:survey.view']);
-$router->get('/surveys/{id}', [SurveyController::class, 'show'], ['auth', 'permission:survey.view']);
+$router->post('/surveys/{id}/report/review', [SurveyController::class, 'reviewReport'], ['auth', 'area:survey', 'permission:survey.view']);
+$router->post('/surveys/{id}/reschedule', [SurveyController::class, 'reschedule'], ['auth', 'area:survey', 'permission:survey.view']);
+$router->post('/surveys/{id}/cancel', [SurveyController::class, 'cancel'], ['auth', 'area:survey', 'permission:survey.view']);
+$router->post('/surveys/{id}/notes', [SurveyController::class, 'addNote'], ['auth', 'area:survey', 'permission:survey.view']);
+$router->get('/surveys/{id}', [SurveyController::class, 'show'], ['auth', 'area:survey', 'permission:survey.view']);
 
 $router->get('/engineer', [EngineerController::class, 'index'], ['auth', 'permission:engineer.view']);
 $router->post('/engineer/{id}/accept', [EngineerController::class, 'accept'], ['auth', 'permission:engineer.view']);
@@ -121,6 +122,7 @@ $router->post('/engineer/{id}/documents/{docId}/delete', [EngineerController::cl
 $router->post('/engineer/{id}/result', [EngineerController::class, 'submitResult'], ['auth', 'permission:engineer.view']);
 $router->post('/engineer/{id}/return', [EngineerController::class, 'returnToSales'], ['auth', 'permission:engineer.view']);
 $router->post('/engineer/{id}/send-to-procurement', [EngineerController::class, 'sendToProcurement'], ['auth', 'permission:engineer.view']);
+$router->get('/engineer/{id}/survey-report', [EngineerController::class, 'surveyReport'], ['auth', 'permission:engineer.view']);
 $router->get('/engineer/{id}', [EngineerController::class, 'show'], ['auth', 'permission:engineer.view']);
 
 $router->get('/vendors', [VendorController::class, 'index'], ['auth', 'permission:vendor.manage']);
@@ -210,13 +212,13 @@ $router->get('/api/notifications', [NotificationApiController::class, 'index'], 
 $router->post('/api/notifications/read-all', [NotificationApiController::class, 'markAllRead'], ['auth']);
 $router->post('/api/notifications/{id}/read', [NotificationApiController::class, 'markRead'], ['auth']);
 
-$router->get('/api/leads/locate', [LeadApiController::class, 'locate'], ['auth', 'permission:lead.view']);
-$router->get('/api/leads/summary', [LeadApiController::class, 'summary'], ['auth', 'permission:lead.view']);
-$router->get('/api/leads/{id}/ping', [LeadApiController::class, 'ping'], ['auth', 'permission:lead.view']);
-$router->post('/api/leads/{id}/status', [LeadApiController::class, 'updateStatus'], ['auth', 'permission:lead.edit']);
-$router->post('/api/leads/{id}/priority', [LeadApiController::class, 'updatePriority'], ['auth', 'permission:lead.edit']);
-$router->post('/api/leads/{id}/assign', [LeadApiController::class, 'assign'], ['auth', 'permission:lead.assign']);
-$router->post('/api/leads/{id}/follow-up-date', [LeadApiController::class, 'updateFollowUpDate'], ['auth', 'permission:lead.edit']);
+$router->get('/api/leads/locate', [LeadApiController::class, 'locate'], ['auth', 'area:lead', 'permission:lead.view']);
+$router->get('/api/leads/summary', [LeadApiController::class, 'summary'], ['auth', 'area:lead', 'permission:lead.view']);
+$router->get('/api/leads/{id}/ping', [LeadApiController::class, 'ping'], ['auth', 'area:lead', 'permission:lead.view']);
+$router->post('/api/leads/{id}/status', [LeadApiController::class, 'updateStatus'], ['auth', 'area:lead', 'permission:lead.edit']);
+$router->post('/api/leads/{id}/priority', [LeadApiController::class, 'updatePriority'], ['auth', 'area:lead', 'permission:lead.edit']);
+$router->post('/api/leads/{id}/assign', [LeadApiController::class, 'assign'], ['auth', 'area:lead', 'permission:lead.assign']);
+$router->post('/api/leads/{id}/follow-up-date', [LeadApiController::class, 'updateFollowUpDate'], ['auth', 'area:lead', 'permission:lead.edit']);
 
 $router->get('/api/queue/summary', [QueueApiController::class, 'summary'], ['auth', 'permission:queue.view']);
 $router->get('/api/queue/{id}/ping', [QueueApiController::class, 'ping'], ['auth', 'permission:queue.view']);

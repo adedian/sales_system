@@ -93,7 +93,7 @@ $tiles = [
                     <tr>
                         <td class="mono"><?= e($p['prelim_code']) ?> <span class="text-muted small">v<?= (int) $p['version'] ?></span></td>
                         <td>
-                            <a href="<?= url('/leads/' . $p['lead_id']) ?>" class="mono d-block"><?= e($p['lead_code']) ?></a>
+                            <?= lead_link($p['lead_id'], e($p['lead_code']), 'mono d-block') ?>
                             <div class="user-cell-name"><?= e($p['customer_name']) ?></div>
                         </td>
                         <td><span class="color-swatch color-swatch-<?= e($statusMap[$p['status']]['color'] ?? 'muted') ?>"><?= e($statusMap[$p['status']]['name'] ?? $p['status']) ?></span></td>

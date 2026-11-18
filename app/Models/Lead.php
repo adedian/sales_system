@@ -319,6 +319,13 @@ class Lead extends Model
             $params[] = $filters['status'];
         }
 
+        // Menu Sales "Ajukan Survey": lead aktif yang wajib Survey dan belum punya Survey berjalan/selesai.
+        if (($filters['survey'] ?? '') === 'none') {
+            $where[] = "(leads.survey_required = 1 AND leads.status NOT IN ('won','lost')
+                         AND NOT EXISTS (SELECT 1 FROM surveys sv WHERE sv.lead_id = leads.id AND sv.deleted_at IS NULL
+                                         AND sv.status IN ('requested','scheduled','in_progress','completed')))";
+        }
+
         if (!empty($filters['priority'])) {
             $where[] = 'leads.priority = ?';
             $params[] = $filters['priority'];

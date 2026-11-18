@@ -9,7 +9,7 @@ $notes = array_values(array_filter($timeline, fn ($e) => $e['type'] === 'note'))
         <div class="lead-code-eyebrow"><?= e($prelim['prelim_code']) ?> &middot; v<?= (int) $prelim['version'] ?></div>
         <h2><?= e($prelim['customer_name']) ?></h2>
         <p class="text-muted">
-            <a href="<?= url('/leads/' . $prelim['lead_id']) ?>"><?= e($prelim['lead_code']) ?></a>
+            <?= lead_link($prelim['lead_id'], e($prelim['lead_code']), '') ?>
             &middot; <?= e($prelim['company_name'] ?: 'Tanpa perusahaan') ?>
         </p>
     </div>
@@ -201,7 +201,7 @@ $notes = array_values(array_filter($timeline, fn ($e) => $e['type'] === 'note'))
                 <?php if ($prelim['status'] === 'approved'): ?>
                 <hr>
                 <div class="badge-pill badge-pill-emerald"><i class="bi bi-flag me-1"></i>Prelim disetujui (ACC) &mdash; lanjut ke Sales Engineer/Engineer</div>
-                <p class="text-muted small mt-2 mb-0"><a href="<?= url('/leads/' . $prelim['lead_id']) ?>">Buka Lead</a> untuk meminta assignment Sales Engineer/Engineer.</p>
+                <p class="text-muted small mt-2 mb-0"><?= lead_link($prelim['lead_id'], 'Buka Lead') ?> untuk meminta assignment Sales Engineer/Engineer.</p>
                 <?php endif; ?>
             </div>
         </div>

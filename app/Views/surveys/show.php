@@ -10,7 +10,7 @@ $late = $open && $survey['scheduled_date'] && $survey['scheduled_date'] < $today
     <div>
         <h2><?= e($survey['survey_code']) ?> <span class="color-swatch color-swatch-<?= e($st['color']) ?> fs-6 align-middle"><?= e($st['name']) ?></span></h2>
         <p class="text-muted mb-0">
-            <a href="<?= url('/leads/' . $survey['lead_id']) ?>" class="mono"><?= e($survey['lead_code']) ?></a> · <?= e($survey['customer_name']) ?>
+            <?= lead_link($survey['lead_id'], e($survey['lead_code']), 'mono') ?> · <?= e($survey['customer_name']) ?>
             <?= $survey['company_name'] ? ' · ' . e($survey['company_name']) : '' ?>
         </p>
     </div>
@@ -25,13 +25,15 @@ $late = $open && $survey['scheduled_date'] && $survey['scheduled_date'] < $today
             <h3 class="detail-section-title">Informasi Survey</h3>
             <div class="info-grid">
                 <div class="info-item"><span class="info-item-label">Customer</span><span class="info-item-value"><?= e($survey['customer_name']) ?></span></div>
+                <?php if ($canSeeContact): ?>
                 <div class="info-item"><span class="info-item-label">Telepon</span><span class="info-item-value"><?= e($survey['lead_phone'] ?: '-') ?></span></div>
-                <div class="info-item"><span class="info-item-label">Lokasi</span><span class="info-item-value"><?= e($survey['site_location'] ?: '-') ?></span></div>
+                <?php endif; ?>
+                <div class="info-item"><span class="info-item-label">Lokasi</span><span class="info-item-value"><?= e($survey['location'] ?: ($survey['site_location'] ?: '-')) ?></span></div>
                 <div class="info-item"><span class="info-item-label">Alamat</span><span class="info-item-value"><?= e($survey['lead_address'] ?: '-') ?>
                     <?php if (!empty($survey['maps_url'])): ?> <a href="<?= e($survey['maps_url']) ?>" target="_blank" rel="noopener" class="small">Buka peta</a><?php endif; ?></span></div>
                 <div class="info-item"><span class="info-item-label">Jadwal Survey</span><span class="info-item-value"><?= e(format_date($survey['scheduled_date'])) ?><?= $late ? ' <span class="badge text-bg-danger">Terlambat</span>' : '' ?></span></div>
-                <div class="info-item"><span class="info-item-label">Surveyor</span><span class="info-item-value"><?= e($survey['surveyor_name'] ?? '-') ?></span></div>
-                <div class="info-item"><span class="info-item-label">Sales</span><span class="info-item-value"><?= e($survey['sales_name'] ?? '-') ?></span></div>
+                <div class="info-item"><span class="info-item-label">Surveyor (penanggung jawab)</span><span class="info-item-value"><?= e($survey['surveyor_name'] ?? '-') ?></span></div>
+                <div class="info-item"><span class="info-item-label">Sales pemilik Lead (pemantau)</span><span class="info-item-value"><?= e($survey['owner_sales_name'] ?? $survey['sales_name'] ?? '-') ?></span></div>
                 <div class="info-item"><span class="info-item-label">Diajukan oleh</span><span class="info-item-value"><?= e($survey['requested_by_name'] ?? '-') ?> · <?= e(format_datetime($survey['created_at'])) ?></span></div>
                 <?php if ($survey['started_at']): ?><div class="info-item"><span class="info-item-label">Mulai</span><span class="info-item-value"><?= e(format_datetime($survey['started_at'])) ?></span></div><?php endif; ?>
                 <?php if ($survey['completed_at']): ?><div class="info-item"><span class="info-item-label">Selesai</span><span class="info-item-value"><?= e(format_datetime($survey['completed_at'])) ?></span></div><?php endif; ?>
@@ -41,7 +43,7 @@ $late = $open && $survey['scheduled_date'] && $survey['scheduled_date'] < $today
                 <p class="mb-0"><?= nl2br(e($survey['request_notes'])) ?></p>
             <?php endif; ?>
             <?php if (!empty($participants)): ?>
-                <p class="mt-3 mb-1 text-muted small text-uppercase">Pihak yang dilibatkan</p>
+                <p class="mt-3 mb-1 text-muted small text-uppercase">Engineer pendukung</p>
                 <div class="d-flex flex-wrap gap-2">
                     <?php foreach ($participants as $p): ?>
                         <span class="color-swatch color-swatch-primary"><?= e($p['user_name']) ?> · <?= e(Survey::PARTICIPANT_ROLES[$p['role']] ?? $p['role']) ?></span>
@@ -114,21 +116,34 @@ $late = $open && $survey['scheduled_date'] && $survey['scheduled_date'] < $today
         </div>
         <?php endif; ?>
 
-        <div class="detail-section">
+        <div class="detail-section" id="activity-section">
             <h3 class="detail-section-title">Riwayat Aktivitas</h3>
+            <?php if ($canNote): ?>
+            <form method="POST" action="<?= url('/surveys/' . $survey['id'] . '/notes') ?>" class="mb-3">
+                <?= csrf_field() ?>
+                <label class="form-label small" for="survey_note">Catatan / tindak lanjut Sales</label>
+                <textarea class="form-control mb-2" id="survey_note" name="notes" rows="2" maxlength="2000" required placeholder="Mis. konfirmasi akses lokasi, permintaan data tambahan, tindak lanjut ke customer..."></textarea>
+                <button type="submit" class="btn btn-light btn-sm"><i class="bi bi-chat-left-text me-1"></i>Tambah Catatan</button>
+            </form>
+            <?php endif; ?>
             <?php if (empty($history)): ?>
                 <p class="text-muted mb-0">Belum ada riwayat.</p>
             <?php else: ?>
             <ul class="timeline-list list-unstyled mb-0">
                 <?php foreach ($history as $h): ?>
                     <?php
+                    $isNote = $h['entity'] === 'note';
                     $meta = $h['entity'] === 'report' ? Survey::REPORT_META : Survey::STATUS_META;
                     $fromLabel = $h['from_status'] ? ($meta[$h['from_status']]['name'] ?? $h['from_status']) : null;
                     $toLabel = $meta[$h['to_status']]['name'] ?? $h['to_status'];
                     ?>
                     <li class="mb-3">
+                        <?php if ($isNote): ?>
+                        <strong>Catatan Sales</strong>
+                        <?php else: ?>
                         <strong><?= $h['entity'] === 'report' ? 'Laporan' : 'Survey' ?>:</strong>
                         <?= $fromLabel && $fromLabel !== $toLabel ? e($fromLabel) . ' → ' : '' ?><?= e($toLabel) ?>
+                        <?php endif; ?>
                         <?php if ($h['notes']): ?><div class="text-muted small"><?= nl2br(e($h['notes'])) ?></div><?php endif; ?>
                         <div class="text-muted small"><?= e($h['changed_by_name'] ?? 'Sistem') ?> · <?= e(format_datetime($h['created_at'])) ?></div>
                     </li>

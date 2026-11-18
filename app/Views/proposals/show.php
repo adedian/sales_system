@@ -14,7 +14,7 @@ $notes = array_values(array_filter($timeline, fn ($e) => $e['type'] === 'note'))
         </div>
         <h2><?= e($proposal['customer_name']) ?></h2>
         <p class="text-muted">
-            <a href="<?= url('/leads/' . $proposal['lead_id']) ?>"><?= e($proposal['lead_code']) ?></a>
+            <?= lead_link($proposal['lead_id'], e($proposal['lead_code']), '') ?>
             &middot; <?= e($proposal['company_name'] ?: 'Tanpa perusahaan') ?>
             <?php if ($proposal['procurement_request_code']): ?>
             &middot; dari <a href="<?= url('/procurement/' . $proposal['procurement_request_id']) ?>"><?= e($proposal['procurement_request_code']) ?></a>

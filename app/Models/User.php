@@ -50,6 +50,53 @@ class User extends Model
     }
 
     /**
+     * Calon petugas Survey (pilihan di form pengajuan Survey dan validasi backend):
+     * pemegang role $roleSlug ('surveyor' atau 'engineer') yang aktif dan TIDAK
+     * memiliki role Sales Engineer. Sales Engineer tidak pernah menjadi petugas
+     * Survey, baik sebagai Surveyor maupun personel pendukung.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public static function surveyStaff(string $roleSlug): array
+    {
+        if (!in_array($roleSlug, ['surveyor', 'engineer'], true)) {
+            throw new \InvalidArgumentException("Role petugas Survey tidak dikenal: {$roleSlug}");
+        }
+
+        return Database::fetchAll(
+            "SELECT users.* FROM users
+             WHERE users.is_active = 1 AND users.deleted_at IS NULL
+               AND EXISTS (SELECT 1 FROM user_roles ur INNER JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = users.id AND r.slug = ?)
+               AND NOT EXISTS (SELECT 1 FROM user_roles ur INNER JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = users.id AND r.slug = 'sales-engineer')
+             ORDER BY users.name ASC",
+            [$roleSlug]
+        );
+    }
+
+    /** Pengguna ini boleh dipilih sebagai petugas Survey dengan role $roleSlug ('surveyor'/'engineer')? */
+    public static function isSurveyStaff(int $userId, string $roleSlug): bool
+    {
+        foreach (self::surveyStaff($roleSlug) as $row) {
+            if ((int) $row['id'] === $userId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Pengguna memiliki penugasan Survey sebagai personel pendukung (menentukan tampilnya menu Dukungan Survey). */
+    public static function hasSurveySupportAssignment(int $userId): bool
+    {
+        return Database::fetch(
+            'SELECT sp.id FROM survey_participants sp
+             INNER JOIN surveys s ON s.id = sp.survey_id AND s.deleted_at IS NULL
+             WHERE sp.user_id = ? LIMIT 1',
+            [$userId]
+        ) !== null;
+    }
+
+    /**
      * Revisi Sub-Fase 1 — same capability-flag pattern as Estimator/Surveyor
      * above (a user keeps their normal login role and can additionally be
      * flagged available for one or more of these).

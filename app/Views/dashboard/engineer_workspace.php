@@ -68,7 +68,7 @@ $firstName = explode(' ', auth_user()['name'] ?? '')[0] ?? '';
                             <tr>
                                 <td class="mono"><?= e($a['assignment_code']) ?></td>
                                 <td>
-                                    <a href="<?= url('/leads/' . $a['lead_id']) ?>" class="mono d-block"><?= e($a['lead_code']) ?></a>
+                                    <?= lead_link($a['lead_id'], e($a['lead_code']), 'mono d-block') ?>
                                     <div class="user-cell-name"><?= e($a['customer_name']) ?></div>
                                 </td>
                                 <td><span class="color-swatch color-swatch-<?= e($statusMap[$a['status']]['color'] ?? 'muted') ?>"><?= e($statusMap[$a['status']]['name'] ?? $a['status']) ?></span></td>
@@ -83,6 +83,15 @@ $firstName = explode(' ', auth_user()['name'] ?? '')[0] ?? '';
                 <?php endif; ?>
             </div>
         </div>
+        <?php if (!empty($supportSurveys)): ?>
+        <?php
+        $surveyTitle = 'Dukungan Survey (Penugasan Lapangan)';
+        $surveyEmpty = 'Belum ada penugasan dukungan Survey.';
+        $surveyRows = $supportSurveys;
+        $surveyAllUrl = '/surveys';
+        include __DIR__ . '/_survey_list.php';
+        ?>
+        <?php endif; ?>
     </div>
 
     <div class="col-12 col-xl-4">

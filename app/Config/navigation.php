@@ -26,6 +26,7 @@ return [
     ],
 
     // ------------------------------------------------------------------ SALES
+    // Lead Management HANYA ada di kelompok ini (role lain tidak punya menu Lead).
     [
         'section' => 'Sales',
         'jobs' => ['sales', 'admin_sales'],
@@ -34,30 +35,39 @@ return [
                 'title' => 'Lead Management', 'icon' => 'bi-person-lines-fill', 'perm' => 'lead.view',
                 'match' => '/leads',
                 'children' => [
-                    ['title' => 'Semua Lead', 'href' => '/leads', 'match' => '/leads', 'no_query' => 'status'],
+                    ['title' => 'Semua Lead Milik Saya', 'href' => '/leads', 'match' => '/leads', 'no_query' => ['status', 'simple_status', 'survey']],
                     ['title' => 'Lead Baru', 'href' => '/leads?status=new', 'match' => '/leads', 'query' => ['status' => 'new']],
-                    ['title' => 'Masuk Antrian', 'href' => '/leads?status=in_queue', 'match' => '/leads', 'query' => ['status' => 'in_queue']],
-                    ['title' => 'Perlu Follow Up', 'href' => '/leads?status=follow_up', 'match' => '/leads', 'query' => ['status' => 'follow_up']],
-                    ['title' => 'Lead Deal', 'href' => '/leads?status=won', 'match' => '/leads', 'query' => ['status' => 'won']],
-                    ['title' => 'Lead Cancel', 'href' => '/leads?status=lost', 'match' => '/leads', 'query' => ['status' => 'lost']],
+                    ['title' => 'Lead Aktif', 'href' => '/leads?simple_status=proses', 'match' => '/leads', 'query' => ['simple_status' => 'proses']],
+                    ['title' => 'Menunggu Tindak Lanjut', 'href' => '/leads?status=follow_up', 'match' => '/leads', 'query' => ['status' => 'follow_up']],
+                    ['title' => 'Deal', 'href' => '/leads?simple_status=deal', 'match' => '/leads', 'query' => ['simple_status' => 'deal']],
+                    ['title' => 'Cancel', 'href' => '/leads?simple_status=cancel', 'match' => '/leads', 'query' => ['simple_status' => 'cancel']],
                 ],
             ],
-            ['title' => 'Follow Up', 'href' => '/follow-ups', 'icon' => 'bi-telephone-outbound', 'match' => '/follow-ups', 'perm' => 'followup.view'],
-            ['title' => 'Antrian Sales', 'href' => '/queue', 'icon' => 'bi-list-ol', 'match' => '/queue', 'perm' => 'queue.view'],
-            ['title' => 'Survey Lapangan', 'href' => '/surveys', 'icon' => 'bi-geo-alt', 'match' => '/surveys', 'perm' => 'survey.view'],
             [
-                'title' => 'Penawaran', 'icon' => 'bi-file-earmark-text', 'match' => '/prelims',
+                'title' => 'Aktivitas Sales', 'icon' => 'bi-telephone-outbound', 'perm' => 'followup.view', 'match' => '/follow-ups',
                 'children' => [
-                    ['title' => 'Prelim', 'href' => '/prelims', 'match' => '/prelims', 'perm' => 'prelim.view'],
-                    ['title' => 'Proposal', 'href' => '/proposals', 'match' => '/proposals', 'no_query' => 'status', 'perm' => 'proposal.view'],
-                    ['title' => 'Negosiasi', 'href' => '/proposals?status=negotiation', 'match' => '/proposals', 'query' => ['status' => 'negotiation'], 'perm' => 'proposal.view'],
+                    ['title' => 'Follow Up', 'href' => '/follow-ups', 'match' => '/follow-ups'],
+                    ['title' => 'Riwayat Komunikasi', 'href' => '/follow-ups#riwayat', 'match' => '/follow-ups', 'never_active' => true],
                 ],
             ],
+            [
+                'title' => 'Pengajuan Survey', 'icon' => 'bi-geo-alt', 'perm' => 'survey.view', 'match' => '/surveys',
+                'children' => [
+                    ['title' => 'Ajukan Survey', 'href' => '/leads?survey=none', 'match' => '/leads', 'query' => ['survey' => 'none'], 'perm' => 'survey.request'],
+                    ['title' => 'Survey Berlangsung', 'href' => '/surveys?status=ongoing', 'match' => '/surveys', 'query' => ['status' => 'ongoing']],
+                    ['title' => 'Hasil Survey', 'href' => '/surveys?status=completed', 'match' => '/surveys', 'query' => ['status' => 'completed']],
+                    ['title' => 'Survey Report', 'href' => '/surveys?report_status=completed', 'match' => '/surveys', 'query' => ['report_status' => 'completed']],
+                ],
+            ],
+            ['title' => 'Prelim', 'href' => '/prelims', 'icon' => 'bi-file-earmark-richtext', 'match' => '/prelims', 'perm' => 'prelim.view'],
+            ['title' => 'Proposal', 'href' => '/proposals', 'icon' => 'bi-file-earmark-text', 'match' => '/proposals', 'no_query' => 'status', 'perm' => 'proposal.view'],
+            ['title' => 'Negosiasi', 'href' => '/proposals?status=negotiation', 'icon' => 'bi-chat-left-dots', 'match' => '/proposals', 'query' => ['status' => 'negotiation'], 'perm' => 'proposal.view'],
             ['title' => 'Laporan Sales', 'href' => '/reports', 'icon' => 'bi-graph-up-arrow', 'match' => '/reports', 'perm' => 'report.view'],
         ],
     ],
 
     // --------------------------------------------------------- SALES ENGINEER
+    // Tanpa menu Survey dan Lead Management: mulai bekerja setelah Survey + Survey Report selesai.
     [
         'section' => 'Sales Engineer',
         'jobs' => ['sales_engineer'],
@@ -68,20 +78,19 @@ return [
                     ['title' => 'Semua Tugas', 'href' => '/engineer', 'match' => '/engineer', 'no_query' => 'status'],
                     ['title' => 'Tugas Baru', 'href' => '/engineer?status=pending', 'match' => '/engineer', 'query' => ['status' => 'pending']],
                     ['title' => 'Sedang Dikerjakan', 'href' => '/engineer?status=in_progress', 'match' => '/engineer', 'query' => ['status' => 'in_progress']],
-                    ['title' => 'Menunggu', 'href' => '/engineer?status=waiting', 'match' => '/engineer', 'query' => ['status' => 'waiting']],
+                    ['title' => 'Menunggu Review', 'href' => '/engineer?status=waiting', 'match' => '/engineer', 'query' => ['status' => 'waiting']],
                     ['title' => 'Selesai', 'href' => '/engineer?status=completed', 'match' => '/engineer', 'query' => ['status' => 'completed']],
                 ],
             ],
-            ['title' => 'Survey (Dilibatkan)', 'href' => '/surveys', 'icon' => 'bi-geo-alt', 'match' => '/surveys', 'perm' => 'survey.view'],
             [
                 'title' => 'Pembuatan Proposal', 'icon' => 'bi-file-earmark-text', 'perm' => 'proposal.view', 'match' => '/proposals',
                 'children' => [
                     ['title' => 'Semua Proposal', 'href' => '/proposals', 'match' => '/proposals', 'no_query' => 'status'],
                     ['title' => 'Draft', 'href' => '/proposals?status=draft', 'match' => '/proposals', 'query' => ['status' => 'draft']],
-                    ['title' => 'Revisi Proposal', 'href' => '/proposals?status=revision', 'match' => '/proposals', 'query' => ['status' => 'revision']],
                 ],
             ],
-            ['title' => 'Data Lead', 'href' => '/leads', 'icon' => 'bi-person-lines-fill', 'match' => '/leads', 'perm' => 'lead.view'],
+            ['title' => 'Revisi Proposal', 'href' => '/proposals?status=revision', 'icon' => 'bi-arrow-repeat', 'match' => '/proposals', 'query' => ['status' => 'revision'], 'perm' => 'proposal.view'],
+            ['title' => 'Riwayat Pekerjaan', 'href' => '/engineer?status=completed&include_closed=1', 'icon' => 'bi-clock-history', 'match' => '/engineer', 'query' => ['include_closed' => '1'], 'perm' => 'engineer.view'],
         ],
     ],
 
@@ -96,12 +105,20 @@ return [
                     ['title' => 'Semua Tugas', 'href' => '/engineer', 'match' => '/engineer', 'no_query' => 'status'],
                     ['title' => 'Tugas Baru', 'href' => '/engineer?status=pending', 'match' => '/engineer', 'query' => ['status' => 'pending']],
                     ['title' => 'Sedang Dikerjakan', 'href' => '/engineer?status=in_progress', 'match' => '/engineer', 'query' => ['status' => 'in_progress']],
-                    ['title' => 'Menunggu', 'href' => '/engineer?status=waiting', 'match' => '/engineer', 'query' => ['status' => 'waiting']],
+                    ['title' => 'Menunggu Review', 'href' => '/engineer?status=waiting', 'match' => '/engineer', 'query' => ['status' => 'waiting']],
                     ['title' => 'Selesai', 'href' => '/engineer?status=completed', 'match' => '/engineer', 'query' => ['status' => 'completed']],
                 ],
             ],
-            ['title' => 'Survey (Dilibatkan)', 'href' => '/surveys', 'icon' => 'bi-geo-alt', 'match' => '/surveys', 'perm' => 'survey.view'],
-            ['title' => 'Data Lead', 'href' => '/leads', 'icon' => 'bi-person-lines-fill', 'match' => '/leads', 'perm' => 'lead.view'],
+            // Hanya muncul bagi Engineer yang ditugaskan pada Survey tertentu (when = survey_support).
+            [
+                'title' => 'Dukungan Survey', 'icon' => 'bi-geo-alt', 'perm' => 'survey.view', 'when' => 'survey_support', 'match' => '/surveys',
+                'children' => [
+                    ['title' => 'Penugasan Lapangan', 'href' => '/surveys', 'match' => '/surveys', 'no_query' => ['status', 'report_status']],
+                    ['title' => 'Jadwal Penugasan', 'href' => '/surveys?status=scheduled', 'match' => '/surveys', 'query' => ['status' => 'scheduled']],
+                    ['title' => 'Hasil Pemeriksaan Teknis', 'href' => '/surveys?report_status=pending_review', 'match' => '/surveys', 'query' => ['report_status' => 'pending_review']],
+                ],
+            ],
+            ['title' => 'Riwayat Pekerjaan', 'href' => '/engineer?status=completed&include_closed=1', 'icon' => 'bi-clock-history', 'match' => '/engineer', 'query' => ['include_closed' => '1'], 'perm' => 'engineer.view'],
         ],
     ],
 
@@ -122,15 +139,13 @@ return [
             [
                 'title' => 'Survey Report', 'icon' => 'bi-file-earmark-bar-graph', 'perm' => 'survey.view', 'match' => '/surveys',
                 'children' => [
-                    ['title' => 'Draft', 'href' => '/surveys?report_status=draft', 'match' => '/surveys', 'query' => ['report_status' => 'draft']],
+                    ['title' => 'Buat / Draft', 'href' => '/surveys?report_status=draft', 'match' => '/surveys', 'query' => ['report_status' => 'draft']],
                     ['title' => 'Menunggu Pemeriksaan', 'href' => '/surveys?report_status=pending_review', 'match' => '/surveys', 'query' => ['report_status' => 'pending_review']],
-                    ['title' => 'Perlu Revisi', 'href' => '/surveys?report_status=revision', 'match' => '/surveys', 'query' => ['report_status' => 'revision']],
+                    ['title' => 'Revisi', 'href' => '/surveys?report_status=revision', 'match' => '/surveys', 'query' => ['report_status' => 'revision']],
                     ['title' => 'Selesai', 'href' => '/surveys?report_status=completed', 'match' => '/surveys', 'query' => ['report_status' => 'completed']],
                 ],
             ],
             ['title' => 'Riwayat Survey', 'href' => '/surveys', 'icon' => 'bi-clock-history', 'match' => '/surveys', 'no_query' => ['status', 'report_status'], 'perm' => 'survey.view'],
-            ['title' => 'Antrian (alur lama)', 'href' => '/queue', 'icon' => 'bi-list-ol', 'match' => '/queue', 'perm' => 'queue.view'],
-            ['title' => 'Data Lead', 'href' => '/leads', 'icon' => 'bi-person-lines-fill', 'match' => '/leads', 'perm' => 'lead.view'],
         ],
     ],
 

@@ -17,7 +17,7 @@ $notes = array_values(array_filter($timeline, fn ($e) => $e['type'] === 'note'))
         </div>
         <h2><?= e($assignment['customer_name']) ?></h2>
         <p class="text-muted">
-            <a href="<?= url('/leads/' . $assignment['lead_id']) ?>"><?= e($assignment['lead_code']) ?></a>
+            <?= lead_link($assignment['lead_id'], e($assignment['lead_code']), '') ?>
             &middot; <?= e($assignment['company_name'] ?: 'Tanpa perusahaan') ?>
         </p>
     </div>
@@ -51,6 +51,22 @@ $notes = array_values(array_filter($timeline, fn ($e) => $e['type'] === 'note'))
                 <?php endif; ?>
             </div>
         </div>
+
+        <?php if (!empty($surveyReference)): ?>
+        <div class="card card-elevated mt-3">
+            <div class="card-header"><h3>Referensi Hasil Survey</h3></div>
+            <div class="card-body">
+                <p class="text-muted small">Survey dan Survey Report lead ini sudah selesai. Dokumen ini hanya referensi untuk pekerjaan teknis Anda.</p>
+                <dl class="lead-dl">
+                    <dt>Survey</dt><dd class="mono"><?= e($surveyReference['survey_code']) ?></dd>
+                    <dt>Surveyor</dt><dd><?= e($surveyReference['surveyor_name'] ?? '-') ?></dd>
+                    <dt>Tanggal Survey</dt><dd><?= e(format_date($surveyReference['scheduled_date'])) ?></dd>
+                    <dt>Lokasi</dt><dd><?= e($surveyReference['location'] ?: ($surveyReference['site_location'] ?: '-')) ?></dd>
+                </dl>
+                <a href="<?= url('/engineer/' . $assignment['id'] . '/survey-report') ?>" target="_blank" class="btn btn-light btn-sm"><i class="bi bi-file-earmark-pdf me-1"></i>Buka Survey Report (PDF)</a>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <div class="card card-elevated mt-3">
             <div class="card-header"><h3>Hasil Analisa / Result</h3></div>

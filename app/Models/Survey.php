@@ -38,9 +38,12 @@ class Survey extends Model
         'completed' => ['name' => 'Selesai', 'color' => 'emerald'],
     ];
 
+    /**
+     * Personel pendukung Survey hanya Engineer (dipilih eksplisit oleh Sales).
+     * Sales pemilik Lead dicatat di surveys.owner_sales_id sebagai pengaju/pemantau,
+     * bukan petugas. Sales Engineer tidak pernah menjadi petugas Survey.
+     */
     public const PARTICIPANT_ROLES = [
-        'sales' => 'Sales',
-        'sales_engineer' => 'Sales Engineer',
         'engineer' => 'Engineer',
     ];
 
@@ -51,12 +54,14 @@ class Survey extends Model
                        leads.site_location, leads.address AS lead_address, leads.maps_url,
                        leads.sales_id AS lead_sales_id, leads.deleted_at AS lead_deleted_at,
                        sales.name AS sales_name,
+                       owner.name AS owner_sales_name,
                        surveyor.name AS surveyor_name,
                        requester.name AS requested_by_name,
                        sr.status AS report_status, sr.id AS report_id
                 FROM surveys
                 INNER JOIN leads ON leads.id = surveys.lead_id
                 LEFT JOIN users sales ON sales.id = leads.sales_id
+                LEFT JOIN users owner ON owner.id = surveys.owner_sales_id
                 LEFT JOIN users surveyor ON surveyor.id = surveys.surveyor_id
                 LEFT JOIN users requester ON requester.id = surveys.requested_by
                 LEFT JOIN survey_reports sr ON sr.survey_id = surveys.id";
@@ -163,7 +168,7 @@ class Survey extends Model
         }
 
         $uid = (int) $user['id'];
-        if ((int) ($survey['surveyor_id'] ?? 0) === $uid || (int) ($survey['requested_by'] ?? 0) === $uid) {
+        if ((int) ($survey['surveyor_id'] ?? 0) === $uid || (int) ($survey['requested_by'] ?? 0) === $uid || (int) ($survey['owner_sales_id'] ?? 0) === $uid) {
             return true;
         }
         if ((int) ($survey['lead_sales_id'] ?? 0) === $uid || LeadSales::isAssigned((int) $survey['lead_id'], $uid)) {
@@ -244,18 +249,22 @@ class Survey extends Model
             $params[] = (int) $f['scope_surveyor_id'];
         }
         if (!empty($f['scope_user_id'])) {
-            // Sales pemilik lead, pengaju, atau pihak yang dilibatkan.
-            $where[] = '(leads.sales_id = ? OR surveys.requested_by = ?
+            // Surveyor yang ditugaskan, Sales pemilik lead/pengaju, atau Engineer pendukung.
+            // (Surveyor yang juga Engineer/Sales tetap melihat Survey tugasnya.)
+            $where[] = '(surveys.surveyor_id = ? OR surveys.owner_sales_id = ? OR leads.sales_id = ? OR surveys.requested_by = ?
                          OR EXISTS (SELECT 1 FROM lead_sales ls WHERE ls.lead_id = leads.id AND ls.user_id = ?)
                          OR EXISTS (SELECT 1 FROM survey_participants sp WHERE sp.survey_id = surveys.id AND sp.user_id = ?))';
-            array_push($params, (int) $f['scope_user_id'], (int) $f['scope_user_id'], (int) $f['scope_user_id'], (int) $f['scope_user_id']);
+            array_push($params, ...array_fill(0, 6, (int) $f['scope_user_id']));
         }
         if (!empty($f['q'])) {
             $where[] = '(surveys.survey_code LIKE ? OR leads.lead_code LIKE ? OR leads.customer_name LIKE ? OR leads.company_name LIKE ?)';
             $like = '%' . $f['q'] . '%';
             array_push($params, $like, $like, $like, $like);
         }
-        if (!empty($f['status']) && isset(self::STATUS_META[$f['status']])) {
+        if (($f['status'] ?? '') === 'ongoing') {
+            // Pengelompokan menu Sales "Survey Berlangsung": sudah diajukan tetapi belum selesai.
+            $where[] = "surveys.status IN ('requested','scheduled','in_progress')";
+        } elseif (!empty($f['status']) && isset(self::STATUS_META[$f['status']])) {
             $where[] = 'surveys.status = ?';
             $params[] = $f['status'];
         }
@@ -312,6 +321,20 @@ class Survey extends Model
         )['c'] ?? 0);
 
         return $out;
+    }
+
+    /** Survey aktif tempat pengguna ditugaskan sebagai Engineer pendukung (dashboard Engineer). */
+    public static function openForSupport(int $userId, int $limit = 6): array
+    {
+        $limit = max(1, $limit);
+
+        return Database::fetchAll(
+            self::baseSelect() . " WHERE surveys.deleted_at IS NULL AND leads.deleted_at IS NULL
+             AND EXISTS (SELECT 1 FROM survey_participants sp WHERE sp.survey_id = surveys.id AND sp.user_id = ?)
+             AND (surveys.status IN ('requested','scheduled','in_progress') OR sr.status IN ('draft','pending_review','revision'))
+             ORDER BY surveys.scheduled_date IS NULL, surveys.scheduled_date ASC, surveys.id DESC LIMIT {$limit}",
+            [$userId]
+        );
     }
 
     /** Survey terbuka milik Surveyor (untuk daftar di dashboard). */

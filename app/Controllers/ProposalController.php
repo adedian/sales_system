@@ -261,6 +261,13 @@ class ProposalController extends Controller
         // leads); Proposal+BOQ is mandated to start only after Client ACC
         // Prelim, same gate as EngineerController::requestAssignment() and
         // ProcurementController::requestFromLead().
+        if (($surveyBlock = \App\Models\Survey::prelimBlocker($lead)) !== null) {
+            Session::flash('error', 'Proposal belum bisa dibuat. ' . $surveyBlock);
+            $this->redirect('/leads/' . $lead['id']);
+
+            return;
+        }
+
         if (!Prelim::hasApprovedForLead((int) $lead['id'])) {
             Session::flash('error', 'Proposal belum bisa dibuat karena Prelim belum di-ACC oleh Client.');
             $this->redirect('/leads/' . $lead['id']);
@@ -1168,7 +1175,10 @@ HTML;
             $this->abort(404);
         }
 
-        if (Acl::scoped('sales') && (int) $proposal['sales_id'] !== Auth::id()) {
+        // Sales dibatasi ke proposal miliknya. Pemegang izin approval (Direktur, mis. Pak Ronny yang
+        // juga Sales) tetap dapat membuka proposal yang sudah masuk review internal untuk disetujui.
+        if (Acl::scoped('sales') && (int) $proposal['sales_id'] !== Auth::id()
+            && !(Acl::can('proposal.approve') && $proposal['status'] !== 'draft')) {
             $this->abort(403, 'Anda hanya dapat mengakses proposal milik Anda sendiri.');
         }
         if (Acl::requiresInvolvement() && !\App\Models\Lead::userInvolved((int) $proposal['lead_id'], (int) Auth::id())) {
@@ -1214,7 +1224,7 @@ HTML;
     private function scopeFilters(): array
     {
         if (Acl::scoped('sales')) {
-            return ['scope_sales_id' => Auth::id()];
+            return ['scope_sales_id' => Auth::id(), 'scope_approver_review' => Acl::can('proposal.approve')];
         }
         if (Acl::requiresInvolvement()) {
             return ['scope_involved_user_id' => Auth::id()];

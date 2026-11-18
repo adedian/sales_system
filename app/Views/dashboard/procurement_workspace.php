@@ -68,7 +68,7 @@ $firstName = explode(' ', auth_user()['name'] ?? '')[0] ?? '';
                             <tr>
                                 <td class="mono"><?= e($r['request_code']) ?></td>
                                 <td>
-                                    <a href="<?= url('/leads/' . $r['lead_id']) ?>" class="mono d-block"><?= e($r['lead_code']) ?></a>
+                                    <?= lead_link($r['lead_id'], e($r['lead_code']), 'mono d-block') ?>
                                     <div class="user-cell-name"><?= e($r['customer_name']) ?></div>
                                 </td>
                                 <td><span class="color-swatch color-swatch-<?= e($statusMap[$r['status']]['color'] ?? 'muted') ?>"><?= e($statusMap[$r['status']]['name'] ?? $r['status']) ?></span></td>

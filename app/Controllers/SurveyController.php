@@ -41,14 +41,10 @@ class SurveyController extends Controller
             'page' => (int) $request->input('page', 1),
         ];
 
-        // Cakupan data: pengelola melihat semua; Surveyor hanya penugasannya;
-        // lainnya hanya Survey yang berkaitan dengan dirinya.
+        // Cakupan data: pengelola melihat semua; selain itu hanya Survey yang melibatkan
+        // dirinya (sebagai Surveyor, Sales pemilik/pengaju, atau Engineer pendukung).
         if (!Jobs::has('super_admin', 'admin_sales', 'manager')) {
-            if (Jobs::has('surveyor') && !Jobs::has('sales', 'sales_engineer', 'engineer')) {
-                $filters['scope_surveyor_id'] = (int) Auth::id();
-            } else {
-                $filters['scope_user_id'] = (int) Auth::id();
-            }
+            $filters['scope_user_id'] = (int) Auth::id();
         }
 
         $this->view('surveys/index', [
@@ -78,6 +74,8 @@ class SurveyController extends Controller
             'canWork' => $this->isAssignedSurveyor($survey),
             'canManage' => $this->canManageSurvey($survey),
             'canReview' => $this->canReviewReport($survey),
+            'canNote' => $this->canNoteSurvey($survey),
+            'canSeeContact' => $this->canSeeContact($survey),
             'today' => date('Y-m-d'),
             'viewer' => $user,
         ]);
@@ -110,10 +108,10 @@ class SurveyController extends Controller
             return;
         }
 
+        // Surveyor wajib dipilih; harus pemegang role Surveyor yang aktif dan bukan Sales Engineer.
         $surveyorId = (int) $request->input('surveyor_id', 0);
-        $surveyor = $surveyorId > 0 ? User::find($surveyorId) : null;
-        if ($surveyor === null || (int) $surveyor['is_surveyor'] !== 1 || (int) $surveyor['is_active'] !== 1) {
-            $this->fail($back, 'Pilih Surveyor yang aktif.');
+        if ($surveyorId <= 0 || !User::isSurveyStaff($surveyorId, 'surveyor')) {
+            $this->fail($back, 'Pilih Surveyor yang aktif. Sales Engineer tidak dapat dipilih sebagai Surveyor.');
 
             return;
         }
@@ -125,14 +123,24 @@ class SurveyController extends Controller
             return;
         }
 
-        $participants = $this->resolveParticipants((array) $request->input('participants', []), (int) $lead['id']);
+        // Engineer pendukung dipilih eksplisit; id yang bukan Engineer (mis. Sales Engineer) ditolak.
+        $participants = $this->resolveParticipants((array) $request->input('participants', []));
+        if ($participants === null) {
+            $this->fail($back, 'Personel pendukung Survey hanya boleh Engineer yang aktif. Sales Engineer tidak dapat dilibatkan dalam Survey.');
+
+            return;
+        }
         $actor = Auth::user();
+        $location = trim((string) ($lead['site_location'] ?: $lead['address'] ?: '')) ?: null;
         $now = date('Y-m-d H:i:s');
 
         $created = Survey::createForLead([
             'lead_id' => (int) $lead['id'],
             'surveyor_id' => $surveyorId,
             'requested_by' => (int) $actor['id'],
+            // Sales pemilik Lead dicatat sebagai pemantau Survey (BUKAN petugas Survey).
+            'owner_sales_id' => (int) $lead['sales_id'] > 0 ? (int) $lead['sales_id'] : null,
+            'location' => $location,
             'status' => 'requested',
             'scheduled_date' => $date,
             'request_notes' => trim((string) $request->input('request_notes', '')) ?: null,
@@ -143,11 +151,14 @@ class SurveyController extends Controller
         Survey::recordHistory($created['id'], 'survey', null, 'requested', (int) $actor['id'], 'Survey diajukan.');
         AuditLogger::log((int) $actor['id'], 'survey_requested', 'survey', $created['id'], null, [
             'survey_code' => $created['survey_code'], 'lead_code' => $lead['lead_code'], 'surveyor_id' => $surveyorId, 'scheduled_date' => $date,
+            'owner_sales_id' => $lead['sales_id'], 'engineer_ids' => array_keys($participants),
         ]);
 
         $survey = Survey::withRelations($created['id']);
         $this->notify([$surveyorId], 'survey_requested', 'Penugasan Survey baru', $survey, 'Anda ditugaskan melakukan Survey lapangan. Mohon terima atau tolak penugasan.');
-        $this->notify(array_keys($participants), 'survey_participant', 'Anda dilibatkan dalam Survey', $survey, 'Anda dilibatkan untuk mendukung kebutuhan teknis Survey.', (int) $actor['id']);
+        $this->notify(array_keys($participants), 'survey_participant', 'Anda dilibatkan dalam Survey', $survey, 'Anda dilibatkan sebagai Engineer pendukung pemeriksaan teknis lapangan.', (int) $actor['id']);
+        // Sales pemilik Lead (bila pengajuan dibuat pihak lain atas namanya) ikut diberi tahu.
+        $this->notify($this->salesRecipients($survey), 'survey_requested_owner', 'Survey diajukan untuk Lead Anda', $survey, 'Anda dapat memantau progres dan hasil Survey ini.');
 
         Session::flash('success', "Survey {$created['survey_code']} berhasil diajukan.");
         $this->redirect('/surveys/' . $created['id']);
@@ -231,6 +242,37 @@ class SurveyController extends Controller
 
         Session::flash('success', 'Jadwal Survey diperbarui.');
         $this->redirect($back);
+    }
+
+    /**
+     * Catatan/tindak lanjut Sales terhadap hasil Survey Lead-nya. Hanya mencatat ke riwayat
+     * (dan memberi tahu Surveyor); tidak mengubah isi teknis Survey maupun Survey Report.
+     */
+    public function addNote(Request $request, array $params): void
+    {
+        $survey = $this->findAuthorized((int) $params['id']);
+        $back = '/surveys/' . $survey['id'];
+        if (!$this->canNoteSurvey($survey)) {
+            $this->abort(403, 'Hanya Sales pemilik Lead yang dapat menambahkan catatan tindak lanjut.');
+
+            return;
+        }
+        $this->checkCsrf($back);
+
+        $text = trim((string) $request->input('notes', ''));
+        if ($text === '') {
+            $this->fail($back, 'Isi catatan wajib diisi.');
+
+            return;
+        }
+        $text = mb_substr($text, 0, 2000);
+
+        Survey::recordHistory((int) $survey['id'], 'note', null, 'note', (int) Auth::id(), $text);
+        AuditLogger::log((int) Auth::id(), 'survey_note_added', 'survey', (int) $survey['id'], null, ['notes' => $text]);
+        $this->notify([(int) $survey['surveyor_id']], 'survey_note', 'Catatan Sales pada Survey', $survey, 'Catatan: ' . $text);
+
+        Session::flash('success', 'Catatan ditambahkan.');
+        $this->redirect($back . '#activity-section');
     }
 
     public function cancel(Request $request, array $params): void
@@ -613,13 +655,13 @@ class SurveyController extends Controller
         }
         $uid = (int) Auth::id();
 
-        return Acl::can('survey.request') && ((int) $survey['lead_sales_id'] === $uid || LeadSales::isAssigned((int) $survey['lead_id'], $uid) || (int) $survey['requested_by'] === $uid);
+        return Acl::can('survey.request') && ((int) $survey['lead_sales_id'] === $uid || (int) ($survey['owner_sales_id'] ?? 0) === $uid || LeadSales::isAssigned((int) $survey['lead_id'], $uid) || (int) $survey['requested_by'] === $uid);
     }
 
     /**
-     * Pemeriksa Survey Report: pengelola (izin survey.review) atau Sales
-     * Engineer/Engineer yang DILIBATKAN pada Survey ini. Penentuan lewat job,
-     * karena Sales Engineer/Engineer sering berlogin dengan role "sales".
+     * Pemeriksa Survey Report: pengelola (izin survey.review) atau Engineer
+     * yang DITUGASKAN pada Survey ini. Sales Engineer bukan pemeriksa; Sales
+     * pemilik Lead hanya memantau dan tidak mengubah hasil teknis.
      */
     private function canReviewReport(array $survey): bool
     {
@@ -627,14 +669,33 @@ class SurveyController extends Controller
             return true;
         }
 
-        $isTechnical = Jobs::has('sales_engineer', 'engineer') || Acl::can('survey.review');
+        return Jobs::has('engineer') && Acl::can('survey.review') && Survey::isParticipant((int) $survey['id'], (int) Auth::id());
+    }
 
-        return $isTechnical && Survey::isParticipant((int) $survey['id'], (int) Auth::id());
+    /** Sales pemilik/pengaju (atau pengelola) boleh menambah catatan tindak lanjut pada Survey Lead-nya. */
+    private function canNoteSurvey(array $survey): bool
+    {
+        $uid = (int) Auth::id();
+
+        return $this->canManageSurvey($survey)
+            || (Jobs::has('sales') && ((int) ($survey['owner_sales_id'] ?? 0) === $uid || (int) $survey['lead_sales_id'] === $uid || LeadSales::isAssigned((int) $survey['lead_id'], $uid)));
+    }
+
+    /** Engineer pendukung hanya menerima informasi teknis; kontak customer disembunyikan darinya. */
+    private function canSeeContact(array $survey): bool
+    {
+        $uid = (int) Auth::id();
+        if (Jobs::has('super_admin', 'admin_sales', 'manager', 'sales')) {
+            return true;
+        }
+
+        return (int) $survey['surveyor_id'] === $uid || (int) $survey['requested_by'] === $uid;
     }
 
     private function ensureLeadAccess(array $lead): void
     {
-        if (Jobs::has('super_admin', 'admin_sales', 'manager')) {
+        // Mengajukan Survey untuk Lead milik Sales lain hanya dengan izin khusus (survey.manage).
+        if (Acl::can('survey.manage') && Jobs::has('super_admin', 'admin_sales', 'manager')) {
             return;
         }
         $uid = (int) Auth::id();
@@ -643,20 +704,24 @@ class SurveyController extends Controller
         }
     }
 
-    /** @return array<int,string> user_id => role */
-    private function resolveParticipants(array $ids, int $leadId): array
+    /**
+     * Engineer pendukung yang dipilih eksplisit. Mengembalikan null bila ada id yang bukan
+     * Engineer aktif (mis. Sales Engineer) sehingga pengajuan ditolak, bukan diam-diam dilewati.
+     *
+     * @return array<int,string>|null user_id => role
+     */
+    private function resolveParticipants(array $ids): ?array
     {
         $out = [];
         foreach ($ids as $id) {
-            $user = User::find((int) $id);
-            if ($user === null || (int) $user['is_active'] !== 1) {
+            $id = (int) $id;
+            if ($id <= 0) {
                 continue;
             }
-            if ((int) $user['is_sales_engineer'] === 1) {
-                $out[(int) $user['id']] = 'sales_engineer';
-            } elseif ((int) $user['is_engineer'] === 1) {
-                $out[(int) $user['id']] = 'engineer';
+            if (!User::isSurveyStaff($id, 'engineer')) {
+                return null;
             }
+            $out[$id] = 'engineer';
         }
 
         return $out;
@@ -692,7 +757,7 @@ class SurveyController extends Controller
     /** Sales pemilik lead + pengaju Survey (tanpa duplikat, tanpa pelaku). */
     private function salesRecipients(array $survey): array
     {
-        $ids = array_filter([(int) ($survey['lead_sales_id'] ?? 0), (int) ($survey['requested_by'] ?? 0)]);
+        $ids = array_filter([(int) ($survey['owner_sales_id'] ?? 0), (int) ($survey['lead_sales_id'] ?? 0), (int) ($survey['requested_by'] ?? 0)]);
         foreach (LeadSales::forLead((int) $survey['lead_id']) as $row) {
             $ids[] = (int) ($row['user_id'] ?? $row['id'] ?? 0);
         }
@@ -700,12 +765,12 @@ class SurveyController extends Controller
         return array_values(array_unique(array_filter($ids, fn ($id) => $id > 0 && $id !== (int) Auth::id())));
     }
 
-    /** Pemeriksa Survey Report: Sales Engineer/Engineer yang dilibatkan; bila tidak ada, pengelola. */
+    /** Pemeriksa Survey Report: Engineer yang ditugaskan pada Survey ini; bila tidak ada, pengelola. Tidak pernah seluruh Engineer. */
     private function reviewerRecipients(array $survey): array
     {
         $ids = [];
         foreach (Survey::participants((int) $survey['id']) as $p) {
-            if (in_array($p['role'], ['sales_engineer', 'engineer'], true)) {
+            if ($p['role'] === 'engineer') {
                 $ids[] = (int) $p['user_id'];
             }
         }

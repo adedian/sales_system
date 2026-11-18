@@ -95,7 +95,7 @@ $tiles = [
                     <tr>
                         <td class="mono"><?= e($p['proposal_code']) ?></td>
                         <td>
-                            <a href="<?= url('/leads/' . $p['lead_id']) ?>" class="mono d-block"><?= e($p['lead_code']) ?></a>
+                            <?= lead_link($p['lead_id'], e($p['lead_code']), 'mono d-block') ?>
                             <div class="user-cell-name"><?= e($p['customer_name']) ?></div>
                         </td>
                         <td>
