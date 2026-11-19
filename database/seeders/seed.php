@@ -61,6 +61,7 @@ $rolesDefinition = [
                 || str_starts_with($slug, 'procurement.')
                 || str_starts_with($slug, 'vendor.')
                 || str_starts_with($slug, 'product.')
+                || str_starts_with($slug, 'boq.')
                 || str_starts_with($slug, 'prelim.')
                 || (str_starts_with($slug, 'proposal.') && $slug !== 'proposal.approve')
                 || str_starts_with($slug, 'followup.')
@@ -88,12 +89,12 @@ $rolesDefinition = [
     'sales-engineer' => [
         'name' => 'Sales Engineer',
         'description' => 'Analisis kebutuhan, BOQ, dan pembuatan/revisi proposal',
-        'permissions' => ['dashboard.view', 'engineer.view', 'procurement.view', 'prelim.view', 'proposal.view', 'proposal.create', 'proposal.edit'],
+        'permissions' => ['dashboard.view', 'engineer.view', 'procurement.view', 'prelim.view', 'proposal.view', 'proposal.create', 'proposal.edit', 'boq.view', 'boq.calculate'],
     ],
     'engineer' => [
         'name' => 'Engineer',
         'description' => 'Analisis teknis, pemeriksaan, perhitungan sistem, dan spesifikasi',
-        'permissions' => ['dashboard.view', 'engineer.view', 'procurement.view', 'survey.view', 'survey.review'],
+        'permissions' => ['dashboard.view', 'engineer.view', 'procurement.view', 'survey.view', 'survey.review', 'boq.view', 'boq.calculate'],
     ],
     'surveyor' => [
         'name' => 'Surveyor',
@@ -103,12 +104,12 @@ $rolesDefinition = [
     'direktur' => [
         'name' => 'Direktur',
         'description' => 'Approval harga dan penawaran',
-        'permissions' => ['dashboard.view', 'survey.view', 'survey.review', 'engineer.view', 'prelim.view', 'proposal.view', 'proposal.approve', 'procurement.view', 'price.validate', 'followup.view', 'queue.view', 'report.view', 'report.export'],
+        'permissions' => ['dashboard.view', 'survey.view', 'survey.review', 'engineer.view', 'prelim.view', 'proposal.view', 'proposal.approve', 'procurement.view', 'price.validate', 'followup.view', 'queue.view', 'report.view', 'report.export', 'boq.view'],
     ],
     'procurement' => [
         'name' => 'Procurement',
         'description' => 'Mencari vendor, quotation, dan menentukan harga beli',
-        'permissions' => ['dashboard.view', 'procurement.view', 'vendor.manage', 'product.manage'],
+        'permissions' => ['dashboard.view', 'procurement.view', 'vendor.manage', 'product.manage', 'boq.view'],
     ],
     'manager' => [
         'name' => 'Manager/Supervisor',

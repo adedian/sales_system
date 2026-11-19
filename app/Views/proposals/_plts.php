@@ -123,3 +123,18 @@ $ro = $canOperate ? '' : 'disabled';
         });
     })();
 </script>
+<?php if ($pdfReady && ($_GET['plts_download'] ?? '') === '1'): ?>
+<script>
+    // PDF baru saja dibuat: unduh otomatis lewat iframe tersembunyi (halaman tidak berpindah), lalu bersihkan
+    // parameter agar refresh tidak mengunduh ulang.
+    (function () {
+        var frame = document.createElement('iframe');
+        frame.style.display = 'none';
+        frame.src = <?= json_encode(url('/proposals/' . $proposal['id'] . '/plts-pdf') . '?download=1', JSON_UNESCAPED_SLASHES) ?>;
+        document.body.appendChild(frame);
+        if (window.history && history.replaceState) {
+            history.replaceState(null, '', location.pathname + '#plts');
+        }
+    })();
+</script>
+<?php endif; ?>

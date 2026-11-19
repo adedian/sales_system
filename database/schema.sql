@@ -1314,3 +1314,43 @@ CREATE TABLE IF NOT EXISTS `user_roles` (
     CONSTRAINT `fk_user_roles_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_user_roles_role` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================================================
+-- Kalkulator BoQ On-Grid + Data Referensi BoQ (2026-11-19).
+-- Data katalog: php database/seeders/boq_reference.php. Izin boq.*: lihat
+-- app/Config/permissions.php + database/migrations/2026-11-19-boq-kalkulator.sql.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS `boq_ref_items` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `category` VARCHAR(30) NOT NULL,
+    `code` VARCHAR(150) NOT NULL,
+    `label` VARCHAR(255) NOT NULL,
+    `attrs` LONGTEXT NULL,
+    `sort_order` INT NOT NULL DEFAULT 0,
+    `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY `uq_boq_ref_category_code` (`category`, `code`),
+    KEY `idx_boq_ref_category_sort` (`category`, `sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `boq_calculations` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `engineer_assignment_id` INT UNSIGNED NOT NULL,
+    `lead_id` INT UNSIGNED NOT NULL,
+    `title` VARCHAR(200) NULL,
+    `inputs` LONGTEXT NOT NULL,
+    `result` LONGTEXT NULL,
+    `system_wp` DECIMAL(14,2) NULL,
+    `inverter_w` DECIMAL(14,2) NULL,
+    `dc_ac_ratio` DECIMAL(8,3) NULL,
+    `status` ENUM('draft','final') NOT NULL DEFAULT 'draft',
+    `created_by` INT UNSIGNED NULL,
+    `updated_by` INT UNSIGNED NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY `uq_boq_calc_assignment` (`engineer_assignment_id`),
+    KEY `idx_boq_calc_lead` (`lead_id`),
+    CONSTRAINT `fk_boq_calc_assignment` FOREIGN KEY (`engineer_assignment_id`) REFERENCES `engineer_assignments` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_boq_calc_lead` FOREIGN KEY (`lead_id`) REFERENCES `leads` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

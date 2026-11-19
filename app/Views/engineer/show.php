@@ -68,6 +68,25 @@ $notes = array_values(array_filter($timeline, fn ($e) => $e['type'] === 'note'))
         </div>
         <?php endif; ?>
 
+        <?php if (can('boq.view')): ?>
+        <div class="card card-elevated mt-3">
+            <div class="card-header"><h3>Kalkulator BoQ</h3></div>
+            <div class="card-body">
+                <?php if (!empty($boq)): $bs = $boq['result']['summary'] ?? []; ?>
+                    <p class="mb-2">
+                        <span class="badge-pill badge-pill-emerald"><i class="bi bi-check2-circle me-1"></i>BoQ tersimpan</span>
+                        <?= count($boq['result']['lines'] ?? []) ?> baris &middot; <?= e(rtrim(rtrim(number_format((float) ($bs['system_kwp'] ?? 0), 2, ',', '.'), '0'), ',')) ?> kWp
+                        <?php if (($bs['dc_ac_ratio'] ?? null) !== null): ?> &middot; DC/AC <?= e(number_format((float) $bs['dc_ac_ratio'], 2, ',', '.')) ?><?php endif; ?>
+                    </p>
+                    <p class="text-muted small">Terakhir dihitung <?= e(format_datetime($boq['updated_at'])) ?>. Saat tugas dikirim ke Procurement, baris BoQ ini disalin sebagai item permintaan harga.</p>
+                <?php else: ?>
+                    <p class="text-muted small">Hitung kebutuhan material On-Grid (modul, inverter, kabel AC/DC, skun, breaker, jasa) dengan rumus Excel BoQ. Hasilnya ikut ke Procurement saat tugas dikirim.</p>
+                <?php endif; ?>
+                <a href="<?= url('/engineer/' . $assignment['id'] . '/boq') ?>" class="btn btn-primary btn-sm"><i class="bi bi-calculator me-1"></i><?= !empty($boq) ? 'Buka Kalkulator BoQ' : 'Mulai Hitung BoQ' ?></a>
+            </div>
+        </div>
+        <?php endif; ?>
+
         <div class="card card-elevated mt-3">
             <div class="card-header"><h3>Hasil Analisa / Result</h3></div>
             <div class="card-body">

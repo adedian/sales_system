@@ -73,6 +73,11 @@ return [
         'survey.review' => 'Memeriksa dan menyelesaikan Survey Report',
         'survey.override' => 'Override gerbang Survey wajib (khusus Super Admin, dengan alasan)',
     ],
+    'boq' => [
+        'boq.view' => 'Melihat Kalkulator BoQ dan Data Referensi BoQ',
+        'boq.calculate' => 'Menjalankan dan menyimpan Kalkulator BoQ pada tugas teknis',
+        'boq.manage' => 'Mengelola Data Referensi BoQ (modul, inverter, breaker, kabel, tarif jasa)',
+    ],
     'price' => [
         'price.validate' => 'Memvalidasi harga dari Procurement (Direktur)',
     ],

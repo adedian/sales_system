@@ -90,6 +90,7 @@ return [
                 ],
             ],
             ['title' => 'Revisi Proposal', 'href' => '/proposals?status=revision', 'icon' => 'bi-arrow-repeat', 'match' => '/proposals', 'query' => ['status' => 'revision'], 'perm' => 'proposal.view'],
+            ['title' => 'Data Referensi BoQ', 'href' => '/boq/referensi', 'icon' => 'bi-journal-text', 'match' => '/boq', 'perm' => 'boq.view'],
             ['title' => 'Riwayat Pekerjaan', 'href' => '/engineer?status=completed&include_closed=1', 'icon' => 'bi-clock-history', 'match' => '/engineer', 'query' => ['include_closed' => '1'], 'perm' => 'engineer.view'],
         ],
     ],
@@ -118,6 +119,7 @@ return [
                     ['title' => 'Hasil Pemeriksaan Teknis', 'href' => '/surveys?report_status=pending_review', 'match' => '/surveys', 'query' => ['report_status' => 'pending_review']],
                 ],
             ],
+            ['title' => 'Data Referensi BoQ', 'href' => '/boq/referensi', 'icon' => 'bi-journal-text', 'match' => '/boq', 'perm' => 'boq.view'],
             ['title' => 'Riwayat Pekerjaan', 'href' => '/engineer?status=completed&include_closed=1', 'icon' => 'bi-clock-history', 'match' => '/engineer', 'query' => ['include_closed' => '1'], 'perm' => 'engineer.view'],
         ],
     ],
@@ -167,6 +169,7 @@ return [
             ],
             ['title' => 'Harga Vendor', 'href' => '/vendors', 'icon' => 'bi-building', 'match' => '/vendors', 'perm' => 'vendor.manage'],
             ['title' => 'Katalog Produk', 'href' => '/products', 'icon' => 'bi-box-seam', 'match' => '/products', 'perm' => 'product.manage'],
+            ['title' => 'Data Referensi BoQ', 'href' => '/boq/referensi', 'icon' => 'bi-journal-text', 'match' => '/boq', 'perm' => 'boq.view'],
         ],
     ],
 
@@ -204,6 +207,7 @@ return [
         'jobs' => ['super_admin', 'admin_sales'],
         'items' => [
             ['title' => 'Master Data', 'href' => '/master-data', 'icon' => 'bi-database-gear', 'match' => '/master-data', 'perm' => 'master_data.manage'],
+            ['title' => 'Data Referensi BoQ', 'href' => '/boq/referensi', 'icon' => 'bi-journal-text', 'match' => '/boq', 'perm' => 'boq.view'],
             ['title' => 'Pengguna', 'href' => '/users', 'icon' => 'bi-people-fill', 'match' => '/users', 'perm' => 'user.manage'],
             ['title' => 'Role & Hak Akses', 'href' => '/roles', 'icon' => 'bi-shield-lock-fill', 'match' => '/roles', 'perm' => 'user.manage'],
             ['title' => 'Pengaturan Sistem', 'href' => '/settings', 'icon' => 'bi-gear-fill', 'match' => '/settings', 'perm' => 'system.manage'],

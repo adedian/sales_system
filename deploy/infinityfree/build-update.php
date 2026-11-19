@@ -93,6 +93,16 @@ $sql .= "INSERT IGNORE INTO `role_permissions` (`role_id`, `permission_id`)\n"
 //    kolom surveys.owner_sales_id/location, yang tidak bisa dilakukan INSERT IGNORE.
 $sql .= "-- ==== 5. Pembagian tanggung jawab ====\n"
     . trim((string) file_get_contents($root . '/database/migrations/2026-11-18-pembagian-tanggung-jawab.sql')) . "\n\n";
+// 6) Kalkulator BoQ + Data Referensi BoQ (2026-11-19): tabel, izin boq.*, dan katalog dari Excel.
+//    Katalog dibuat ulang dari boq_reference.json supaya selalu sama dengan seeder lokal.
+passthru(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($root . '/tools/boq/build_reference_sql.php'), $rcRef);
+if ($rcRef !== 0) {
+    fwrite(STDERR, "Gagal membuat SQL data referensi BoQ.\n");
+    exit(1);
+}
+$sql .= "-- ==== 6. Kalkulator BoQ ====\n"
+    . trim((string) file_get_contents($root . '/database/migrations/2026-11-19-boq-kalkulator.sql')) . "\n\n"
+    . trim((string) file_get_contents($root . '/database/migrations/2026-11-19-boq-referensi-data.sql')) . "\n\n";
 $sql .= "-- ==== Selesai ====\n";
 file_put_contents($out . '/update.sql', $sql);
 echo 'update.sql OK (' . round(strlen($sql) / 1024) . " KB)\n";

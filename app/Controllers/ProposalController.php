@@ -409,8 +409,9 @@ class ProposalController extends Controller
         Proposal::update((int) $proposal['id'], ['plts_data' => json_encode($saved, JSON_UNESCAPED_UNICODE)]);
         AuditLogger::log((int) Auth::id(), 'proposal_plts_pdf_generated', 'proposal', (int) $proposal['id']);
 
-        Session::flash('success', 'PDF penawaran PLTS berhasil dibuat.');
-        $this->redirect($back);
+        Session::flash('success', 'PDF penawaran PLTS berhasil dibuat dan otomatis diunduh.');
+        // plts_download=1: halaman langsung memicu unduhan PDF yang baru dibuat (lihat script di proposals/_plts.php).
+        $this->redirect('/proposals/' . $proposal['id'] . '?plts_download=1#plts');
     }
 
     /** Tampilkan / unduh PDF penawaran PLTS yang terakhir dibuat. */

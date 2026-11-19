@@ -11,6 +11,7 @@ use App\Core\Request;
 use App\Core\Session;
 use App\Core\Validator;
 use App\Models\AuditLog;
+use App\Models\BoqCalculation;
 use App\Models\EngineerAssignment;
 use App\Models\EngineerAssignmentNote;
 use App\Models\EngineerAssignmentStatusHistory;
@@ -27,6 +28,7 @@ use App\Models\Survey;
 use App\Models\SurveyPhoto;
 use App\Models\SurveyReport;
 use App\Models\User;
+use App\Services\Boq\BoqProcurementSeeder;
 use App\Services\SurveyReportPdf;
 use App\Services\SurveyReportSchema;
 
@@ -98,6 +100,7 @@ class EngineerController extends Controller
             'procurementUsers' => ($id = $this->procurementRoleId()) ? User::activeByRole($id) : [],
             'activeProcurementRequest' => ProcurementRequest::activeForLead((int) $assignment['lead_id']),
             'surveyReference' => $this->surveyReferenceFor($assignment),
+            'boq' => Acl::can('boq.view') ? BoqCalculation::forAssignment((int) $assignment['id']) : null,
         ]);
     }
 
@@ -847,6 +850,13 @@ class EngineerController extends Controller
         ]);
 
         ProcurementStatusHistory::record($pr['id'], null, 'waiting', (int) $actor['id'], 'Request dibuat dari hasil Engineer.');
+
+        // Hasil Kalkulator BoQ (bila ada) disalin sebagai item Procurement; harga beli diisi Procurement.
+        $boqItems = BoqProcurementSeeder::copy((int) $assignment['id'], (int) $pr['id']);
+        if ($boqItems > 0) {
+            ProcurementStatusHistory::record($pr['id'], 'waiting', 'waiting', (int) $actor['id'], "{$boqItems} item BoQ disalin dari Kalkulator BoQ.");
+            AuditLogger::log((int) $actor['id'], 'boq_sent_to_procurement', 'procurement_request', $pr['id'], null, ['items' => $boqItems, 'assignment' => $assignment['assignment_code']]);
+        }
         AuditLogger::log((int) $actor['id'], 'procurement_requested', 'procurement_request', $pr['id'], null, [
             'request_code' => $pr['request_code'],
             'lead_code' => $assignment['lead_code'],
@@ -870,7 +880,7 @@ class EngineerController extends Controller
             '/procurement/' . $pr['id']
         );
 
-        Session::flash('success', "Request procurement {$pr['request_code']} berhasil dikirim.");
+        Session::flash('success', "Request procurement {$pr['request_code']} berhasil dikirim." . ($boqItems > 0 ? " {$boqItems} item BoQ ikut disalin." : ''));
         $this->redirect('/engineer/' . $assignment['id']);
     }
 

@@ -8,6 +8,8 @@ use App\Controllers\Api\ProcurementApiController;
 use App\Controllers\Api\ProposalApiController;
 use App\Controllers\Api\QueueApiController;
 use App\Controllers\AuthController;
+use App\Controllers\BoqController;
+use App\Controllers\BoqReferenceController;
 use App\Controllers\DashboardController;
 use App\Controllers\EngineerController;
 use App\Controllers\FollowUpController;
@@ -123,6 +125,20 @@ $router->post('/engineer/{id}/result', [EngineerController::class, 'submitResult
 $router->post('/engineer/{id}/return', [EngineerController::class, 'returnToSales'], ['auth', 'permission:engineer.view']);
 $router->post('/engineer/{id}/send-to-procurement', [EngineerController::class, 'sendToProcurement'], ['auth', 'permission:engineer.view']);
 $router->get('/engineer/{id}/survey-report', [EngineerController::class, 'surveyReport'], ['auth', 'permission:engineer.view']);
+// Kalkulator BoQ On-Grid per tugas teknis (port Excel "Detailed Calculation BoQ"); kepemilikan tugas divalidasi di BoqController.
+$router->get('/engineer/{id}/boq/export', [BoqController::class, 'export'], ['auth', 'permission:boq.view']);
+$router->post('/engineer/{id}/boq', [BoqController::class, 'calculate'], ['auth', 'permission:boq.calculate']);
+$router->get('/engineer/{id}/boq', [BoqController::class, 'show'], ['auth', 'permission:boq.view']);
+
+// Data Referensi BoQ (katalog dari Excel): lihat = boq.view, kelola = boq.manage.
+$router->get('/boq/referensi', [BoqReferenceController::class, 'index'], ['auth', 'permission:boq.view']);
+$router->get('/boq/referensi/{type}', [BoqReferenceController::class, 'list'], ['auth', 'permission:boq.view']);
+$router->get('/boq/referensi/{type}/create', [BoqReferenceController::class, 'create'], ['auth', 'permission:boq.manage']);
+$router->post('/boq/referensi/{type}', [BoqReferenceController::class, 'store'], ['auth', 'permission:boq.manage']);
+$router->get('/boq/referensi/{type}/{id}/edit', [BoqReferenceController::class, 'edit'], ['auth', 'permission:boq.manage']);
+$router->post('/boq/referensi/{type}/{id}/toggle-status', [BoqReferenceController::class, 'toggle'], ['auth', 'permission:boq.manage']);
+$router->post('/boq/referensi/{type}/{id}/delete', [BoqReferenceController::class, 'destroy'], ['auth', 'permission:boq.manage']);
+$router->post('/boq/referensi/{type}/{id}', [BoqReferenceController::class, 'update'], ['auth', 'permission:boq.manage']);
 $router->get('/engineer/{id}', [EngineerController::class, 'show'], ['auth', 'permission:engineer.view']);
 
 $router->get('/vendors', [VendorController::class, 'index'], ['auth', 'permission:vendor.manage']);
